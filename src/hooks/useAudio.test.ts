@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useAudio } from "./useAudio";
+import type { TrackInfo } from "./useAudio";
 
 // Mock gameStore
 vi.mock("../stores/gameStore", () => ({
@@ -10,6 +11,16 @@ vi.mock("../stores/gameStore", () => ({
       relistenCount: 0,
       incrementRelisten: vi.fn(),
     }),
+}));
+
+// Mock lrclib — returns empty danger zones by default
+vi.mock("../lib/lrclib", () => ({
+  fetchDangerZones: vi.fn().mockResolvedValue([]),
+}));
+
+// Mock clipSelector — returns 5 by default
+vi.mock("../engine/clipSelector", () => ({
+  selectClipStartWithFallback: vi.fn().mockReturnValue(5),
 }));
 
 // Mock AudioContext and related Web Audio API
@@ -39,6 +50,13 @@ vi.stubGlobal(
     currentTime: 0,
   })),
 );
+
+const mockTrackInfo: TrackInfo = {
+  title: "Enchanted (Taylor's Version)",
+  titleShort: "Enchanted",
+  artistName: "Taylor Swift",
+  songDurationSeconds: 319,
+};
 
 describe("useAudio", () => {
   beforeEach(() => {
@@ -80,7 +98,7 @@ describe("useAudio", () => {
     expect(result.current.progress).toBe(0);
   });
 
-  it("play sets loading to true then false", async () => {
+  it("play sets loading to true then false (without trackInfo)", async () => {
     const mockBuffer = { duration: 30 } as AudioBuffer;
     mockDecodeAudioData.mockResolvedValueOnce(mockBuffer);
     vi.stubGlobal(
@@ -124,5 +142,63 @@ describe("useAudio", () => {
 
     // stop() should have been called on the source from the first play
     expect(mockStop).toHaveBeenCalled();
+  });
+
+  it("play with trackInfo uses smart clip selection", async () => {
+    const { fetchDangerZones } = await import("../lib/lrclib");
+    const { selectClipStartWithFallback } = await import(
+      "../engine/clipSelector"
+    );
+
+    const mockBuffer = { duration: 30 } as AudioBuffer;
+    mockDecodeAudioData.mockResolvedValueOnce(mockBuffer);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      }),
+    );
+
+    const { result } = renderHook(() => useAudio());
+
+    await act(async () => {
+      await result.current.play(
+        "https://example.com/preview.mp3",
+        mockTrackInfo,
+      );
+    });
+
+    expect(fetchDangerZones).toHaveBeenCalledWith(
+      mockTrackInfo.title,
+      mockTrackInfo.artistName,
+      mockTrackInfo.titleShort,
+      mockTrackInfo.songDurationSeconds,
+    );
+    expect(selectClipStartWithFallback).toHaveBeenCalledWith(mockBuffer, []);
+  });
+
+  it("play without trackInfo does not call fetchDangerZones", async () => {
+    const { fetchDangerZones } = await import("../lib/lrclib");
+    const { selectClipStartWithFallback } = await import(
+      "../engine/clipSelector"
+    );
+
+    const mockBuffer = { duration: 30 } as AudioBuffer;
+    mockDecodeAudioData.mockResolvedValueOnce(mockBuffer);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(100)),
+      }),
+    );
+
+    const { result } = renderHook(() => useAudio());
+
+    await act(async () => {
+      await result.current.play("https://example.com/preview.mp3");
+    });
+
+    expect(fetchDangerZones).not.toHaveBeenCalled();
+    expect(selectClipStartWithFallback).not.toHaveBeenCalled();
   });
 });
