@@ -210,6 +210,7 @@ export function GameScreen() {
         <AudioPlayer
           previewUrl={currentTrack.preview}
           active={roundState === "playing"}
+          track={currentTrack}
         />
       </div>
 

@@ -1,15 +1,45 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAudio } from "../hooks/useAudio";
+import type { TrackInfo } from "../hooks/useAudio";
+import type { Track } from "../types";
 
 interface AudioPlayerProps {
   readonly previewUrl: string;
   readonly active: boolean;
+  readonly track?: Track;
   readonly onLoaded?: () => void;
 }
 
-export function AudioPlayer({ previewUrl, active, onLoaded }: AudioPlayerProps) {
-  const { playing, loading, progress, relistenStage, play, relisten, stop, reset } =
-    useAudio();
+function buildTrackInfo(track: Track): TrackInfo {
+  return {
+    title: track.title,
+    titleShort: track.titleShort,
+    artistName: track.artist.name,
+    songDurationSeconds: track.duration,
+  };
+}
+
+export function AudioPlayer({
+  previewUrl,
+  active,
+  track,
+  onLoaded,
+}: AudioPlayerProps) {
+  const {
+    playing,
+    loading,
+    progress,
+    relistenStage,
+    play,
+    relisten,
+    stop,
+    reset,
+  } = useAudio();
+
+  const trackInfo = useMemo(
+    () => (track ? buildTrackInfo(track) : undefined),
+    [track],
+  );
 
   // Store callbacks in refs to keep them out of effect deps
   const playRef = useRef(play);
@@ -20,11 +50,15 @@ export function AudioPlayer({ previewUrl, active, onLoaded }: AudioPlayerProps) 
   resetRef.current = reset;
   const onLoadedRef = useRef(onLoaded);
   onLoadedRef.current = onLoaded;
+  const trackInfoRef = useRef(trackInfo);
+  trackInfoRef.current = trackInfo;
 
   // Auto-play when previewUrl changes and active is true
   useEffect(() => {
     if (previewUrl && active) {
-      playRef.current(previewUrl).then(() => onLoadedRef.current?.());
+      playRef
+        .current(previewUrl, trackInfoRef.current)
+        .then(() => onLoadedRef.current?.());
     }
     return () => {
       stopRef.current();
@@ -39,7 +73,7 @@ export function AudioPlayer({ previewUrl, active, onLoaded }: AudioPlayerProps) 
   }, [active]);
 
   const handlePlay = async () => {
-    await play(previewUrl);
+    await play(previewUrl, trackInfo);
     onLoaded?.();
   };
 
