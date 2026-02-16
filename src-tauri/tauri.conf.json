@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; media-src https://cdns-preview-*.dzcdn.net https://cdnt-preview.dzcdn.net; connect-src ipc: http://ipc.localhost https://cdns-preview-*.dzcdn.net https://cdnt-preview.dzcdn.net; img-src 'self' https://api.deezer.com https://cdns-images.dzcdn.net https://e-cdns-images.dzcdn.net",
+      "csp": "default-src 'self'; media-src https://cdns-preview-*.dzcdn.net https://cdnt-preview.dzcdn.net; connect-src ipc: http://ipc.localhost https://cdns-preview-*.dzcdn.net https://cdnt-preview.dzcdn.net; img-src 'self' https://api.deezer.com https://*.dzcdn.net",
       "dangerousDisableAssetCspModification": false
     }
   },
