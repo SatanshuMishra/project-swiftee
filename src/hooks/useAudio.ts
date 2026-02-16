@@ -1,12 +1,21 @@
 import { useCallback, useRef, useState } from "react";
 import { useGameStore } from "../stores/gameStore";
+import { fetchDangerZones } from "../lib/lrclib";
+import { selectClipStartWithFallback } from "../engine/clipSelector";
+
+export interface TrackInfo {
+  readonly title: string;
+  readonly titleShort: string;
+  readonly artistName: string;
+  readonly songDurationSeconds: number;
+}
 
 interface UseAudioResult {
   readonly playing: boolean;
   readonly loading: boolean;
   readonly progress: number;
   readonly relistenStage: number;
-  readonly play: (previewUrl: string) => Promise<void>;
+  readonly play: (previewUrl: string, trackInfo?: TrackInfo) => Promise<void>;
   readonly relisten: () => void;
   readonly stop: () => void;
   readonly reset: () => void;
@@ -114,11 +123,21 @@ export function useAudio(): UseAudioResult {
   );
 
   const play = useCallback(
-    async (previewUrl: string) => {
+    async (previewUrl: string, trackInfo?: TrackInfo) => {
       // Stop any current playback before starting async work
       stopPlayback();
       playVersionRef.current += 1;
       const version = playVersionRef.current;
+
+      // Start lyrics fetch in parallel with audio fetch (non-blocking)
+      const dangerZonesPromise = trackInfo
+        ? fetchDangerZones(
+            trackInfo.title,
+            trackInfo.artistName,
+            trackInfo.titleShort,
+            trackInfo.songDurationSeconds,
+          )
+        : Promise.resolve([]);
 
       setLoading(true);
       try {
@@ -140,9 +159,16 @@ export function useAudio(): UseAudioResult {
 
         bufferRef.current = audioBuffer;
 
+        // Await danger zones (already started in parallel)
+        const dangerZones = await dangerZonesPromise;
+
+        // Stale guard after danger zones
+        if (playVersionRef.current !== version) return;
+
         const sliceDuration = 10;
-        const maxStart = Math.max(0, audioBuffer.duration - sliceDuration);
-        randomStartRef.current = Math.random() * maxStart;
+        randomStartRef.current = trackInfo
+          ? selectClipStartWithFallback(audioBuffer, dangerZones)
+          : Math.random() * Math.max(0, audioBuffer.duration - sliceDuration);
 
         playSlice(audioBuffer, randomStartRef.current, sliceDuration);
       } finally {
