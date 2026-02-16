@@ -9,6 +9,7 @@ interface UseAudioResult {
   readonly play: (previewUrl: string) => Promise<void>;
   readonly relisten: () => void;
   readonly stop: () => void;
+  readonly reset: () => void;
 }
 
 export function useAudio(): UseAudioResult {
@@ -26,6 +27,7 @@ export function useAudio(): UseAudioResult {
   const gainRef = useRef<GainNode | null>(null);
   const randomStartRef = useRef(0);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playVersionRef = useRef(0);
 
   const getContext = useCallback(() => {
     if (!audioContextRef.current) {
@@ -51,8 +53,17 @@ export function useAudio(): UseAudioResult {
     setProgress(0);
   }, []);
 
+  const reset = useCallback(() => {
+    stopPlayback();
+    playVersionRef.current += 1;
+    bufferRef.current = null;
+    randomStartRef.current = 0;
+    setLoading(false);
+  }, [stopPlayback]);
+
   const playSlice = useCallback(
     (buffer: AudioBuffer, offset: number, duration: number) => {
+      const version = playVersionRef.current;
       stopPlayback();
 
       const ctx = getContext();
@@ -72,6 +83,14 @@ export function useAudio(): UseAudioResult {
 
       const startTime = ctx.currentTime;
       progressTimerRef.current = setInterval(() => {
+        // Self-destruct if stale version
+        if (playVersionRef.current !== version) {
+          if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current);
+            progressTimerRef.current = null;
+          }
+          return;
+        }
         const elapsed = ctx.currentTime - startTime;
         setProgress(Math.min(elapsed / duration, 1));
         if (elapsed >= duration) {
@@ -83,6 +102,8 @@ export function useAudio(): UseAudioResult {
       }, 50);
 
       source.onended = () => {
+        // Only update state if this is still the current version
+        if (playVersionRef.current !== version) return;
         setPlaying(false);
         if (progressTimerRef.current) {
           clearInterval(progressTimerRef.current);
@@ -94,12 +115,29 @@ export function useAudio(): UseAudioResult {
 
   const play = useCallback(
     async (previewUrl: string) => {
+      // Stop any current playback before starting async work
+      stopPlayback();
+      playVersionRef.current += 1;
+      const version = playVersionRef.current;
+
       setLoading(true);
       try {
         const ctx = getContext();
         const response = await fetch(previewUrl);
+
+        // Stale guard after fetch
+        if (playVersionRef.current !== version) return;
+
         const arrayBuffer = await response.arrayBuffer();
+
+        // Stale guard after arrayBuffer
+        if (playVersionRef.current !== version) return;
+
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+        // Stale guard after decode
+        if (playVersionRef.current !== version) return;
+
         bufferRef.current = audioBuffer;
 
         const sliceDuration = 10;
@@ -108,10 +146,13 @@ export function useAudio(): UseAudioResult {
 
         playSlice(audioBuffer, randomStartRef.current, sliceDuration);
       } finally {
-        setLoading(false);
+        // Only clear loading if still current version
+        if (playVersionRef.current === version) {
+          setLoading(false);
+        }
       }
     },
-    [getContext, playSlice],
+    [getContext, playSlice, stopPlayback],
   );
 
   const relisten = useCallback(() => {
@@ -142,5 +183,6 @@ export function useAudio(): UseAudioResult {
     play,
     relisten,
     stop: stopPlayback,
+    reset,
   };
 }

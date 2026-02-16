@@ -3,21 +3,40 @@ import { useAudio } from "../hooks/useAudio";
 
 interface AudioPlayerProps {
   readonly previewUrl: string;
+  readonly active: boolean;
   readonly onLoaded?: () => void;
 }
 
-export function AudioPlayer({ previewUrl, onLoaded }: AudioPlayerProps) {
-  const { playing, loading, progress, relistenStage, play, relisten, stop } =
+export function AudioPlayer({ previewUrl, active, onLoaded }: AudioPlayerProps) {
+  const { playing, loading, progress, relistenStage, play, relisten, stop, reset } =
     useAudio();
-  const prevUrlRef = useRef<string | null>(null);
 
-  // Auto-play when previewUrl changes (new round)
+  // Store callbacks in refs to keep them out of effect deps
+  const playRef = useRef(play);
+  playRef.current = play;
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
+
+  // Auto-play when previewUrl changes and active is true
   useEffect(() => {
-    if (previewUrl && previewUrl !== prevUrlRef.current) {
-      prevUrlRef.current = previewUrl;
-      play(previewUrl).then(() => onLoaded?.());
+    if (previewUrl && active) {
+      playRef.current(previewUrl).then(() => onLoadedRef.current?.());
     }
-  }, [previewUrl, play, onLoaded]);
+    return () => {
+      stopRef.current();
+    };
+  }, [previewUrl, active]);
+
+  // Stop audio when active becomes false
+  useEffect(() => {
+    if (!active) {
+      resetRef.current();
+    }
+  }, [active]);
 
   const handlePlay = async () => {
     await play(previewUrl);
@@ -54,17 +73,14 @@ export function AudioPlayer({ previewUrl, onLoaded }: AudioPlayerProps) {
       </div>
 
       <div className="flex gap-3">
-        {!playing && !loading && progress === 0 && (
-          <button
-            onClick={handlePlay}
-            className="rounded-lg px-6 py-2 font-medium text-white"
-            style={{ backgroundColor: "var(--color-accent)" }}
+        {loading ? (
+          <span
+            className="px-6 py-2 text-sm"
+            style={{ color: "var(--color-text-secondary)" }}
           >
-            ▶ Play
-          </button>
-        )}
-
-        {playing && (
+            Loading...
+          </span>
+        ) : playing ? (
           <button
             onClick={stop}
             className="rounded-lg px-6 py-2 font-medium"
@@ -74,20 +90,9 @@ export function AudioPlayer({ previewUrl, onLoaded }: AudioPlayerProps) {
               color: "var(--color-text-primary)",
             }}
           >
-            ⏸ Pause
+            Pause
           </button>
-        )}
-
-        {loading && (
-          <span
-            className="px-6 py-2 text-sm"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            Loading...
-          </span>
-        )}
-
-        {!playing && !loading && progress > 0 && (
+        ) : progress > 0 ? (
           <button
             onClick={relisten}
             className="rounded-lg px-6 py-2 font-medium"
@@ -98,6 +103,14 @@ export function AudioPlayer({ previewUrl, onLoaded }: AudioPlayerProps) {
             }}
           >
             {relistenLabel()}
+          </button>
+        ) : (
+          <button
+            onClick={handlePlay}
+            className="rounded-lg px-6 py-2 font-medium text-white"
+            style={{ backgroundColor: "var(--color-accent)" }}
+          >
+            Play
           </button>
         )}
       </div>
