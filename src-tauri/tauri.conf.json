@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicegui/tauri-v2/main/tooling/cli/schema.json",
+  "productName": "Swiftie Quiz",
+  "version": "0.1.0",
+  "identifier": "com.swiftiequiz.desktop",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Swiftie Quiz",
+        "width": 900,
+        "height": 700,
+        "minWidth": 600,
+        "minHeight": 500,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; media-src https://cdns-preview-*.dzcdn.net https://cdnt-preview.dzcdn.net; connect-src ipc: http://ipc.localhost https://cdns-preview-*.dzcdn.net https://cdnt-preview.dzcdn.net; img-src 'self' https://api.deezer.com https://cdns-images.dzcdn.net https://e-cdns-images.dzcdn.net",
+      "dangerousDisableAssetCspModification": false
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

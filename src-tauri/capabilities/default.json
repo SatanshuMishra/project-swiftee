@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicegui/tauri-v2/main/core/tauri-config-schema/schema.json",
+  "identifier": "default",
+  "description": "Default capability for Swiftie Quiz",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "fs:allow-appdata-read",
+    "fs:allow-appdata-write"
+  ]
+}
