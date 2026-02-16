@@ -1,0 +1,146 @@
+import { useCallback, useRef, useState } from "react";
+import { useGameStore } from "../stores/gameStore";
+
+interface UseAudioResult {
+  readonly playing: boolean;
+  readonly loading: boolean;
+  readonly progress: number;
+  readonly relistenStage: number;
+  readonly play: (previewUrl: string) => Promise<void>;
+  readonly relisten: () => void;
+  readonly stop: () => void;
+}
+
+export function useAudio(): UseAudioResult {
+  const volume = useGameStore((s) => s.progress.settings.volume);
+  const relistenCount = useGameStore((s) => s.relistenCount);
+  const incrementRelisten = useGameStore((s) => s.incrementRelisten);
+
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const bufferRef = useRef<AudioBuffer | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const randomStartRef = useRef(0);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const getContext = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    return audioContextRef.current;
+  }, []);
+
+  const stopPlayback = useCallback(() => {
+    if (sourceRef.current) {
+      try {
+        sourceRef.current.stop();
+      } catch {
+        // Already stopped
+      }
+      sourceRef.current = null;
+    }
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    setPlaying(false);
+    setProgress(0);
+  }, []);
+
+  const playSlice = useCallback(
+    (buffer: AudioBuffer, offset: number, duration: number) => {
+      stopPlayback();
+
+      const ctx = getContext();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+
+      const gain = ctx.createGain();
+      gain.gain.value = volume;
+      gainRef.current = gain;
+
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(0, offset, duration);
+      sourceRef.current = source;
+
+      setPlaying(true);
+
+      const startTime = ctx.currentTime;
+      progressTimerRef.current = setInterval(() => {
+        const elapsed = ctx.currentTime - startTime;
+        setProgress(Math.min(elapsed / duration, 1));
+        if (elapsed >= duration) {
+          setPlaying(false);
+          if (progressTimerRef.current) {
+            clearInterval(progressTimerRef.current);
+          }
+        }
+      }, 50);
+
+      source.onended = () => {
+        setPlaying(false);
+        if (progressTimerRef.current) {
+          clearInterval(progressTimerRef.current);
+        }
+      };
+    },
+    [stopPlayback, getContext, volume],
+  );
+
+  const play = useCallback(
+    async (previewUrl: string) => {
+      setLoading(true);
+      try {
+        const ctx = getContext();
+        const response = await fetch(previewUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        bufferRef.current = audioBuffer;
+
+        const sliceDuration = 10;
+        const maxStart = Math.max(0, audioBuffer.duration - sliceDuration);
+        randomStartRef.current = Math.random() * maxStart;
+
+        playSlice(audioBuffer, randomStartRef.current, sliceDuration);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [getContext, playSlice],
+  );
+
+  const relisten = useCallback(() => {
+    const buffer = bufferRef.current;
+    if (!buffer) return;
+
+    incrementRelisten();
+    const stage = relistenCount + 1;
+
+    if (stage <= 1) {
+      // Same 10s slice
+      playSlice(buffer, randomStartRef.current, 10);
+    } else if (stage === 2) {
+      // 20s from same start
+      const duration = Math.min(20, buffer.duration - randomStartRef.current);
+      playSlice(buffer, randomStartRef.current, duration);
+    } else {
+      // Full 30s clip
+      playSlice(buffer, 0, buffer.duration);
+    }
+  }, [relistenCount, incrementRelisten, playSlice]);
+
+  return {
+    playing,
+    loading,
+    progress,
+    relistenStage: relistenCount,
+    play,
+    relisten,
+    stop: stopPlayback,
+  };
+}
