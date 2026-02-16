@@ -1,5 +1,24 @@
 import { useGameStore } from "../stores/gameStore";
 
+function SwiftieLogo() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 64 64"
+      width={80}
+      height={80}
+      aria-hidden="true"
+    >
+      <circle cx="32" cy="32" r="32" fill="#8b5cf6" />
+      <g fill="#ffffff" transform="translate(18, 12)">
+        <rect x="20" y="0" width="4" height="28" rx="2" />
+        <circle cx="8" cy="34" r="8" />
+        <rect x="20" y="0" width="10" height="4" rx="2" />
+      </g>
+    </svg>
+  );
+}
+
 export function MainMenu() {
   const setPhase = useGameStore((s) => s.setPhase);
   const setMode = useGameStore((s) => s.setMode);
@@ -16,6 +35,7 @@ export function MainMenu() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8">
+      <SwiftieLogo />
       <h1
         className="text-5xl font-bold"
         style={{ color: "var(--color-accent)" }}

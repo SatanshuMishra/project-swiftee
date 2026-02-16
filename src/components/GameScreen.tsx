@@ -207,7 +207,10 @@ export function GameScreen() {
 
       {/* Audio Player */}
       <div className="w-full max-w-lg">
-        <AudioPlayer previewUrl={currentTrack.preview} />
+        <AudioPlayer
+          previewUrl={currentTrack.preview}
+          active={roundState === "playing"}
+        />
       </div>
 
       {/* Timer */}

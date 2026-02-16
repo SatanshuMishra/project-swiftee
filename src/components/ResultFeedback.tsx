@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Track } from "../types";
 
 const POSITIVE_MESSAGES = [
@@ -12,6 +13,8 @@ const POSITIVE_MESSAGES = [
   "Too easy!",
   "Swiftie certified!",
 ] as const;
+
+const NEXT_DELAY_MS = 2000;
 
 function randomPositiveMessage(): string {
   return POSITIVE_MESSAGES[Math.floor(Math.random() * POSITIVE_MESSAGES.length)];
@@ -28,6 +31,13 @@ export function ResultFeedback({
   correctTrack,
   onNext,
 }: ResultFeedbackProps) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), NEXT_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="flex flex-col items-center gap-4">
       <div
@@ -55,10 +65,15 @@ export function ResultFeedback({
 
       <button
         onClick={onNext}
-        className="rounded-lg px-8 py-3 font-medium text-white"
-        style={{ backgroundColor: "var(--color-accent)" }}
+        disabled={!ready}
+        className="rounded-lg px-8 py-3 font-medium text-white transition-opacity"
+        style={{
+          backgroundColor: "var(--color-accent)",
+          opacity: ready ? 1 : 0.5,
+          cursor: ready ? "pointer" : "not-allowed",
+        }}
       >
-        Next
+        {ready ? "Next" : "Next..."}
       </button>
     </div>
   );
