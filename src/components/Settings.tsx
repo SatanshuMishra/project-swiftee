@@ -41,6 +41,7 @@ export function Settings() {
         <motion.button
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onClick={() => setPhase("menu")}
           className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -54,19 +55,18 @@ export function Settings() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="text-center"
       >
         <h2 className="text-4xl font-bold tracking-tight">Settings</h2>
-        <p className="mt-2 text-muted-foreground">
-          Customize your experience
-        </p>
+        <p className="mt-2 text-muted-foreground">Customize your experience</p>
       </motion.div>
 
       {/* Settings card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 30 }}
         className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card"
       >
         {/* Appearance section */}

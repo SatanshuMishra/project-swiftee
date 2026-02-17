@@ -39,6 +39,7 @@ export function AlbumGrid() {
         <motion.button
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onClick={() => setPhase("menu")}
           className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -52,6 +53,7 @@ export function AlbumGrid() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="text-center"
       >
         <h2 className="text-4xl font-bold tracking-tight">Pick Albums</h2>
@@ -79,13 +81,15 @@ export function AlbumGrid() {
                   delay: Math.min(index * 0.03, 0.5),
                   type: "spring",
                   stiffness: 300,
-                  damping: 25,
+                  damping: 30,
                 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => toggleAlbum(album.id)}
                 className={cn(
                   "group relative flex flex-col overflow-hidden rounded-2xl",
-                  "bg-card border transition-all duration-300",
-                  "hover:shadow-xl hover:scale-[1.05]",
+                  "bg-card border transition-[color,background-color,border-color,box-shadow,opacity] duration-300",
+                  "hover:shadow-xl",
                   selected
                     ? "border-primary ring-2 ring-primary/20"
                     : "border-border opacity-70",
@@ -125,8 +129,11 @@ export function AlbumGrid() {
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
             onClick={handleStart}
-            className="fixed bottom-8 rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-all hover:scale-105"
+            className="fixed bottom-8 rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-[color,background-color,border-color,box-shadow,opacity]"
           >
             Start Quiz ({selectedAlbumIds.length} album
             {selectedAlbumIds.length > 1 ? "s" : ""})

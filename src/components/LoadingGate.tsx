@@ -59,14 +59,7 @@ export function LoadingGate({
           <CatLoader size={size} label={label} />
         </motion.div>
       ) : showContent ? (
-        <motion.div
-          key="content"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          {children}
-        </motion.div>
+        <motion.div key="content">{children}</motion.div>
       ) : null}
     </AnimatePresence>
   );
