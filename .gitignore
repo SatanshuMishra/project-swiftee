@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 
+sandbox/*
+
 # Build output
 dist/
 src-tauri/target/
