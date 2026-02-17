@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <circle cx="32" cy="32" r="32" fill="#8b5cf6"/>
-  <g fill="#ffffff" transform="translate(18, 12)">
-    <rect x="20" y="0" width="4" height="28" rx="2"/>
-    <circle cx="8" cy="34" r="8"/>
-    <rect x="20" y="0" width="10" height="4" rx="2"/>
-  </g>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_16_2)">
+<path d="M32 64C49.6731 64 64 49.6731 64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64Z" fill="#E97F6A"/>
+<path d="M42 14C42 12.8954 41.1046 12 40 12C38.8954 12 38 12.8954 38 14V38C38 39.1046 38.8954 40 40 40C41.1046 40 42 39.1046 42 38V14Z" fill="white"/>
+<path d="M26 54C30.4183 54 34 50.4183 34 46C34 41.5817 30.4183 38 26 38C21.5817 38 18 41.5817 18 46C18 50.4183 21.5817 54 26 54Z" fill="white"/>
+<path d="M46 12H40C38.8954 12 38 12.8954 38 14C38 15.1046 38.8954 16 40 16H46C47.1046 16 48 15.1046 48 14C48 12.8954 47.1046 12 46 12Z" fill="white"/>
+</g>
+<defs>
+<clipPath id="clip0_16_2">
+<rect width="64" height="64" fill="white"/>
+</clipPath>
+</defs>
 </svg>
