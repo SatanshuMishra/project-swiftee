@@ -1,27 +1,15 @@
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Music, Album, Award, Settings } from "lucide-react";
+import { Music, Album, Award, Settings, Mail } from "lucide-react";
 import { useGameStore } from "../stores/gameStore";
 import { cn } from "../lib/cn";
+import { SwiftieLogo } from "./SwiftieLogo";
+import { BirthdayCard } from "./BirthdayCard";
+import {
+  shouldAutoShowBirthdayCard,
+  markBirthdayCardShown,
+} from "../lib/birthday";
 import type { ReactNode } from "react";
-
-function SwiftieLogo() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 64 64"
-      width={80}
-      height={80}
-      aria-hidden="true"
-    >
-      <circle cx="32" cy="32" r="32" fill="#E97F6A" />
-      <g fill="#ffffff" transform="translate(18, 12)">
-        <rect x="20" y="0" width="4" height="28" rx="2" />
-        <circle cx="8" cy="34" r="8" />
-        <rect x="20" y="0" width="10" height="4" rx="2" />
-      </g>
-    </svg>
-  );
-}
 
 interface MenuCardProps {
   readonly onClick: () => void;
@@ -46,13 +34,15 @@ function MenuCard({
     <motion.button
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, type: "spring", stiffness: 300, damping: 25 }}
+      transition={{ delay, type: "spring", stiffness: 300, damping: 30 }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
         "group relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl",
         "bg-card border border-border p-8 text-left",
-        "transition-all duration-300",
-        "hover:border-primary/50 hover:shadow-xl hover:scale-[1.02]",
+        "transition-[color,background-color,border-color,box-shadow,opacity] duration-300",
+        "hover:border-primary/50 hover:shadow-xl",
       )}
     >
       {/* Hover gradient overlay */}
@@ -84,6 +74,17 @@ function MenuCard({
 export function MainMenu() {
   const setPhase = useGameStore((s) => s.setPhase);
   const setMode = useGameStore((s) => s.setMode);
+  const [showBirthdayCard, setShowBirthdayCard] = useState(false);
+
+  useEffect(() => {
+    if (shouldAutoShowBirthdayCard()) {
+      const timer = setTimeout(() => {
+        setShowBirthdayCard(true);
+        markBirthdayCardShown();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const handleRandom = () => {
     setMode("random");
@@ -97,11 +98,30 @@ export function MainMenu() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gradient-to-br from-background to-muted/20 px-6">
+      {/* Birthday Card Mail Button */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.8, type: "spring", stiffness: 300, damping: 30 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setShowBirthdayCard(true)}
+        className="fixed top-6 right-6 z-40 p-3 rounded-full bg-gradient-to-br from-[#e97f6a] to-[#d96b56] text-white shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow,opacity] group"
+        aria-label="Open birthday card"
+      >
+        <Mail className="h-6 w-6 group-hover:rotate-12 transition-transform" />
+      </motion.button>
+
+      <BirthdayCard
+        isOpen={showBirthdayCard}
+        onClose={() => setShowBirthdayCard(false)}
+      />
+
       {/* Logo + Title */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="flex flex-col items-center gap-4"
       >
         <SwiftieLogo />
