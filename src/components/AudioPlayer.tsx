@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Play, Pause } from "lucide-react";
+import { CatLoader } from "./CatLoader";
 import { useAudio } from "../hooks/useAudio";
 import type { TrackInfo } from "../hooks/useAudio";
 import type { Track } from "../types";
@@ -97,8 +98,8 @@ export function AudioPlayer({
 
       {/* Large circular play/pause button */}
       {loading ? (
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-          <span className="text-sm text-muted-foreground">...</span>
+        <div className="flex h-20 w-20 items-center justify-center">
+          <CatLoader size="sm" />
         </div>
       ) : playing ? (
         <button

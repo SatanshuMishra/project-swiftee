@@ -13,6 +13,7 @@ import { AudioPlayer } from "./AudioPlayer";
 import { QuizCard } from "./QuizCard";
 import { Timer } from "./Timer";
 import { ResultFeedback } from "./ResultFeedback";
+import { LoadingGate } from "./LoadingGate";
 import type { Track, AlbumTracksResponse } from "../types";
 
 type RoundState = "loading" | "playing" | "answered";
@@ -58,7 +59,9 @@ export function GameScreen() {
   const [roundState, setRoundState] = useState<RoundState>("loading");
   const [lastResult, setLastResult] = useState<boolean | null>(null);
   const [timerActive, setTimerActive] = useState(false);
+  const [tracksReady, setTracksReady] = useState(false);
   const allTracksRef = useRef<readonly Track[]>([]);
+  const poolRef = useRef<readonly Track[]>([]);
   const roundStartTimeRef = useRef(0);
   const quackContextRef = useRef<AudioContext | null>(null);
   const quackBufferRef = useRef<AudioBuffer | null>(null);
@@ -83,8 +86,9 @@ export function GameScreen() {
         }
         allTracksRef.current = tracks;
         const pool = createTrackPool(tracks);
+        poolRef.current = pool;
         setTrackPool(pool);
-        beginRound(pool, tracks);
+        setTracksReady(true);
       } catch (err) {
         console.error("Failed to load tracks:", err);
       }
@@ -185,6 +189,10 @@ export function GameScreen() {
     ],
   );
 
+  const handleLoadingComplete = useCallback(() => {
+    beginRound(poolRef.current, allTracksRef.current);
+  }, [beginRound]);
+
   const handleTimerExpire = useCallback(() => {
     if (roundState === "playing") {
       handleAnswer(-1); // Timeout treated as incorrect
@@ -198,88 +206,92 @@ export function GameScreen() {
   const timerDuration =
     difficulty === "medium" ? 20 : difficulty === "hard" ? 15 : 0;
 
-  if (roundState === "loading" || !currentTrack) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted/20">
-        <p className="text-muted-foreground">Loading tracks...</p>
-      </div>
-    );
-  }
+  const isLoading = !tracksReady || roundState === "loading" || !currentTrack;
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-6 bg-gradient-to-br from-background to-muted/20 p-8">
-      {/* Header */}
-      <div className="flex w-full max-w-lg items-center justify-between">
-        <button
-          onClick={resetGame}
-          className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Exit
-        </button>
+    <div className="flex min-h-screen flex-col items-center bg-gradient-to-br from-background to-muted/20">
+      <LoadingGate
+        loading={isLoading}
+        label="Loading tracks..."
+        onReady={handleLoadingComplete}
+      >
+        <div className="flex w-full flex-col items-center gap-6 p-8">
+          {/* Header */}
+          <div className="flex w-full max-w-lg items-center justify-between">
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Exit
+            </button>
 
-        <SwiftieLogoSmall />
+            <SwiftieLogoSmall />
 
-        <StreakBadge streak={streak} />
-      </div>
+            <StreakBadge streak={streak} />
+          </div>
 
-      {/* Audio Player */}
-      <div className="w-full max-w-lg">
-        <AudioPlayer
-          previewUrl={currentTrack.preview}
-          active={roundState === "playing"}
-          track={currentTrack}
-        />
-      </div>
+          {/* Audio Player */}
+          {currentTrack && (
+            <div className="w-full max-w-lg">
+              <AudioPlayer
+                previewUrl={currentTrack.preview}
+                active={roundState === "playing"}
+                track={currentTrack}
+              />
+            </div>
+          )}
 
-      {/* Timer */}
-      {timerDuration > 0 && roundState === "playing" && (
-        <div className="w-full max-w-lg">
-          <Timer
-            duration={timerDuration}
-            onExpire={handleTimerExpire}
-            active={timerActive}
-          />
+          {/* Timer */}
+          {timerDuration > 0 && roundState === "playing" && (
+            <div className="w-full max-w-lg">
+              <Timer
+                duration={timerDuration}
+                onExpire={handleTimerExpire}
+                active={timerActive}
+              />
+            </div>
+          )}
+
+          {/* Quiz or Result */}
+          <AnimatePresence mode="wait">
+            {roundState === "playing" && currentTrack && (
+              <motion.div
+                key="quiz"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="w-full max-w-lg"
+              >
+                <QuizCard
+                  difficulty={difficulty}
+                  options={options}
+                  albumHint={
+                    difficulty === "easy" ? currentTrack.album.title : undefined
+                  }
+                  onAnswer={handleAnswer}
+                  disabled={false}
+                />
+              </motion.div>
+            )}
+
+            {roundState === "answered" && lastResult !== null && (
+              <motion.div
+                key="result"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                <ResultFeedback
+                  correct={lastResult}
+                  correctTrack={currentTrack!}
+                  onNext={handleNext}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      )}
-
-      {/* Quiz or Result */}
-      <AnimatePresence mode="wait">
-        {roundState === "playing" && (
-          <motion.div
-            key="quiz"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="w-full max-w-lg"
-          >
-            <QuizCard
-              difficulty={difficulty}
-              options={options}
-              albumHint={
-                difficulty === "easy" ? currentTrack.album.title : undefined
-              }
-              onAnswer={handleAnswer}
-              disabled={false}
-            />
-          </motion.div>
-        )}
-
-        {roundState === "answered" && lastResult !== null && (
-          <motion.div
-            key="result"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-          >
-            <ResultFeedback
-              correct={lastResult}
-              correctTrack={currentTrack}
-              onNext={handleNext}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </LoadingGate>
     </div>
   );
 }
