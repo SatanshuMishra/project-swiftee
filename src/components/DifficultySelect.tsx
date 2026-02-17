@@ -100,7 +100,7 @@ export function DifficultySelect() {
             className={cn(
               "group relative flex flex-col items-center gap-4 overflow-hidden rounded-2xl",
               "bg-card border border-border p-8",
-              "transition-[color,background-color,border-color,box-shadow,opacity] duration-300",
+              "transition-[color,background-color,border-color,box-shadow] duration-300",
               "hover:border-primary/50 hover:shadow-xl",
             )}
           >

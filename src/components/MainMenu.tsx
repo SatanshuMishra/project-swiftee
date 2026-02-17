@@ -41,7 +41,7 @@ function MenuCard({
       className={cn(
         "group relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl",
         "bg-card border border-border p-8 text-left",
-        "transition-[color,background-color,border-color,box-shadow,opacity] duration-300",
+        "transition-[color,background-color,border-color,box-shadow] duration-300",
         "hover:border-primary/50 hover:shadow-xl",
       )}
     >
@@ -106,7 +106,7 @@ export function MainMenu() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setShowBirthdayCard(true)}
-        className="fixed top-6 right-6 z-40 p-3 rounded-full bg-gradient-to-br from-[#e97f6a] to-[#d96b56] text-white shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow,opacity] group"
+        className="fixed top-6 right-6 z-40 p-3 rounded-full bg-gradient-to-br from-[#e97f6a] to-[#d96b56] text-white shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow] group"
         aria-label="Open birthday card"
       >
         <Mail className="h-6 w-6 group-hover:rotate-12 transition-transform" />
