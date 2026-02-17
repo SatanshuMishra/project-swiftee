@@ -88,7 +88,7 @@ export function AlbumGrid() {
                 onClick={() => toggleAlbum(album.id)}
                 className={cn(
                   "group relative flex flex-col overflow-hidden rounded-2xl",
-                  "bg-card border transition-[color,background-color,border-color,box-shadow,opacity] duration-300",
+                  "bg-card border transition-[color,background-color,border-color,box-shadow] duration-300",
                   "hover:shadow-xl",
                   selected
                     ? "border-primary ring-2 ring-primary/20"
@@ -133,7 +133,7 @@ export function AlbumGrid() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
             onClick={handleStart}
-            className="fixed bottom-8 rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-[color,background-color,border-color,box-shadow,opacity]"
+            className="fixed bottom-8 rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-[color,background-color,border-color,box-shadow]"
           >
             Start Quiz ({selectedAlbumIds.length} album
             {selectedAlbumIds.length > 1 ? "s" : ""})

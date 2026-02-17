@@ -84,7 +84,7 @@ export function CatGallery() {
               className={cn(
                 "relative flex flex-col items-center gap-2 overflow-hidden rounded-xl border p-6",
                 unlocked
-                  ? "bg-card border-border hover:shadow-lg transition-[color,background-color,border-color,box-shadow,opacity]"
+                  ? "bg-card border-border hover:shadow-lg transition-[color,background-color,border-color,box-shadow]"
                   : "bg-muted/50 border-border/50",
               )}
             >
