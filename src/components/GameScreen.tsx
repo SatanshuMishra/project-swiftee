@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { motion, AnimatePresence } from "motion/react";
+import { ArrowLeft } from "lucide-react";
 import { useGameStore } from "../stores/gameStore";
 import { useAchievements } from "../hooks/useAchievements";
 import { createTrackPool, drawNextTrack } from "../engine/gameEngine";
@@ -13,6 +15,25 @@ import { ResultFeedback } from "./ResultFeedback";
 import type { Track, AlbumTracksResponse } from "../types";
 
 type RoundState = "loading" | "playing" | "answered";
+
+function SwiftieLogoSmall() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 64 64"
+      width={40}
+      height={40}
+      aria-hidden="true"
+    >
+      <circle cx="32" cy="32" r="32" fill="#E97F6A" />
+      <g fill="#ffffff" transform="translate(18, 12)">
+        <rect x="20" y="0" width="4" height="28" rx="2" />
+        <circle cx="8" cy="34" r="8" />
+        <rect x="20" y="0" width="10" height="4" rx="2" />
+      </g>
+    </svg>
+  );
+}
 
 export function GameScreen() {
   const mode = useGameStore((s) => s.mode);
@@ -178,31 +199,31 @@ export function GameScreen() {
 
   if (roundState === "loading" || !currentTrack) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p style={{ color: "var(--color-text-secondary)" }}>
-          Loading tracks...
-        </p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted/20">
+        <p className="text-muted-foreground">Loading tracks...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-6 p-8">
+    <div className="flex min-h-screen flex-col items-center gap-6 bg-gradient-to-br from-background to-muted/20 p-8">
       {/* Header */}
       <div className="flex w-full max-w-lg items-center justify-between">
         <button
           onClick={resetGame}
-          className="text-sm"
-          style={{ color: "var(--color-text-secondary)" }}
+          className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          ← Quit
+          <ArrowLeft className="h-4 w-4" />
+          Exit
         </button>
-        <span
-          className="text-sm"
-          style={{ color: "var(--color-text-secondary)" }}
-        >
-          Streak: {streak}
-        </span>
+
+        <SwiftieLogoSmall />
+
+        {/* Streak pill */}
+        <div className="flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-sm font-medium text-orange-400">
+          <span>&#128293;</span>
+          {streak}
+        </div>
       </div>
 
       {/* Audio Player */}
@@ -226,25 +247,42 @@ export function GameScreen() {
       )}
 
       {/* Quiz or Result */}
-      {roundState === "playing" && (
-        <QuizCard
-          difficulty={difficulty}
-          options={options}
-          albumHint={
-            difficulty === "easy" ? currentTrack.album.title : undefined
-          }
-          onAnswer={handleAnswer}
-          disabled={false}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {roundState === "playing" && (
+          <motion.div
+            key="quiz"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="w-full max-w-lg"
+          >
+            <QuizCard
+              difficulty={difficulty}
+              options={options}
+              albumHint={
+                difficulty === "easy" ? currentTrack.album.title : undefined
+              }
+              onAnswer={handleAnswer}
+              disabled={false}
+            />
+          </motion.div>
+        )}
 
-      {roundState === "answered" && lastResult !== null && (
-        <ResultFeedback
-          correct={lastResult}
-          correctTrack={currentTrack}
-          onNext={handleNext}
-        />
-      )}
+        {roundState === "answered" && lastResult !== null && (
+          <motion.div
+            key="result"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+          >
+            <ResultFeedback
+              correct={lastResult}
+              correctTrack={currentTrack}
+              onNext={handleNext}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

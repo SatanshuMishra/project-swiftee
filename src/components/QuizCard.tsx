@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { motion } from "motion/react";
+import { cn } from "../lib/cn";
 import type { Difficulty, Track } from "../types";
 
 interface QuizCardProps {
@@ -36,36 +38,39 @@ export function QuizCard({
     <div className="flex w-full flex-col items-center gap-4">
       {/* Album hint for easy mode */}
       {difficulty === "easy" && albumHint && (
-        <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-          Album: {albumHint}
-        </p>
+        <p className="text-sm text-muted-foreground">Album: {albumHint}</p>
       )}
 
-      {/* Multiple choice (Easy/Medium) */}
+      {/* Multiple choice (Easy/Medium) — vertical stack */}
       {difficulty !== "hard" && (
-        <div className="grid w-full max-w-lg grid-cols-2 gap-3">
-          {options.map((track) => (
-            <button
+        <div className="w-full max-w-lg space-y-3">
+          {options.map((track, index) => (
+            <motion.button
               key={track.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
               onClick={() => onAnswer(track.id)}
               disabled={disabled}
-              className="rounded-lg px-4 py-3 text-center font-medium transition-all"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                color: "var(--color-text-primary)",
-                opacity: disabled ? 0.5 : 1,
-              }}
+              className={cn(
+                "w-full rounded-xl border-2 p-4 text-left font-medium transition-all",
+                "border-border bg-background",
+                "hover:border-primary/50 hover:bg-card",
+                disabled && "opacity-50 cursor-not-allowed",
+              )}
             >
               {track.titleShort || track.title}
-            </button>
+            </motion.button>
           ))}
         </div>
       )}
 
       {/* Text input (Hard) */}
       {difficulty === "hard" && (
-        <form onSubmit={handleSubmit} className="flex w-full max-w-lg gap-2">
+        <form
+          onSubmit={handleSubmit}
+          className="flex w-full max-w-lg flex-col items-center gap-3"
+        >
           <input
             ref={inputRef}
             type="text"
@@ -73,21 +78,19 @@ export function QuizCard({
             onChange={(e) => setTextInput(e.target.value)}
             disabled={disabled}
             placeholder="Type your answer..."
-            className="flex-1 rounded-lg px-4 py-3 outline-none"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              color: "var(--color-text-primary)",
-            }}
+            className={cn(
+              "w-full rounded-xl border bg-muted/30 px-4 py-3 text-center text-lg text-foreground outline-none",
+              "border-border transition-all",
+              "focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
+            )}
           />
           <button
             type="submit"
             disabled={disabled || !textInput.trim()}
-            className="rounded-lg px-6 py-3 font-medium text-white"
-            style={{
-              backgroundColor: "var(--color-accent)",
-              opacity: disabled || !textInput.trim() ? 0.5 : 1,
-            }}
+            className={cn(
+              "rounded-xl bg-primary px-8 py-3 font-medium text-primary-foreground transition-opacity",
+              (disabled || !textInput.trim()) && "opacity-50 cursor-not-allowed",
+            )}
           >
             Submit
           </button>

@@ -34,26 +34,22 @@ export function Timer({ duration, onExpire, active }: TimerProps) {
   }, [active]);
 
   const percentage = (remaining / duration) * 100;
-  const color =
-    remaining > duration * 0.3
-      ? "var(--color-accent)"
-      : "var(--color-incorrect)";
+  const urgent = remaining <= duration * 0.3;
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div
-        className="h-2 w-full overflow-hidden rounded-full"
-        style={{ backgroundColor: "var(--color-border)" }}
-      >
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full transition-all"
           style={{
             width: `${percentage}%`,
-            backgroundColor: color,
+            backgroundColor: urgent
+              ? "var(--destructive)"
+              : "var(--primary)",
           }}
         />
       </div>
-      <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+      <span className="text-sm text-muted-foreground">
         {Math.ceil(remaining)}s remaining
       </span>
     </div>

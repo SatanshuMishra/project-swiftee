@@ -32,34 +32,17 @@ function Toast({
   if (!def) return null;
 
   return (
-    <div
-      className="pointer-events-auto flex animate-slide-in items-center gap-3 rounded-lg p-4 shadow-lg"
-      style={{
-        backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-accent)",
-      }}
-    >
+    <div className="pointer-events-auto flex animate-slide-in items-center gap-3 rounded-xl border border-primary/50 bg-card p-4 shadow-lg">
       <span className="text-3xl">🐱</span>
       <div>
-        <p
-          className="text-sm font-bold"
-          style={{ color: "var(--color-accent)" }}
-        >
-          {def.name}
-        </p>
-        <p
-          className="text-xs"
-          style={{ color: "var(--color-text-secondary)" }}
-        >
-          {def.description}
-        </p>
+        <p className="text-sm font-bold text-foreground">{def.name}</p>
+        <p className="text-xs text-muted-foreground">{def.description}</p>
       </div>
       <button
         onClick={onDismiss}
-        className="ml-2 text-sm"
-        style={{ color: "var(--color-text-secondary)" }}
+        className="ml-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        ✕
+        &#10005;
       </button>
     </div>
   );

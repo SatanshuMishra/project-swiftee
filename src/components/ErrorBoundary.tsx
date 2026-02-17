@@ -22,17 +22,11 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: "var(--color-incorrect)" }}
-          >
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-8">
+          <h1 className="text-2xl font-bold text-destructive">
             Something went wrong
           </h1>
-          <p
-            className="text-center text-sm"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
+          <p className="text-center text-sm text-muted-foreground">
             {this.state.error?.message ?? "An unexpected error occurred."}
           </p>
           <button
@@ -40,8 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
               this.setState({ hasError: false, error: null });
               window.location.reload();
             }}
-            className="rounded-lg px-6 py-3 font-medium text-white"
-            style={{ backgroundColor: "var(--color-accent)" }}
+            className="rounded-xl bg-primary px-6 py-3 font-medium text-primary-foreground transition-all hover:scale-105"
           >
             Restart
           </button>

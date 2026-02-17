@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
-import { ResultFeedback } from "./ResultFeedback";
+import { ResultFeedback, drawNextMessage } from "./ResultFeedback";
 import type { Track } from "../types";
 
 function makeTrack(): Track {
@@ -14,6 +14,9 @@ function makeTrack(): Track {
     album: { id: 100, title: "Fearless", coverMedium: null },
   };
 }
+
+const POSITIVE_MESSAGE_PATTERN =
+  /Purrfection|Meow, that's impressive\.|You've earned a head boop\.|A meow-ster guess! Incredible\.|Nine lives, zero wrong answers\.|You belong with this song\.|Fearless guess\.|You're in your music era\.|Enchanting performance\.|This is why we can't have nice quizzes|You knew it all too well\.|No blank space in your knowledge\.|You need to calm down|Cruel summer\? More like cool guesser\.|It's me, hi, you're the winner, it's you\.|Are you sure you aren't Taylor\?|Elizabeth Taylor couldn't have done it better\.|Uncancellable\.|Take a bow, showgirl\.|Who's afraid of little old you\?|The prophecy was right about you\.|Pure alchemy\./;
 
 describe("ResultFeedback", () => {
   beforeEach(() => {
@@ -77,10 +80,7 @@ describe("ResultFeedback", () => {
       />,
     );
 
-    // Should show one of the positive messages (any text in the result area)
-    const resultArea = screen.getByText(
-      /Nice one!|You got it!|Nailed it!|Perfect!|Spot on!|Impressive!|Well done!|Crushed it!|Too easy!|Swiftie certified!/,
-    );
+    const resultArea = screen.getByText(POSITIVE_MESSAGE_PATTERN);
     expect(resultArea).toBeInTheDocument();
   });
 
@@ -97,5 +97,48 @@ describe("ResultFeedback", () => {
     const button = screen.getByRole("button", { name: "Next..." });
     button.click();
     expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("does not change the positive message after the 2s re-render", () => {
+    const onNext = vi.fn();
+    render(
+      <ResultFeedback
+        correct={true}
+        correctTrack={makeTrack()}
+        onNext={onNext}
+      />,
+    );
+
+    const messageBefore = screen.getByText(
+      POSITIVE_MESSAGE_PATTERN,
+    ).textContent;
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    const messageAfter = screen.getByText(POSITIVE_MESSAGE_PATTERN).textContent;
+    expect(messageAfter).toBe(messageBefore);
+  });
+});
+
+describe("drawNextMessage", () => {
+  it("never returns the same message twice in a row", () => {
+    let prev = drawNextMessage();
+    for (let i = 0; i < 100; i++) {
+      const next = drawNextMessage();
+      expect(next).not.toBe(prev);
+      prev = next;
+    }
+  });
+
+  it("cycles through all 22 messages within two full cycles", () => {
+    const seen = new Set<string>();
+    // Draw 44 messages (2 full cycles) to account for any partially
+    // consumed queue from prior tests sharing module-level state.
+    for (let i = 0; i < 44; i++) {
+      seen.add(drawNextMessage());
+    }
+    expect(seen.size).toBe(22);
   });
 });
