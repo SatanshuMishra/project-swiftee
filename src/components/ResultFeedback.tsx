@@ -93,7 +93,7 @@ export function ResultFeedback({
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={
           correct
             ? "flex items-center gap-3 rounded-xl border border-green-500/20 bg-green-500/10 p-6"

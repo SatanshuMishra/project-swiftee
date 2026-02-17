@@ -29,6 +29,7 @@ export function CatGallery() {
         <motion.button
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onClick={() => setPhase("menu")}
           className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -42,6 +43,7 @@ export function CatGallery() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="flex w-full max-w-5xl flex-col items-center gap-4"
       >
         <div className="text-center">
@@ -75,12 +77,14 @@ export function CatGallery() {
                 delay: Math.min(index * 0.05, 0.5),
                 type: "spring",
                 stiffness: 300,
-                damping: 25,
+                damping: 30,
               }}
+              whileHover={unlocked ? { scale: 1.05 } : undefined}
+              whileTap={unlocked ? { scale: 0.97 } : undefined}
               className={cn(
                 "relative flex flex-col items-center gap-2 overflow-hidden rounded-xl border p-6",
                 unlocked
-                  ? "bg-card border-border hover:shadow-lg hover:scale-105 transition-all"
+                  ? "bg-card border-border hover:shadow-lg transition-[color,background-color,border-color,box-shadow,opacity]"
                   : "bg-muted/50 border-border/50",
               )}
             >

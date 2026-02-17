@@ -60,6 +60,7 @@ export function DifficultySelect() {
       <motion.button
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         onClick={() => setPhase("menu")}
         className="absolute left-8 top-8 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
@@ -71,11 +72,10 @@ export function DifficultySelect() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="text-center"
       >
-        <h2 className="text-4xl font-bold tracking-tight">
-          Choose Difficulty
-        </h2>
+        <h2 className="text-4xl font-bold tracking-tight">Choose Difficulty</h2>
         <p className="mt-2 text-muted-foreground">
           Select your challenge level
         </p>
@@ -92,14 +92,16 @@ export function DifficultySelect() {
               delay: 0.1 + index * 0.1,
               type: "spring",
               stiffness: 300,
-              damping: 25,
+              damping: 30,
             }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => handleSelect(diff.id)}
             className={cn(
               "group relative flex flex-col items-center gap-4 overflow-hidden rounded-2xl",
               "bg-card border border-border p-8",
-              "transition-all duration-300",
-              "hover:border-primary/50 hover:shadow-xl hover:scale-[1.05]",
+              "transition-[color,background-color,border-color,box-shadow,opacity] duration-300",
+              "hover:border-primary/50 hover:shadow-xl",
             )}
           >
             {/* Hover gradient overlay */}
