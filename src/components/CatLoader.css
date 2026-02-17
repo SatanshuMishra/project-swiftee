@@ -1,0 +1,290 @@
+/*
+ * Siamese Cat Loading Animation
+ * Based on github.com/bytemindyt/cat-loading, recolored to seal-point Siamese.
+ *
+ * Color palette:
+ *   --cl-dark:    #3B2F2F  (seal-brown points — face, ears, paws, outline)
+ *   --cl-body:    #F5E6D3  (warm cream body)
+ *   --cl-belly:   #FAF0E6  (pale linen tummy)
+ *   --cl-tail:    #5C4033  (chocolate-seal tail)
+ *   --cl-bg:      var(--background)  (theme-aware ear cutout)
+ *   --cl-eyes:    #6FA8DC  (Siamese blue eyes)
+ *   --cl-nose:    #D4A0A0  (pink nose leather)
+ */
+
+.loading-cat {
+  position: relative;
+  display: inline-block;
+  width: 480px;
+  height: 360px;
+  animation: 2.74s linear infinite loading-cat-spin;
+  will-change: transform;
+}
+
+.loading-cat__head,
+.loading-cat__foot,
+.loading-cat__body {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto;
+  border-radius: 50%;
+  width: 240px;
+  height: 240px;
+}
+
+/* Body ring */
+.loading-cat__body {
+  background-image: radial-gradient(
+    transparent 0%,
+    transparent 35%,
+    #3B2F2F 35%,
+    #3B2F2F 39%,
+    #F5E6D3 39%,
+    #F5E6D3 46%,
+    #FAF0E6 46%,
+    #FAF0E6 60%,
+    #F5E6D3 60%,
+    #F5E6D3 67%,
+    #3B2F2F 67%,
+    #3B2F2F 100%
+  );
+  animation: 2.74s linear infinite loading-cat-body;
+  will-change: clip-path;
+}
+
+/* Head — ear via clip-path + radial gradient */
+.loading-cat__head::before,
+.loading-cat__foot::before {
+  background-image: radial-gradient(
+    transparent 0%,
+    transparent 35%,
+    #3B2F2F 35%,
+    #3B2F2F 39%,
+    #F5E6D3 39%,
+    #F5E6D3 67%,
+    #3B2F2F 67%,
+    #3B2F2F 100%
+  );
+}
+
+.loading-cat__head::before {
+  content: "";
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  border-radius: 50%;
+  clip-path: polygon(100% 20%, 50% 50%, 70% -10%);
+  -webkit-clip-path: polygon(100% 20%, 50% 50%, 70% -10%);
+}
+
+/* Ear inner cutout — uses theme background color */
+.loading-cat__head::after {
+  content: "";
+  width: 66px;
+  height: 40px;
+  position: absolute;
+  top: 13px;
+  right: 63px;
+  background-image:
+    linear-gradient(var(--background, #1a1a1a) 65%, transparent 65%),
+    radial-gradient(
+      var(--background, #1a1a1a) 51%,
+      #3B2F2F 55%,
+      #3B2F2F 68%,
+      transparent 70%
+    );
+  transform: rotate(-66deg);
+}
+
+/* Face details — eyes (blue), nose (pink), whiskers */
+.loading-cat__face {
+  width: 80px;
+  height: 60px;
+  left: 145px;
+  top: 29px;
+  position: absolute;
+  transform: rotate(-47deg);
+  background:
+    radial-gradient(circle, #D4A0A0 0%, #D4A0A0 23%, transparent 23%) -3px 17px no-repeat,
+    radial-gradient(circle, #6FA8DC 0%, #6FA8DC 6%, transparent 6%) 12px -12px no-repeat,
+    radial-gradient(circle, #6FA8DC 0%, #6FA8DC 6%, transparent 6%) -12px -12px no-repeat,
+    radial-gradient(#3B2F2F 0%, #3B2F2F 15%, transparent 15%) 0 -11px no-repeat,
+    radial-gradient(circle, transparent 5%, #3B2F2F 5%, #3B2F2F 10%, transparent 10%) -3px -5px no-repeat,
+    radial-gradient(circle, transparent 5%, #3B2F2F 5%, #3B2F2F 10%, transparent 10%) 3px -5px no-repeat,
+    radial-gradient(circle, #F5E6D3 45%, transparent 45%) 0 -3px,
+    linear-gradient(
+      transparent 35%,
+      #3B2F2F 35%, #3B2F2F 41%,
+      transparent 41%, transparent 44%,
+      #3B2F2F 44%, #3B2F2F 50%,
+      transparent 50%, transparent 53%,
+      #3B2F2F 53%, #3B2F2F 59%,
+      transparent 59%
+    );
+}
+
+/* Foot */
+.loading-cat__foot::before,
+.loading-cat__foot::after {
+  content: "";
+  width: 100%;
+  height: 100%;
+  position: absolute;
+}
+
+.loading-cat__foot::before {
+  border-radius: 50%;
+  clip-path: polygon(50% 50%, 0% 50%, 0% 25%);
+  -webkit-clip-path: polygon(50% 50%, 0% 50%, 0% 25%);
+}
+
+.loading-cat__foot {
+  animation: 2.74s linear infinite loading-cat-foot;
+  will-change: transform;
+}
+
+.loading-cat__tummy-end {
+  width: 24px;
+  height: 24px;
+  position: absolute;
+  border-radius: 50%;
+  background-color: #FAF0E6;
+  left: 19px;
+  top: 105px;
+}
+
+.loading-cat__bottom {
+  width: 48px;
+  height: 15px;
+  position: absolute;
+  top: 78px;
+  left: 12px;
+  border: 0 solid #3B2F2F;
+  border-top-width: 6.5px;
+  border-radius: 50%;
+  transform: rotate(21deg);
+  background: #F5E6D3;
+}
+
+/* Limbs */
+.loading-cat__hands,
+.loading-cat__legs,
+.loading-cat__foot::after {
+  width: 10px;
+  height: 25px;
+  position: absolute;
+  border: 6.5px solid #3B2F2F;
+  background-color: #F5E6D3;
+}
+
+.loading-cat__hands {
+  border-top: 0;
+  border-radius: 0 0 13px 13px;
+}
+
+.loading-cat__hands--left {
+  top: 144px;
+  right: 161px;
+  transform: rotate(-20deg);
+}
+
+.loading-cat__hands--right {
+  top: 123px;
+  right: 128px;
+  transform: rotate(-25deg);
+}
+
+.loading-cat__legs {
+  border-bottom: 0;
+  border-radius: 13px 13px 0 0;
+}
+
+.loading-cat__legs--left {
+  top: 65px;
+  left: 49px;
+  transform: rotate(25deg);
+}
+
+.loading-cat__legs--right {
+  top: 53px;
+  left: 12px;
+  transform: rotate(22deg);
+}
+
+/* Tail */
+.loading-cat__foot::after {
+  width: 8px;
+  height: 40px;
+  top: 42px;
+  left: 36px;
+  z-index: -1;
+  transform: rotate(25deg);
+  background-color: #5C4033;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+/* ── Keyframes ────────────────────────────────────────── */
+
+@keyframes loading-cat-body {
+  0% {
+    clip-path: polygon(50% 50%, 0% 50%, 0% 100%, 100% 100%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 0% 50%, 0% 100%, 100% 100%, 100% 20%);
+  }
+  10% {
+    clip-path: polygon(50% 50%, 30% 120%, 50% 100%, 100% 100%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 30% 120%, 50% 100%, 100% 100%, 100% 20%);
+  }
+  20% {
+    clip-path: polygon(50% 50%, 100% 90%, 120% 90%, 100% 100%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 100% 90%, 120% 90%, 100% 100%, 100% 20%);
+  }
+  40% {
+    clip-path: polygon(50% 50%, 100% 45%, 120% 45%, 120% 50%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 100% 45%, 120% 45%, 120% 50%, 100% 20%);
+  }
+  50% {
+    clip-path: polygon(50% 50%, 100% 45%, 120% 45%, 120% 50%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 100% 45%, 120% 45%, 120% 50%, 100% 20%);
+  }
+  65% {
+    clip-path: polygon(50% 50%, 100% 65%, 120% 65%, 120% 50%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 100% 65%, 120% 65%, 120% 50%, 100% 20%);
+  }
+  80% {
+    clip-path: polygon(50% 50%, 75% 130%, 120% 65%, 120% 50%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 75% 130%, 120% 65%, 120% 50%, 100% 20%);
+  }
+  90% {
+    clip-path: polygon(50% 50%, -20% 110%, 50% 120%, 100% 100%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, -20% 110%, 50% 120%, 100% 100%, 100% 20%);
+  }
+  100% {
+    clip-path: polygon(50% 50%, 0% 50%, 0% 100%, 100% 100%, 100% 20%);
+    -webkit-clip-path: polygon(50% 50%, 0% 50%, 0% 100%, 100% 100%, 100% 20%);
+  }
+}
+
+@keyframes loading-cat-spin {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(-80deg); }
+  20% { transform: rotate(-180deg); }
+  40% { transform: rotate(-245deg); }
+  50% { transform: rotate(-250deg); }
+  68% { transform: rotate(-300deg); }
+  90% { transform: rotate(-560deg); }
+  100% { transform: rotate(-720deg); }
+}
+
+@keyframes loading-cat-foot {
+  0% { transform: rotate(-10deg); }
+  10% { transform: rotate(-100deg); }
+  20% { transform: rotate(-145deg); }
+  35% { transform: rotate(-190deg); }
+  50% { transform: rotate(-195deg); }
+  70% { transform: rotate(-165deg); }
+  100% { transform: rotate(-10deg); }
+}
