@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
+import { StreakBadge } from "./StreakBadge";
 import { useGameStore } from "../stores/gameStore";
 import { useAchievements } from "../hooks/useAchievements";
 import { createTrackPool, drawNextTrack } from "../engine/gameEngine";
@@ -219,11 +220,7 @@ export function GameScreen() {
 
         <SwiftieLogoSmall />
 
-        {/* Streak pill */}
-        <div className="flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-sm font-medium text-orange-400">
-          <span>&#128293;</span>
-          {streak}
-        </div>
+        <StreakBadge streak={streak} />
       </div>
 
       {/* Audio Player */}
