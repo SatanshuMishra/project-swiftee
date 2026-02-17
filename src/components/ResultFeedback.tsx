@@ -55,11 +55,12 @@ let lastMessage = "";
 export function drawNextMessage(): string {
   if (messageQueue.length === 0) {
     messageQueue = shuffle(POSITIVE_MESSAGES);
-    if (messageQueue[0] === lastMessage && messageQueue.length > 1) {
-      const swapIdx = 1 + Math.floor(Math.random() * (messageQueue.length - 1));
-      [messageQueue[0], messageQueue[swapIdx]] = [
+    const last = messageQueue.length - 1;
+    if (messageQueue[last] === lastMessage && messageQueue.length > 1) {
+      const swapIdx = Math.floor(Math.random() * last);
+      [messageQueue[last], messageQueue[swapIdx]] = [
         messageQueue[swapIdx],
-        messageQueue[0],
+        messageQueue[last],
       ];
     }
   }
