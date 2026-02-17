@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { useGameStore } from "../stores/gameStore";
 import { useFetchAlbums } from "../hooks/useDeezer";
+import { LoadingGate } from "./LoadingGate";
 import { cn } from "../lib/cn";
 
 export function AlbumGrid() {
@@ -59,73 +60,79 @@ export function AlbumGrid() {
         </p>
       </motion.div>
 
-      {loading && <p className="text-muted-foreground">Loading albums...</p>}
       {error && <p className="text-incorrect">{error}</p>}
 
-      {/* Album Grid */}
-      <div className="grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {albums.map((album, index) => {
-          const selected = selectedAlbumIds.includes(album.id);
-          return (
-            <motion.button
-              key={album.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: Math.min(index * 0.03, 0.5),
-                type: "spring",
-                stiffness: 300,
-                damping: 25,
-              }}
-              onClick={() => toggleAlbum(album.id)}
-              className={cn(
-                "group relative flex flex-col overflow-hidden rounded-2xl",
-                "bg-card border transition-all duration-300",
-                "hover:shadow-xl hover:scale-[1.05]",
-                selected
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-border opacity-70",
-              )}
-            >
-              {/* Album art */}
-              {album.coverMedium ? (
-                <div className="relative aspect-square w-full overflow-hidden">
-                  <img
-                    src={album.coverMedium}
-                    alt={album.title}
-                    className="h-full w-full object-cover"
-                  />
-                  {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  {/* Album info over overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <p className="truncate text-sm font-semibold text-white">
-                      {album.title}
-                    </p>
+      <LoadingGate
+        loading={loading && albums.length === 0}
+        label="Loading albums..."
+      >
+        {/* Album Grid */}
+        <div className="grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {albums.map((album, index) => {
+            const selected = selectedAlbumIds.includes(album.id);
+            return (
+              <motion.button
+                key={album.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: Math.min(index * 0.03, 0.5),
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                }}
+                onClick={() => toggleAlbum(album.id)}
+                className={cn(
+                  "group relative flex flex-col overflow-hidden rounded-2xl",
+                  "bg-card border transition-all duration-300",
+                  "hover:shadow-xl hover:scale-[1.05]",
+                  selected
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border opacity-70",
+                )}
+              >
+                {/* Album art */}
+                {album.coverMedium ? (
+                  <div className="relative aspect-square w-full overflow-hidden">
+                    <img
+                      src={album.coverMedium}
+                      alt={album.title}
+                      className="h-full w-full object-cover"
+                    />
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    {/* Album info over overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {album.title}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex aspect-square w-full items-center justify-center bg-muted">
-                  <span className="text-2xl text-muted-foreground">&#9835;</span>
-                </div>
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
+                ) : (
+                  <div className="flex aspect-square w-full items-center justify-center bg-muted">
+                    <span className="text-2xl text-muted-foreground">
+                      &#9835;
+                    </span>
+                  </div>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
 
-      {/* Start button */}
-      {selectedAlbumIds.length > 0 && (
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={handleStart}
-          className="fixed bottom-8 rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-all hover:scale-105"
-        >
-          Start Quiz ({selectedAlbumIds.length} album
-          {selectedAlbumIds.length > 1 ? "s" : ""})
-        </motion.button>
-      )}
+        {/* Start button */}
+        {selectedAlbumIds.length > 0 && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={handleStart}
+            className="fixed bottom-8 rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-all hover:scale-105"
+          >
+            Start Quiz ({selectedAlbumIds.length} album
+            {selectedAlbumIds.length > 1 ? "s" : ""})
+          </motion.button>
+        )}
+      </LoadingGate>
     </div>
   );
 }
