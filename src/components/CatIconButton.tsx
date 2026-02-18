@@ -17,7 +17,7 @@ export function CatIconButton({
   return (
     <button
       onClick={onClick}
-      className={className}
+      className={`cursor-pointer${className ? ` ${className}` : ""}`}
       aria-label="Open birthday card"
       type="button"
     >
@@ -90,33 +90,15 @@ export function CatIconButton({
         />
 
         {/* Paw toe lines */}
-        <line
-          x1="25.1324"
-          y1="133"
-          x2="25.1324"
-          y2="155"
-          stroke="#EBE9E9"
-        />
-        <line
-          x1="59.1324"
-          y1="133"
-          x2="59.1324"
-          y2="155"
-          stroke="#EBE9E9"
-        />
+        <line x1="25.1324" y1="133" x2="25.1324" y2="155" stroke="#EBE9E9" />
+        <line x1="59.1324" y1="133" x2="59.1324" y2="155" stroke="#EBE9E9" />
 
         {/* Tail */}
         <path
           d="M39.8146 174C37.0532 174 34.8146 171.761 34.8146 169V140H47.8146V169C47.8146 171.761 45.576 174 42.8146 174H39.8146Z"
           fill="#3B2F2F"
         />
-        <line
-          x1="41.3146"
-          y1="144"
-          x2="41.3146"
-          y2="174"
-          stroke="#EBE9E9"
-        />
+        <line x1="41.3146" y1="144" x2="41.3146" y2="174" stroke="#EBE9E9" />
 
         {/* Right whiskers */}
         <line
