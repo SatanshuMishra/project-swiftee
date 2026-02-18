@@ -106,6 +106,8 @@ export interface GameStats {
 export interface GameSettings {
   readonly theme: Theme;
   readonly volume: number;
+  readonly mediumTimer: number;
+  readonly hardTimer: number;
 }
 
 // Round state
@@ -132,5 +134,7 @@ export const DEFAULT_PROGRESS: GameProgress = {
   settings: {
     theme: "dark",
     volume: 0.8,
+    mediumTimer: 30,
+    hardTimer: 20,
   },
 };
