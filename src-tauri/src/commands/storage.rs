@@ -54,7 +54,18 @@ pub async fn load_progress(
     };
 
     match serde_json::from_str::<GameProgress>(&contents) {
-        Ok(progress) => Ok(progress),
+        Ok(mut progress) => {
+            if progress.version < 2 {
+                progress.version = 2;
+                // Save migrated progress
+                if let Ok(json) = serde_json::to_string_pretty(&progress) {
+                    let temp_path = path.with_extension("json.tmp");
+                    let _ = fs::write(&temp_path, &json);
+                    let _ = fs::rename(&temp_path, &path);
+                }
+            }
+            Ok(progress)
+        }
         Err(_) => Ok(GameProgress::default()),
     }
 }

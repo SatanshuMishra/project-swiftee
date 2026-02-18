@@ -23,6 +23,12 @@ pub struct GameStats {
     pub total_correct: u64,
     pub albums_played: Vec<String>,
     pub tracks_guessed_per_album: HashMap<String, Vec<String>>,
+    #[serde(default)]
+    pub total_lyrics_correct: u64,
+    #[serde(default)]
+    pub name_tha_song_correct: u64,
+    #[serde(default)]
+    pub lyrics_or_lie_correct: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,12 +41,15 @@ pub struct GameSettings {
 impl Default for GameProgress {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             achievements: HashMap::new(),
             stats: GameStats {
                 total_correct: 0,
                 albums_played: Vec::new(),
                 tracks_guessed_per_album: HashMap::new(),
+                total_lyrics_correct: 0,
+                name_tha_song_correct: 0,
+                lyrics_or_lie_correct: 0,
             },
             settings: GameSettings {
                 theme: "dark".to_string(),
@@ -57,8 +66,11 @@ mod tests {
     #[test]
     fn test_default_progress() {
         let progress = GameProgress::default();
-        assert_eq!(progress.version, 1);
+        assert_eq!(progress.version, 2);
         assert_eq!(progress.stats.total_correct, 0);
+        assert_eq!(progress.stats.total_lyrics_correct, 0);
+        assert_eq!(progress.stats.name_tha_song_correct, 0);
+        assert_eq!(progress.stats.lyrics_or_lie_correct, 0);
         assert_eq!(progress.settings.theme, "dark");
         assert!((progress.settings.volume - 0.8).abs() < f64::EPSILON);
         assert!(progress.achievements.is_empty());
