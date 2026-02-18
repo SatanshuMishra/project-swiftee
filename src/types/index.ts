@@ -81,7 +81,7 @@ export interface LyricSnippet {
 }
 
 export interface DecoyResult {
-  readonly line: string;
+  readonly lines: readonly string[];
   readonly isReal: boolean;
   readonly sourceSong?: string;
 }
