@@ -23,7 +23,7 @@ function getDifficulties(
     easy: {
       id: "easy" as Difficulty,
       label: "Easy",
-      description: "Perfect for new Swifties",
+      description: "Quick warm-up round",
       icon: <Zap className="h-6 w-6 text-white" />,
       gradientFrom: "#22c55e",
       gradientTo: "#16a34a",
@@ -31,7 +31,7 @@ function getDifficulties(
     medium: {
       id: "medium" as Difficulty,
       label: "Medium",
-      description: "For dedicated fans",
+      description: "The real thing",
       icon: <Flame className="h-6 w-6 text-white" />,
       gradientFrom: "#f97316",
       gradientTo: "#ea580c",
@@ -39,7 +39,7 @@ function getDifficulties(
     hard: {
       id: "hard" as Difficulty,
       label: "Hard",
-      description: "True Swiftie challenge",
+      description: "A challenge worthy of a true Swiftie",
       icon: <Skull className="h-6 w-6 text-white" />,
       gradientFrom: "#ef4444",
       gradientTo: "#dc2626",
