@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Music, Album, Award, Settings, Mail } from "lucide-react";
+import { Music, Album, Award, Settings } from "lucide-react";
+import { CatIconButton } from "./CatIconButton";
 import { useGameStore } from "../stores/gameStore";
 import { cn } from "../lib/cn";
 import { SwiftieLogo } from "./SwiftieLogo";
@@ -98,19 +99,23 @@ export function MainMenu() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gradient-to-br from-background to-muted/20 px-6">
-      {/* Birthday Card Mail Button */}
-      <motion.button
-        initial={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.8, type: "spring", stiffness: 300, damping: 30 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setShowBirthdayCard(true)}
-        className="fixed top-6 right-6 z-40 p-3 rounded-full bg-gradient-to-br from-[#e97f6a] to-[#d96b56] text-white shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow] group"
-        aria-label="Open birthday card"
-      >
-        <Mail className="h-6 w-6 group-hover:rotate-12 transition-transform" />
-      </motion.button>
+      {/* Birthday Card Cat Button */}
+      <div className="fixed top-6 right-6 z-40">
+        <motion.div
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{
+            delay: 0.8,
+            type: "spring",
+            stiffness: 300,
+            damping: 30,
+          }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <CatIconButton onClick={() => setShowBirthdayCard(true)} />
+        </motion.div>
+      </div>
 
       <BirthdayCard
         isOpen={showBirthdayCard}
