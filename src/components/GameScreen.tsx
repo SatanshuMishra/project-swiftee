@@ -153,10 +153,8 @@ export function GameScreen() {
       setLastResult(null);
 
       if (immediate) {
-        // First round: go straight to playing
+        // First round: show UI but wait for audio before starting timer
         setRoundState("playing");
-        setTimerActive(true);
-        roundStartTimeRef.current = Date.now();
       } else {
         // Subsequent rounds: show loading overlay
         setRoundState("loading");
@@ -170,19 +168,23 @@ export function GameScreen() {
   );
 
   const handleAudioReady = useCallback(() => {
-    if (roundState !== "loading") return;
+    if (roundState === "loading") {
+      const elapsed = Date.now() - loaderShownAtRef.current;
+      const remaining = ROUND_LOADER_MIN_MS - elapsed;
 
-    const elapsed = Date.now() - loaderShownAtRef.current;
-    const remaining = ROUND_LOADER_MIN_MS - elapsed;
-
-    if (remaining > 0) {
-      setTimeout(() => {
+      if (remaining > 0) {
+        setTimeout(() => {
+          transitionToPlaying();
+        }, remaining);
+      } else {
         transitionToPlaying();
-      }, remaining);
-    } else {
-      transitionToPlaying();
+      }
+    } else if (roundState === "playing" && !timerActive) {
+      // First round: audio just loaded, now start the timer
+      setTimerActive(true);
+      roundStartTimeRef.current = Date.now();
     }
-  }, [roundState, transitionToPlaying]);
+  }, [roundState, timerActive, transitionToPlaying]);
 
   const handleAnswer = useCallback(
     (answer: number | string) => {
@@ -278,7 +280,11 @@ export function GameScreen() {
   }, [trackPool, beginRound]);
 
   const timerDuration =
-    difficulty === "medium" ? 20 : difficulty === "hard" ? 15 : 0;
+    difficulty === "medium"
+      ? progress.settings.mediumTimer
+      : difficulty === "hard"
+        ? progress.settings.hardTimer
+        : 0;
 
   const isLoading = !tracksReady && !error;
 

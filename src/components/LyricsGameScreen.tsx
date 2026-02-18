@@ -30,19 +30,12 @@ interface LyricsRoundData {
 }
 
 function getTimerDuration(
-  lyricsMode: string | null,
   difficulty: string,
+  mediumTimer: number,
+  hardTimer: number,
 ): number {
-  if (lyricsMode === "name-that-song") {
-    if (difficulty === "medium") return 20;
-    if (difficulty === "hard") return 15;
-    return 0;
-  }
-  if (lyricsMode === "lyrics-or-lie") {
-    if (difficulty === "medium") return 15;
-    if (difficulty === "hard") return 10;
-    return 0;
-  }
+  if (difficulty === "medium") return mediumTimer;
+  if (difficulty === "hard") return hardTimer;
   return 0;
 }
 
@@ -321,7 +314,11 @@ export function LyricsGameScreen() {
     beginRound();
   }, [beginRound]);
 
-  const timerDuration = getTimerDuration(lyricsMode, difficulty);
+  const timerDuration = getTimerDuration(
+    difficulty,
+    progress.settings.mediumTimer,
+    progress.settings.hardTimer,
+  );
 
   if (!roundData) {
     return (
