@@ -81,6 +81,8 @@ interface GameStore {
   readonly setProgress: (progress: GameProgress) => void;
   readonly setTheme: (theme: Theme) => void;
   readonly setVolume: (volume: number) => void;
+  readonly setMediumTimer: (seconds: number) => void;
+  readonly setHardTimer: (seconds: number) => void;
   readonly addToast: (achievementId: string) => void;
   readonly dismissToast: (achievementId: string) => void;
   readonly resetProgress: () => void;
@@ -239,6 +241,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       progress: {
         ...state.progress,
         settings: { ...state.progress.settings, volume },
+      },
+    })),
+
+  setMediumTimer: (seconds) =>
+    set((state) => ({
+      progress: {
+        ...state.progress,
+        settings: { ...state.progress.settings, mediumTimer: seconds },
+      },
+    })),
+
+  setHardTimer: (seconds) =>
+    set((state) => ({
+      progress: {
+        ...state.progress,
+        settings: { ...state.progress.settings, hardTimer: seconds },
       },
     })),
 

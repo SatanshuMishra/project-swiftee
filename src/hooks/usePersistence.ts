@@ -12,7 +12,11 @@ export function usePersistence() {
   const load = useCallback(async () => {
     try {
       const loaded = await invoke<GameProgress>("load_progress");
-      setProgress(loaded);
+      const mergedSettings = {
+        ...DEFAULT_PROGRESS.settings,
+        ...loaded.settings,
+      };
+      setProgress({ ...loaded, settings: mergedSettings });
     } catch {
       setProgress(DEFAULT_PROGRESS);
     }
