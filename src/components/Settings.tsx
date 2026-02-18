@@ -185,9 +185,7 @@ export function Settings() {
           </svg>
           <div>
             <p className="text-sm font-medium text-foreground">Swiftie Quiz</p>
-            <p className="text-xs text-muted-foreground">
-              Made with love for Swifties
-            </p>
+            <p className="text-xs text-muted-foreground">Made by Satanshu</p>
           </div>
         </div>
       </motion.div>
