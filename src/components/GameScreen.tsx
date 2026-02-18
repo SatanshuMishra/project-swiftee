@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { StreakBadge } from "./StreakBadge";
+import { CatLoader } from "./CatLoader";
 import { useGameStore } from "../stores/gameStore";
 import { useAchievements } from "../hooks/useAchievements";
 import { createTrackPool, drawNextTrack } from "../engine/gameEngine";
@@ -14,9 +15,13 @@ import { QuizCard } from "./QuizCard";
 import { Timer } from "./Timer";
 import { ResultFeedback } from "./ResultFeedback";
 import { LoadingGate } from "./LoadingGate";
+import { FULL_CLIP_THRESHOLD } from "../engine/relistenSchedule";
 import type { Track, AlbumTracksResponse } from "../types";
 
-type RoundState = "loading" | "playing" | "answered";
+type RoundState = "idle" | "loading" | "playing" | "answered";
+
+const ROUND_LOADER_MIN_MS = 400;
+const ROUND_LOADER_TIMEOUT_MS = 8000;
 
 function SwiftieLogoSmall() {
   return (
@@ -56,18 +61,23 @@ export function GameScreen() {
 
   const { checkAndUnlock } = useAchievements();
 
-  const [roundState, setRoundState] = useState<RoundState>("loading");
+  const [roundState, setRoundState] = useState<RoundState>("idle");
   const [lastResult, setLastResult] = useState<boolean | null>(null);
   const [timerActive, setTimerActive] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const allTracksRef = useRef<readonly Track[]>([]);
   const poolRef = useRef<readonly Track[]>([]);
   const roundStartTimeRef = useRef(0);
   const quackContextRef = useRef<AudioContext | null>(null);
   const quackBufferRef = useRef<AudioBuffer | null>(null);
+  const loaderShownAtRef = useRef(0);
+  const loaderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load tracks on mount
+  // Load tracks on mount (AbortController prevents stale updates in StrictMode)
   useEffect(() => {
+    const abort = new AbortController();
+
     const loadTracks = async () => {
       try {
         let tracks: Track[];
@@ -84,31 +94,95 @@ export function GameScreen() {
           }
           tracks = allTracks;
         }
+        if (abort.signal.aborted) return;
         allTracksRef.current = tracks;
         const pool = createTrackPool(tracks);
         poolRef.current = pool;
         setTrackPool(pool);
         setTracksReady(true);
       } catch (err) {
+        if (abort.signal.aborted) return;
         console.error("Failed to load tracks:", err);
+        setError(err instanceof Error ? err.message : "Failed to load tracks.");
       }
     };
     loadTracks();
+
+    return () => {
+      abort.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cleanup loader timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loaderTimeoutRef.current) {
+        clearTimeout(loaderTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Close quack AudioContext on unmount to prevent resource leaks
+  useEffect(() => {
+    return () => {
+      quackContextRef.current?.close().catch(() => {});
+      quackContextRef.current = null;
+    };
+  }, []);
+
+  const transitionToPlaying = useCallback(() => {
+    if (loaderTimeoutRef.current) {
+      clearTimeout(loaderTimeoutRef.current);
+      loaderTimeoutRef.current = null;
+    }
+    setRoundState("playing");
+    setTimerActive(true);
+    roundStartTimeRef.current = Date.now();
+  }, []);
+
   const beginRound = useCallback(
-    (pool: readonly Track[], allTracks: readonly Track[]) => {
+    (
+      pool: readonly Track[],
+      allTracks: readonly Track[],
+      immediate: boolean,
+    ) => {
       const { track, remaining } = drawNextTrack(pool, allTracks);
       const opts = generateOptions(track, allTracks);
       startRound(track, remaining, opts);
-      setRoundState("playing");
       setLastResult(null);
-      setTimerActive(true);
-      roundStartTimeRef.current = Date.now();
+
+      if (immediate) {
+        // First round: go straight to playing
+        setRoundState("playing");
+        setTimerActive(true);
+        roundStartTimeRef.current = Date.now();
+      } else {
+        // Subsequent rounds: show loading overlay
+        setRoundState("loading");
+        loaderShownAtRef.current = Date.now();
+        loaderTimeoutRef.current = setTimeout(() => {
+          transitionToPlaying();
+        }, ROUND_LOADER_TIMEOUT_MS);
+      }
     },
-    [startRound],
+    [startRound, transitionToPlaying],
   );
+
+  const handleAudioReady = useCallback(() => {
+    if (roundState !== "loading") return;
+
+    const elapsed = Date.now() - loaderShownAtRef.current;
+    const remaining = ROUND_LOADER_MIN_MS - elapsed;
+
+    if (remaining > 0) {
+      setTimeout(() => {
+        transitionToPlaying();
+      }, remaining);
+    } else {
+      transitionToPlaying();
+    }
+  }, [roundState, transitionToPlaying]);
 
   const handleAnswer = useCallback(
     (answer: number | string) => {
@@ -120,7 +194,7 @@ export function GameScreen() {
       setRoundState("answered");
 
       const timeElapsed = Date.now() - roundStartTimeRef.current;
-      const usedFullClip = relistenCount >= 3;
+      const usedFullClip = relistenCount >= FULL_CLIP_THRESHOLD;
 
       if (correct) {
         answerCorrect(currentTrack);
@@ -190,7 +264,7 @@ export function GameScreen() {
   );
 
   const handleLoadingComplete = useCallback(() => {
-    beginRound(poolRef.current, allTracksRef.current);
+    beginRound(poolRef.current, allTracksRef.current, true);
   }, [beginRound]);
 
   const handleTimerExpire = useCallback(() => {
@@ -200,98 +274,130 @@ export function GameScreen() {
   }, [roundState, handleAnswer]);
 
   const handleNext = useCallback(() => {
-    beginRound(trackPool, allTracksRef.current);
+    beginRound(trackPool, allTracksRef.current, false);
   }, [trackPool, beginRound]);
 
   const timerDuration =
     difficulty === "medium" ? 20 : difficulty === "hard" ? 15 : 0;
 
-  const isLoading = !tracksReady || roundState === "loading" || !currentTrack;
+  const isLoading = !tracksReady && !error;
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-gradient-to-br from-background to-muted/20">
-      <LoadingGate
-        loading={isLoading}
-        label="Loading tracks..."
-        onReady={handleLoadingComplete}
-      >
-        <div className="flex w-full flex-col items-center gap-6 p-8">
-          {/* Header */}
-          <div className="flex w-full max-w-lg items-center justify-between">
-            <button
-              onClick={resetGame}
-              className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Exit
-            </button>
+      {/* Between-round loading overlay */}
+      <AnimatePresence>
+        {roundState === "loading" && tracksReady && (
+          <motion.div
+            key="round-loader"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <CatLoader label="Loading next track..." />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            <SwiftieLogoSmall />
-
-            <StreakBadge streak={streak} />
-          </div>
-
-          {/* Audio Player */}
-          {currentTrack && (
-            <div className="w-full max-w-lg">
-              <AudioPlayer
-                previewUrl={currentTrack.preview}
-                active={roundState === "playing"}
-                track={currentTrack}
-              />
-            </div>
-          )}
-
-          {/* Timer */}
-          {timerDuration > 0 && roundState === "playing" && (
-            <div className="w-full max-w-lg">
-              <Timer
-                duration={timerDuration}
-                onExpire={handleTimerExpire}
-                active={timerActive}
-              />
-            </div>
-          )}
-
-          {/* Quiz or Result */}
-          <AnimatePresence mode="wait">
-            {roundState === "playing" && currentTrack && (
-              <motion.div
-                key="quiz"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="w-full max-w-lg"
-              >
-                <QuizCard
-                  difficulty={difficulty}
-                  options={options}
-                  albumHint={
-                    difficulty === "easy" ? currentTrack.album.title : undefined
-                  }
-                  onAnswer={handleAnswer}
-                  disabled={false}
-                />
-              </motion.div>
-            )}
-
-            {roundState === "answered" && lastResult !== null && (
-              <motion.div
-                key="result"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-              >
-                <ResultFeedback
-                  correct={lastResult}
-                  correctTrack={currentTrack!}
-                  onNext={handleNext}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+      {error ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <p className="text-center text-lg text-red-400">{error}</p>
+          <button
+            onClick={resetGame}
+            className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Menu
+          </button>
         </div>
-      </LoadingGate>
+      ) : (
+        <LoadingGate
+          loading={isLoading}
+          label="Loading tracks..."
+          onReady={handleLoadingComplete}
+        >
+          <div className="flex w-full flex-col items-center gap-6 p-8">
+            {/* Header */}
+            <div className="flex w-full max-w-lg items-center justify-between">
+              <button
+                onClick={resetGame}
+                className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Exit
+              </button>
+
+              <SwiftieLogoSmall />
+
+              <StreakBadge streak={streak} />
+            </div>
+
+            {/* Audio Player */}
+            {currentTrack && (
+              <div className="w-full max-w-lg">
+                <AudioPlayer
+                  previewUrl={currentTrack.preview}
+                  active={roundState !== "answered"}
+                  track={currentTrack}
+                  onLoaded={handleAudioReady}
+                />
+              </div>
+            )}
+
+            {/* Timer */}
+            {timerDuration > 0 && roundState === "playing" && (
+              <div className="w-full max-w-lg">
+                <Timer
+                  duration={timerDuration}
+                  onExpire={handleTimerExpire}
+                  active={timerActive}
+                />
+              </div>
+            )}
+
+            {/* Quiz or Result */}
+            <AnimatePresence mode="wait">
+              {roundState === "playing" && currentTrack && (
+                <motion.div
+                  key="quiz"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="w-full max-w-lg"
+                >
+                  <QuizCard
+                    difficulty={difficulty}
+                    options={options}
+                    albumHint={
+                      difficulty === "easy"
+                        ? currentTrack.album.title
+                        : undefined
+                    }
+                    onAnswer={handleAnswer}
+                    disabled={false}
+                  />
+                </motion.div>
+              )}
+
+              {roundState === "answered" && lastResult !== null && (
+                <motion.div
+                  key="result"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                >
+                  <ResultFeedback
+                    correct={lastResult}
+                    correctTrack={currentTrack!}
+                    onNext={handleNext}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </LoadingGate>
+      )}
     </div>
   );
 }
