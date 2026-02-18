@@ -76,7 +76,7 @@ impl DeezerClient {
                 t.album = album.clone();
                 t
             })
-            .filter(|t| is_playable_song(t))
+            .filter(is_playable_song)
             .collect();
 
         let playable_count = tracks.len() as u32;
@@ -98,7 +98,7 @@ impl DeezerClient {
         let tracks = response
             .data
             .into_iter()
-            .filter(|t| is_playable_song(t))
+            .filter(is_playable_song)
             .collect();
         Ok(tracks)
     }
