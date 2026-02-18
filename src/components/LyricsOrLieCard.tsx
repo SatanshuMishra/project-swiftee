@@ -22,6 +22,16 @@ export function LyricsOrLieCard({
 }: LyricsOrLieCardProps) {
   return (
     <div className="flex w-full flex-col items-center gap-6">
+      {/* Contextual framing — primes the question */}
+      <motion.p
+        initial={{ opacity: 0, y: -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="text-sm text-muted-foreground"
+      >
+        Is this lyric from...
+      </motion.p>
+
       {/* Song title + optional album cover */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -41,11 +51,6 @@ export function LyricsOrLieCard({
 
       {/* Lyric line */}
       <LyricSnippetCard lines={[lyricLine]} />
-
-      {/* Question */}
-      <p className="text-sm text-muted-foreground">
-        Is this lyric really from this song?
-      </p>
 
       {/* Real / Fake buttons */}
       <div className="flex w-full max-w-sm gap-4">
