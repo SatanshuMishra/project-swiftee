@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, Moon, Sun, Monitor, Volume2, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Moon,
+  Sun,
+  Monitor,
+  Volume2,
+  Clock,
+  Trash2,
+} from "lucide-react";
 import type { Theme } from "../types";
 import { useGameStore } from "../stores/gameStore";
 import { cn } from "../lib/cn";
@@ -22,6 +30,10 @@ export function Settings() {
   const volume = useGameStore((s) => s.progress.settings.volume);
   const setTheme = useGameStore((s) => s.setTheme);
   const setVolume = useGameStore((s) => s.setVolume);
+  const mediumTimer = useGameStore((s) => s.progress.settings.mediumTimer);
+  const hardTimer = useGameStore((s) => s.progress.settings.hardTimer);
+  const setMediumTimer = useGameStore((s) => s.setMediumTimer);
+  const setHardTimer = useGameStore((s) => s.setHardTimer);
   const resetProgress = useGameStore((s) => s.resetProgress);
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -123,6 +135,57 @@ export function Settings() {
             onChange={(e) => setVolume(parseFloat(e.target.value))}
             className="w-32"
           />
+        </div>
+
+        <div className="mx-6 h-px bg-border" />
+
+        {/* Timer section */}
+        <div className="space-y-4 p-6">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-lg bg-muted p-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Timers</p>
+              <p className="text-xs text-muted-foreground">
+                Adjust time limits for timed modes
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 pl-11">
+            <p className="text-sm text-muted-foreground">Medium</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="10"
+                max="40"
+                step="5"
+                value={mediumTimer}
+                onChange={(e) => setMediumTimer(parseInt(e.target.value, 10))}
+                className="w-24"
+              />
+              <span className="w-8 text-right text-sm text-foreground">
+                {mediumTimer}s
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 pl-11">
+            <p className="text-sm text-muted-foreground">Hard</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="10"
+                max="40"
+                step="5"
+                value={hardTimer}
+                onChange={(e) => setHardTimer(parseInt(e.target.value, 10))}
+                className="w-24"
+              />
+              <span className="w-8 text-right text-sm text-foreground">
+                {hardTimer}s
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="mx-6 h-px bg-border" />
