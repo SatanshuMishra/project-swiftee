@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="16" fill="none"/>
+  <!-- Cat ears -->
+  <path d="M38,50 L50,20 L62,50" fill="#22c55e" opacity="0.8"/>
+  <path d="M66,50 L78,20 L90,50" fill="#22c55e" opacity="0.8"/>
+  <!-- Cat head -->
+  <circle cx="64" cy="62" r="24" fill="#22c55e"/>
+  <!-- Eyes -->
+  <circle cx="54" cy="58" r="3" fill="white"/>
+  <circle cx="74" cy="58" r="3" fill="white"/>
+  <circle cx="55" cy="58" r="1.5" fill="#1a1a1a"/>
+  <circle cx="75" cy="58" r="1.5" fill="#1a1a1a"/>
+  <!-- Nose -->
+  <path d="M62,66 L64,69 L66,66" fill="#ff9999" stroke="#ff9999" stroke-width="1"/>
+  <!-- Mouth -->
+  <path d="M60,71 Q64,75 68,71" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+  <!-- Body -->
+  <path d="M40,90 Q64,70 88,90" fill="#22c55e" opacity="0.6"/>
+  <!-- Headphones -->
+  <path d="M42,52 Q42,34 64,34 Q86,34 86,52" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+  <rect x="38" y="48" width="8" height="10" rx="2" fill="#1a1a1a" opacity="0.7"/>
+  <rect x="82" y="48" width="8" height="10" rx="2" fill="#1a1a1a" opacity="0.7"/>
+  <!-- Book -->
+  <rect x="50" y="84" width="12" height="10" rx="1" fill="#fbbf24" opacity="0.8"/>
+  <line x1="56" y1="84" x2="56" y2="94" stroke="#1a1a1a" stroke-width="1"/>
+</svg>

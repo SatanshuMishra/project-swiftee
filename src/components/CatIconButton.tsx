@@ -17,7 +17,7 @@ export function CatIconButton({
   return (
     <button
       onClick={onClick}
-      className={`cursor-pointer${className ? ` ${className}` : ""}`}
+      className={`cursor-pointer inline-flex items-center justify-center min-w-[44px] min-h-[44px]${className ? ` ${className}` : ""}`}
       aria-label="Open birthday card"
       type="button"
     >

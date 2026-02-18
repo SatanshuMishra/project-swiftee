@@ -18,6 +18,8 @@ pub fn run() {
             commands::deezer::fetch_top_tracks,
             commands::storage::save_progress,
             commands::storage::load_progress,
+            commands::lyrics::fetch_lyrics,
+            commands::lyrics::fetch_lyrics_batch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

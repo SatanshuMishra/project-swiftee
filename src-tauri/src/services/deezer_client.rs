@@ -3,6 +3,8 @@ use std::time::Duration;
 use crate::models::error::AppError;
 use crate::models::track::{Album, AlbumDetail, DeezerResponse, Track};
 
+use super::track_filter::is_playable_song;
+
 const DEEZER_BASE_URL: &str = "https://api.deezer.com";
 const TAYLOR_SWIFT_ID: u64 = 12246;
 const REQUEST_TIMEOUT_SECS: u64 = 10;
@@ -74,9 +76,11 @@ impl DeezerClient {
                 t.album = album.clone();
                 t
             })
+            .filter(|t| is_playable_song(t))
             .collect();
 
-        Ok((tracks, detail.nb_tracks))
+        let playable_count = tracks.len() as u32;
+        Ok((tracks, playable_count))
     }
 
     pub async fn fetch_top_tracks(&self) -> Result<Vec<Track>, AppError> {
@@ -91,6 +95,11 @@ impl DeezerClient {
             .await?
             .json()
             .await?;
-        Ok(response.data)
+        let tracks = response
+            .data
+            .into_iter()
+            .filter(|t| is_playable_song(t))
+            .collect();
+        Ok(tracks)
     }
 }

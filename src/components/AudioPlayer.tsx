@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Play, Pause } from "lucide-react";
 import { CatLoader } from "./CatLoader";
 import { useAudio } from "../hooks/useAudio";
+import { FIRST_ESCALATION_RELISTEN } from "../engine/relistenSchedule";
 import type { TrackInfo } from "../hooks/useAudio";
 import type { Track } from "../types";
 
@@ -21,6 +22,10 @@ function buildTrackInfo(track: Track): TrackInfo {
   };
 }
 
+function formatTime(seconds: number): string {
+  return `${Math.floor(seconds)}s`;
+}
+
 export function AudioPlayer({
   previewUrl,
   active,
@@ -29,12 +34,15 @@ export function AudioPlayer({
 }: AudioPlayerProps) {
   const {
     playing,
+    paused,
     loading,
     progress,
+    clipDuration,
     relistenStage,
     play,
     relisten,
-    stop,
+    pause,
+    resume,
     reset,
   } = useAudio();
 
@@ -46,8 +54,6 @@ export function AudioPlayer({
   // Store callbacks in refs to keep them out of effect deps
   const playRef = useRef(play);
   playRef.current = play;
-  const stopRef = useRef(stop);
-  stopRef.current = stop;
   const resetRef = useRef(reset);
   resetRef.current = reset;
   const onLoadedRef = useRef(onLoaded);
@@ -60,10 +66,11 @@ export function AudioPlayer({
     if (previewUrl && active) {
       playRef
         .current(previewUrl, trackInfoRef.current)
-        .then(() => onLoadedRef.current?.());
+        .then(() => onLoadedRef.current?.())
+        .catch(() => onLoadedRef.current?.());
     }
     return () => {
-      stopRef.current();
+      resetRef.current();
     };
   }, [previewUrl, active]);
 
@@ -79,70 +86,86 @@ export function AudioPlayer({
     onLoaded?.();
   };
 
-  const relistenLabel = () => {
-    if (relistenStage === 0) return "Re-listen";
-    if (relistenStage === 1) return "Re-listen";
-    if (relistenStage === 2) return "Need more?";
-    return "Play full clip";
+  const clipExtended = relistenStage >= FIRST_ESCALATION_RELISTEN;
+  const elapsed = clipDuration > 0 ? progress * clipDuration : 0;
+
+  // Determine which action the circular button triggers
+  const handleButtonClick = () => {
+    if (playing) {
+      pause();
+    } else if (paused) {
+      resume();
+    } else if (progress > 0) {
+      relisten();
+    } else {
+      void handlePlay();
+    }
   };
 
+  // Button visual style: gradient for play/pause, border for resume/relisten
+  const isGradientButton = playing || (!paused && progress === 0);
+
   return (
-    <div className="flex flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8">
-      {/* Heading */}
-      <div className="text-center">
-        <h3 className="text-3xl font-bold tracking-tight">Name That Song!</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Listen carefully and guess the track
+    <>
+      <div className="flex flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8">
+        {/* Heading */}
+        <div className="text-center">
+          <h3 className="text-3xl font-bold tracking-tight">
+            Name That Song!
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Listen carefully and guess the track
+          </p>
+        </div>
+
+        {/* Large circular play/pause button */}
+        {loading ? (
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden">
+            <CatLoader size="sm" />
+          </div>
+        ) : (
+          <button
+            onClick={handleButtonClick}
+            className={`flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-110 ${
+              isGradientButton
+                ? "bg-gradient-to-br from-purple-500 to-pink-500"
+                : "border-2 border-purple-500/50 bg-card"
+            }`}
+          >
+            {playing ? (
+              <Pause
+                className={`h-8 w-8 ${isGradientButton ? "text-white" : "text-purple-400"}`}
+              />
+            ) : (
+              <Play
+                className={`h-8 w-8 ${isGradientButton ? "ml-1 text-white" : "text-purple-400"}`}
+              />
+            )}
+          </button>
+        )}
+
+        {/* Progress bar + duration */}
+        <div className="flex w-full items-center gap-3">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
+              style={{ width: `${progress * 100}%` }}
+            />
+          </div>
+          {clipDuration > 0 && (
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatTime(elapsed)} / {formatTime(clipDuration)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Clip extended note — outside card, centered */}
+      {clipExtended && (
+        <p className="mt-2 text-center text-xs text-muted-foreground/70">
+          Clip extended to help with your guess
         </p>
-      </div>
-
-      {/* Large circular play/pause button */}
-      {loading ? (
-        <div className="flex h-20 w-20 items-center justify-center">
-          <CatLoader size="sm" />
-        </div>
-      ) : playing ? (
-        <button
-          onClick={stop}
-          className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg transition-transform hover:scale-110"
-        >
-          <Pause className="h-8 w-8 text-white" />
-        </button>
-      ) : progress > 0 ? (
-        <button
-          onClick={relisten}
-          className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-purple-500/50 bg-card shadow-lg transition-transform hover:scale-110"
-        >
-          <Play className="h-8 w-8 text-purple-400" />
-        </button>
-      ) : (
-        <button
-          onClick={handlePlay}
-          className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg transition-transform hover:scale-110"
-        >
-          <Play className="ml-1 h-8 w-8 text-white" />
-        </button>
       )}
-
-      {/* Progress bar */}
-      <div className="w-full">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Relisten button (when paused after first listen) */}
-      {!loading && !playing && progress > 0 && (
-        <button
-          onClick={relisten}
-          className="rounded-xl border border-border bg-card px-6 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-        >
-          {relistenLabel()}
-        </button>
-      )}
-    </div>
+    </>
   );
 }

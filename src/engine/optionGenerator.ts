@@ -1,17 +1,6 @@
 import type { Track } from "../types";
 import { normalizeTitle } from "./answerMatcher";
-
-/**
- * Fisher-Yates shuffle (returns new array, does not mutate).
- */
-function shuffle<T>(arr: readonly T[]): T[] {
-  const result = [...arr];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
+import { shuffle } from "../lib/shuffle";
 
 /**
  * Generate 4 de-duplicated multiple-choice options:

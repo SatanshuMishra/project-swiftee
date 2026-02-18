@@ -30,12 +30,19 @@ export interface AlbumTracksResponse {
 export type GamePhase =
   | "menu"
   | "album-select"
+  | "quiz-type-select"
+  | "lyrics-mode-select"
   | "difficulty-select"
+  | "lyrics-loading"
   | "playing"
   | "cat-gallery"
   | "settings";
 
 export type GameMode = "random" | "album";
+
+export type QuizType = "sound" | "lyrics";
+
+export type LyricsMode = "name-that-song" | "lyrics-or-lie";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
@@ -54,6 +61,31 @@ export interface AchievementState {
   readonly unlockedAt: string | null;
 }
 
+// Lyrics types (from LRCLIB via Rust backend)
+export interface TrackLyrics {
+  readonly lrclibId: number;
+  readonly lines: readonly string[];
+  readonly lineCount: number;
+  readonly sourceTrack: string;
+  readonly sourceAlbum: string;
+}
+
+export interface TrackWithLyrics {
+  readonly track: Track;
+  readonly lyrics: TrackLyrics;
+}
+
+export interface LyricSnippet {
+  readonly lines: readonly string[];
+  readonly sourceLineIndices: readonly number[];
+}
+
+export interface DecoyResult {
+  readonly lines: readonly string[];
+  readonly isReal: boolean;
+  readonly sourceSong?: string;
+}
+
 // Persistence types (matches save.json schema)
 export interface GameProgress {
   readonly version: number;
@@ -66,11 +98,16 @@ export interface GameStats {
   readonly totalCorrect: number;
   readonly albumsPlayed: readonly string[];
   readonly tracksGuessedPerAlbum: Record<string, readonly string[]>;
+  readonly totalLyricsCorrect: number;
+  readonly nameThaSongCorrect: number;
+  readonly lyricsOrLieCorrect: number;
 }
 
 export interface GameSettings {
   readonly theme: Theme;
   readonly volume: number;
+  readonly mediumTimer: number;
+  readonly hardTimer: number;
 }
 
 // Round state
@@ -90,9 +127,14 @@ export const DEFAULT_PROGRESS: GameProgress = {
     totalCorrect: 0,
     albumsPlayed: [],
     tracksGuessedPerAlbum: {},
+    totalLyricsCorrect: 0,
+    nameThaSongCorrect: 0,
+    lyricsOrLieCorrect: 0,
   },
   settings: {
     theme: "dark",
     volume: 0.8,
+    mediumTimer: 30,
+    hardTimer: 20,
   },
 };
