@@ -1,5 +1,9 @@
+import { useRef, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Cake } from "lucide-react";
+
+const FADE_MASK =
+  "linear-gradient(to bottom, black calc(100% - 48px), transparent)";
 
 interface BirthdayCardProps {
   readonly isOpen: boolean;
@@ -7,6 +11,26 @@ interface BirthdayCardProps {
 }
 
 export function BirthdayCard({ isOpen, onClose }: BirthdayCardProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [canScrollDown, setCanScrollDown] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    setCanScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+  }, []);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || !isOpen) return;
+
+    checkScroll();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(checkScroll);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isOpen, checkScroll]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -72,7 +96,16 @@ export function BirthdayCard({ isOpen, onClose }: BirthdayCardProps) {
                 </div>
 
                 {/* Card Body */}
-                <div className="flex-1 overflow-y-auto min-h-0 p-5 pt-4 sm:p-8 sm:pt-6 space-y-6 text-white text-base">
+                <div
+                  ref={bodyRef}
+                  onScroll={checkScroll}
+                  className="flex-1 overflow-y-auto min-h-0 p-5 pt-4 sm:p-8 sm:pt-6 space-y-6 text-white text-base"
+                  style={
+                    canScrollDown
+                      ? { WebkitMaskImage: FADE_MASK, maskImage: FADE_MASK }
+                      : undefined
+                  }
+                >
                   {/* Greeting */}
                   <p className="font-medium">Dear Ana,</p>
 
