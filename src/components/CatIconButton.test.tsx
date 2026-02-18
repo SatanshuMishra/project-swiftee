@@ -51,6 +51,18 @@ describe("CatIconButton", () => {
     expect(getByRole("button").classList.contains("test-class")).toBe(true);
   });
 
+  it("button has minimum 44px tap target width", () => {
+    const { getByRole } = render(<CatIconButton onClick={() => {}} />);
+    const button = getByRole("button");
+    expect(button.classList.contains("min-w-[44px]")).toBe(true);
+  });
+
+  it("button has minimum 44px tap target height", () => {
+    const { getByRole } = render(<CatIconButton onClick={() => {}} />);
+    const button = getByRole("button");
+    expect(button.classList.contains("min-h-[44px]")).toBe(true);
+  });
+
   it("renders Siamese color palette elements", () => {
     const { container } = render(<CatIconButton onClick={() => {}} />);
     const svg = container.querySelector("svg")!;

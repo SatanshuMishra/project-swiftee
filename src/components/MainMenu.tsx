@@ -90,7 +90,7 @@ export function MainMenu() {
 
   const handleRandom = () => {
     setMode("random");
-    setPhase("difficulty-select");
+    setPhase("quiz-type-select");
   };
 
   const handlePickAlbums = () => {
@@ -124,7 +124,7 @@ export function MainMenu() {
           }}
           className="cursor-pointer"
         >
-          <CatIconButton onClick={() => setShowBirthdayCard(true)} />
+          <CatIconButton onClick={() => setShowBirthdayCard(true)} size={64} />
         </motion.div>
         <span className="pointer-events-none absolute -bottom-7 right-0 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
           Birthday Card

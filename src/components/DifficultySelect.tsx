@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { Zap, Flame, Skull, ArrowLeft } from "lucide-react";
-import type { Difficulty } from "../types";
+import type { Difficulty, QuizType, LyricsMode } from "../types";
 import { useGameStore } from "../stores/gameStore";
 import { cn } from "../lib/cn";
 import type { ReactNode } from "react";
@@ -15,43 +15,111 @@ interface DifficultyDef {
   readonly features: readonly string[];
 }
 
-const DIFFICULTIES: readonly DifficultyDef[] = [
-  {
-    id: "easy",
-    label: "Easy",
-    description: "Perfect for new Swifties",
-    icon: <Zap className="h-6 w-6 text-white" />,
-    gradientFrom: "#22c55e",
-    gradientTo: "#16a34a",
-    features: ["Multiple choice", "Album hint shown", "No time limit"],
-  },
-  {
-    id: "medium",
-    label: "Medium",
-    description: "For dedicated fans",
-    icon: <Flame className="h-6 w-6 text-white" />,
-    gradientFrom: "#f97316",
-    gradientTo: "#ea580c",
-    features: ["Multiple choice", "No album hint", "20-second timer"],
-  },
-  {
-    id: "hard",
-    label: "Hard",
-    description: "True Swiftie challenge",
-    icon: <Skull className="h-6 w-6 text-white" />,
-    gradientFrom: "#ef4444",
-    gradientTo: "#dc2626",
-    features: ["Type your answer", "No hints", "15-second timer"],
-  },
-];
+function getDifficulties(
+  quizType: QuizType | null,
+  lyricsMode: LyricsMode | null,
+): readonly DifficultyDef[] {
+  const base = {
+    easy: {
+      id: "easy" as Difficulty,
+      label: "Easy",
+      description: "Perfect for new Swifties",
+      icon: <Zap className="h-6 w-6 text-white" />,
+      gradientFrom: "#22c55e",
+      gradientTo: "#16a34a",
+    },
+    medium: {
+      id: "medium" as Difficulty,
+      label: "Medium",
+      description: "For dedicated fans",
+      icon: <Flame className="h-6 w-6 text-white" />,
+      gradientFrom: "#f97316",
+      gradientTo: "#ea580c",
+    },
+    hard: {
+      id: "hard" as Difficulty,
+      label: "Hard",
+      description: "True Swiftie challenge",
+      icon: <Skull className="h-6 w-6 text-white" />,
+      gradientFrom: "#ef4444",
+      gradientTo: "#dc2626",
+    },
+  };
+
+  if (quizType === "lyrics" && lyricsMode === "name-that-song") {
+    return [
+      {
+        ...base.easy,
+        features: [
+          "4 lyric lines from chorus",
+          "Album hint",
+          "Multiple choice",
+        ],
+      },
+      {
+        ...base.medium,
+        features: ["3 lyric lines", "Multiple choice", "20-second timer"],
+      },
+      {
+        ...base.hard,
+        features: [
+          "2 lyric lines, no chorus",
+          "Type your answer",
+          "15-second timer",
+        ],
+      },
+    ];
+  }
+
+  if (quizType === "lyrics" && lyricsMode === "lyrics-or-lie") {
+    return [
+      {
+        ...base.easy,
+        features: [
+          "Album cover shown",
+          "Fakes from different eras",
+          "No time limit",
+        ],
+      },
+      {
+        ...base.medium,
+        features: ["No hints", "Fakes from similar albums", "15-second timer"],
+      },
+      {
+        ...base.hard,
+        features: ["No hints", "Fakes from same album", "10-second timer"],
+      },
+    ];
+  }
+
+  // Default: sound mode
+  return [
+    {
+      ...base.easy,
+      features: ["Multiple choice", "Album hint shown", "No time limit"],
+    },
+    {
+      ...base.medium,
+      features: ["Multiple choice", "No album hint", "20-second timer"],
+    },
+    {
+      ...base.hard,
+      features: ["Type your answer", "No hints", "15-second timer"],
+    },
+  ];
+}
 
 export function DifficultySelect() {
   const setDifficulty = useGameStore((s) => s.setDifficulty);
   const setPhase = useGameStore((s) => s.setPhase);
+  const quizType = useGameStore((s) => s.quizType);
+  const lyricsMode = useGameStore((s) => s.lyricsMode);
+
+  const difficulties = getDifficulties(quizType, lyricsMode);
 
   const handleSelect = (difficulty: Difficulty) => {
     setDifficulty(difficulty);
-    setPhase("playing");
+    setPhase(quizType === "lyrics" ? "lyrics-loading" : "playing");
   };
 
   return (
@@ -61,7 +129,15 @@ export function DifficultySelect() {
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        onClick={() => setPhase("menu")}
+        onClick={() => {
+          if (quizType === "lyrics") {
+            setPhase("lyrics-mode-select");
+          } else if (quizType === "sound") {
+            setPhase("quiz-type-select");
+          } else {
+            setPhase("menu");
+          }
+        }}
         className="absolute left-8 top-8 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -83,7 +159,7 @@ export function DifficultySelect() {
 
       {/* 3-column grid */}
       <div className="grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
-        {DIFFICULTIES.map((diff, index) => (
+        {difficulties.map((diff, index) => (
           <motion.button
             key={diff.id}
             initial={{ opacity: 0, y: 20 }}

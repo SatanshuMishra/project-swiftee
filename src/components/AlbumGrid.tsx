@@ -28,7 +28,7 @@ export function AlbumGrid() {
 
   const handleStart = () => {
     if (selectedAlbumIds.length > 0) {
-      setPhase("difficulty-select");
+      setPhase("quiz-type-select");
     }
   };
 
