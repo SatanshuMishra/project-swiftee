@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { ACHIEVEMENT_DEFS } from "./achievements";
 
 describe("ACHIEVEMENT_DEFS", () => {
-  it("has exactly 10 achievements", () => {
-    expect(ACHIEVEMENT_DEFS.length).toBe(10);
+  it("has exactly 15 achievements", () => {
+    expect(ACHIEVEMENT_DEFS.length).toBe(15);
   });
 
   it("has unique IDs", () => {
@@ -32,5 +32,10 @@ describe("ACHIEVEMENT_DEFS", () => {
     expect(ids).toContain("persistent_listener");
     expect(ids).toContain("quack_collector");
     expect(ids).toContain("all_ears");
+    expect(ids).toContain("lyric_lover");
+    expect(ids).toContain("poet_laureate");
+    expect(ids).toContain("lie_detector");
+    expect(ids).toContain("dual_threat");
+    expect(ids).toContain("lyric_streak");
   });
 });
