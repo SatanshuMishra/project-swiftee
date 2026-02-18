@@ -16,6 +16,15 @@ pub enum AppError {
 
     #[error("Parse error: {0}")]
     ParseError(String),
+
+    #[error("Lyrics not found for this track.")]
+    LyricsNotFound,
+
+    #[error("Lyrics service unavailable — try again later.")]
+    LyricsServiceUnavailable,
+
+    #[error("Lyrics response malformed.")]
+    LyricsMalformed,
 }
 
 impl Serialize for AppError {
