@@ -72,7 +72,7 @@ export function BirthdayCard({ isOpen, onClose }: BirthdayCardProps) {
                 </div>
 
                 {/* Card Body */}
-                <div className="flex-1 overflow-y-auto min-h-0 p-5 pt-4 sm:p-8 sm:pt-6 space-y-6 text-white text-lg">
+                <div className="flex-1 overflow-y-auto min-h-0 p-5 pt-4 sm:p-8 sm:pt-6 space-y-6 text-white text-base">
                   {/* Greeting */}
                   <p className="font-medium">Dear Ana,</p>
 

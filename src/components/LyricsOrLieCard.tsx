@@ -7,7 +7,7 @@ interface LyricsOrLieCardProps {
   readonly songTitle: string;
   readonly albumCover: string | null;
   readonly showAlbumCover: boolean;
-  readonly lyricLine: string;
+  readonly lyricLines: readonly string[];
   readonly onAnswer: (isReal: boolean) => void;
   readonly disabled: boolean;
 }
@@ -16,7 +16,7 @@ export function LyricsOrLieCard({
   songTitle,
   albumCover,
   showAlbumCover,
-  lyricLine,
+  lyricLines,
   onAnswer,
   disabled,
 }: LyricsOrLieCardProps) {
@@ -50,7 +50,7 @@ export function LyricsOrLieCard({
       </motion.div>
 
       {/* Lyric line */}
-      <LyricSnippetCard lines={[lyricLine]} />
+      <LyricSnippetCard lines={lyricLines} />
 
       {/* Real / Fake buttons */}
       <div className="flex w-full max-w-sm gap-4">
