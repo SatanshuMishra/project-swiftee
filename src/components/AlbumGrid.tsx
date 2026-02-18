@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { useGameStore } from "../stores/gameStore";
 import { useFetchAlbums } from "../hooks/useDeezer";
@@ -11,6 +11,7 @@ export function AlbumGrid() {
   const selectedAlbumIds = useGameStore((s) => s.selectedAlbumIds);
   const toggleAlbum = useGameStore((s) => s.toggleAlbum);
   const setAlbums = useGameStore((s) => s.setAlbums);
+  const clearSelectedAlbums = useGameStore((s) => s.clearSelectedAlbums);
   const setPhase = useGameStore((s) => s.setPhase);
   const { data, loading, error, fetch } = useFetchAlbums();
 
@@ -33,7 +34,7 @@ export function AlbumGrid() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-8 bg-gradient-to-br from-background to-muted/20 p-8">
+    <div className="flex min-h-screen flex-col items-center gap-8 bg-gradient-to-br from-background to-muted/20 p-8 pb-20">
       {/* Header */}
       <div className="flex w-full max-w-5xl items-center justify-between">
         <motion.button
@@ -58,7 +59,7 @@ export function AlbumGrid() {
       >
         <h2 className="text-4xl font-bold tracking-tight">Pick Albums</h2>
         <p className="mt-2 text-muted-foreground">
-          Select the albums you want to be quizzed on
+          Tap one or more albums, then start your quiz
         </p>
       </motion.div>
 
@@ -123,23 +124,38 @@ export function AlbumGrid() {
             );
           })}
         </div>
+      </LoadingGate>
 
-        {/* Start button */}
-        {selectedAlbumIds.length > 0 && (
-          <motion.button
+      {/* Sticky footer */}
+      <AnimatePresence>
+        {selectedAlbumIds.length > 0 && !loading && (
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={handleStart}
-            className="fixed bottom-8 rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-[color,background-color,border-color,box-shadow]"
+            className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between bg-black/60 px-6 py-4 backdrop-blur-sm"
           >
-            Start Quiz ({selectedAlbumIds.length} album
-            {selectedAlbumIds.length > 1 ? "s" : ""})
-          </motion.button>
+            <button
+              type="button"
+              onClick={clearSelectedAlbums}
+              className="px-3 py-2 text-sm text-white/70 transition-colors hover:text-white"
+            >
+              Clear all
+            </button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleStart}
+              className="rounded-xl bg-primary px-8 py-3 text-lg font-bold text-primary-foreground shadow-lg transition-[color,background-color,border-color,box-shadow]"
+            >
+              Start Quiz ({selectedAlbumIds.length} album
+              {selectedAlbumIds.length > 1 ? "s" : ""})
+            </motion.button>
+          </motion.div>
         )}
-      </LoadingGate>
+      </AnimatePresence>
     </div>
   );
 }
