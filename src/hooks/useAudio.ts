@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useGameStore } from "../stores/gameStore";
 import { fetchDangerZones } from "../lib/lrclib";
 import { selectClipStartWithFallback } from "../engine/clipSelector";
+import { getRelistenSlice } from "../engine/relistenSchedule";
 
 export interface TrackInfo {
   readonly title: string;
@@ -12,11 +13,15 @@ export interface TrackInfo {
 
 interface UseAudioResult {
   readonly playing: boolean;
+  readonly paused: boolean;
   readonly loading: boolean;
   readonly progress: number;
+  readonly clipDuration: number;
   readonly relistenStage: number;
   readonly play: (previewUrl: string, trackInfo?: TrackInfo) => Promise<void>;
   readonly relisten: () => void;
+  readonly pause: () => void;
+  readonly resume: () => void;
   readonly stop: () => void;
   readonly reset: () => void;
 }
@@ -27,8 +32,10 @@ export function useAudio(): UseAudioResult {
   const incrementRelisten = useGameStore((s) => s.incrementRelisten);
 
   const [playing, setPlaying] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [clipDuration, setClipDuration] = useState(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const bufferRef = useRef<AudioBuffer | null>(null);
@@ -38,6 +45,12 @@ export function useAudio(): UseAudioResult {
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playVersionRef = useRef(0);
 
+  // Pause/resume tracking refs
+  const sliceOffsetRef = useRef(0);
+  const sliceDurationRef = useRef(0);
+  const elapsedBeforePauseRef = useRef(0);
+  const segmentStartTimeRef = useRef(0);
+
   const getContext = useCallback(() => {
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
@@ -45,7 +58,7 @@ export function useAudio(): UseAudioResult {
     return audioContextRef.current;
   }, []);
 
-  const stopPlayback = useCallback(() => {
+  const haltSource = useCallback(() => {
     if (sourceRef.current) {
       try {
         sourceRef.current.stop();
@@ -58,9 +71,19 @@ export function useAudio(): UseAudioResult {
       clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
     }
-    setPlaying(false);
-    setProgress(0);
   }, []);
+
+  const stopPlayback = useCallback(() => {
+    haltSource();
+    setPlaying(false);
+    setPaused(false);
+    setProgress(0);
+    setClipDuration(0);
+    sliceOffsetRef.current = 0;
+    sliceDurationRef.current = 0;
+    elapsedBeforePauseRef.current = 0;
+    segmentStartTimeRef.current = 0;
+  }, [haltSource]);
 
   const reset = useCallback(() => {
     stopPlayback();
@@ -70,10 +93,16 @@ export function useAudio(): UseAudioResult {
     setLoading(false);
   }, [stopPlayback]);
 
-  const playSlice = useCallback(
-    (buffer: AudioBuffer, offset: number, duration: number) => {
+  const startPlaybackSegment = useCallback(
+    (
+      buffer: AudioBuffer,
+      offset: number,
+      duration: number,
+      priorElapsed: number,
+      totalSliceDuration: number,
+    ) => {
       const version = playVersionRef.current;
-      stopPlayback();
+      haltSource();
 
       const ctx = getContext();
       const source = ctx.createBufferSource();
@@ -88,11 +117,11 @@ export function useAudio(): UseAudioResult {
       source.start(0, offset, duration);
       sourceRef.current = source;
 
+      segmentStartTimeRef.current = ctx.currentTime;
       setPlaying(true);
+      setPaused(false);
 
-      const startTime = ctx.currentTime;
       progressTimerRef.current = setInterval(() => {
-        // Self-destruct if stale version
         if (playVersionRef.current !== version) {
           if (progressTimerRef.current) {
             clearInterval(progressTimerRef.current);
@@ -100,9 +129,10 @@ export function useAudio(): UseAudioResult {
           }
           return;
         }
-        const elapsed = ctx.currentTime - startTime;
-        setProgress(Math.min(elapsed / duration, 1));
-        if (elapsed >= duration) {
+        const segmentElapsed = ctx.currentTime - segmentStartTimeRef.current;
+        const totalElapsed = priorElapsed + segmentElapsed;
+        setProgress(Math.min(totalElapsed / totalSliceDuration, 1));
+        if (segmentElapsed >= duration) {
           setPlaying(false);
           if (progressTimerRef.current) {
             clearInterval(progressTimerRef.current);
@@ -111,7 +141,6 @@ export function useAudio(): UseAudioResult {
       }, 50);
 
       source.onended = () => {
-        // Only update state if this is still the current version
         if (playVersionRef.current !== version) return;
         setPlaying(false);
         if (progressTimerRef.current) {
@@ -119,17 +148,26 @@ export function useAudio(): UseAudioResult {
         }
       };
     },
-    [stopPlayback, getContext, volume],
+    [haltSource, getContext, volume],
+  );
+
+  const playSlice = useCallback(
+    (buffer: AudioBuffer, offset: number, duration: number) => {
+      sliceOffsetRef.current = offset;
+      sliceDurationRef.current = duration;
+      elapsedBeforePauseRef.current = 0;
+      setClipDuration(duration);
+      startPlaybackSegment(buffer, offset, duration, 0, duration);
+    },
+    [startPlaybackSegment],
   );
 
   const play = useCallback(
     async (previewUrl: string, trackInfo?: TrackInfo) => {
-      // Stop any current playback before starting async work
       stopPlayback();
       playVersionRef.current += 1;
       const version = playVersionRef.current;
 
-      // Start lyrics fetch in parallel with audio fetch (non-blocking)
       const dangerZonesPromise = trackInfo
         ? fetchDangerZones(
             trackInfo.title,
@@ -144,25 +182,20 @@ export function useAudio(): UseAudioResult {
         const ctx = getContext();
         const response = await fetch(previewUrl);
 
-        // Stale guard after fetch
         if (playVersionRef.current !== version) return;
 
         const arrayBuffer = await response.arrayBuffer();
 
-        // Stale guard after arrayBuffer
         if (playVersionRef.current !== version) return;
 
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-        // Stale guard after decode
         if (playVersionRef.current !== version) return;
 
         bufferRef.current = audioBuffer;
 
-        // Await danger zones (already started in parallel)
         const dangerZones = await dangerZonesPromise;
 
-        // Stale guard after danger zones
         if (playVersionRef.current !== version) return;
 
         const sliceDuration = 10;
@@ -172,7 +205,6 @@ export function useAudio(): UseAudioResult {
 
         playSlice(audioBuffer, randomStartRef.current, sliceDuration);
       } finally {
-        // Only clear loading if still current version
         if (playVersionRef.current === version) {
           setLoading(false);
         }
@@ -181,33 +213,77 @@ export function useAudio(): UseAudioResult {
     [getContext, playSlice, stopPlayback],
   );
 
+  const pause = useCallback(() => {
+    if (!playing) return;
+
+    const ctx = audioContextRef.current;
+    if (ctx) {
+      const segmentElapsed = ctx.currentTime - segmentStartTimeRef.current;
+      elapsedBeforePauseRef.current += segmentElapsed;
+    }
+
+    haltSource();
+    setPlaying(false);
+    setPaused(true);
+    // Progress stays frozen — do NOT reset
+  }, [playing, haltSource]);
+
+  const resume = useCallback(() => {
+    const buffer = bufferRef.current;
+    if (!paused || !buffer) return;
+
+    const totalElapsed = elapsedBeforePauseRef.current;
+    const totalDuration = sliceDurationRef.current;
+    const remaining = totalDuration - totalElapsed;
+
+    if (remaining <= 0) {
+      setPaused(false);
+      return;
+    }
+
+    const resumeOffset = sliceOffsetRef.current + totalElapsed;
+    startPlaybackSegment(
+      buffer,
+      resumeOffset,
+      remaining,
+      totalElapsed,
+      totalDuration,
+    );
+  }, [paused, startPlaybackSegment]);
+
   const relisten = useCallback(() => {
     const buffer = bufferRef.current;
     if (!buffer) return;
 
     incrementRelisten();
     const stage = relistenCount + 1;
-
-    if (stage <= 1) {
-      // Same 10s slice
-      playSlice(buffer, randomStartRef.current, 10);
-    } else if (stage === 2) {
-      // 20s from same start
-      const duration = Math.min(20, buffer.duration - randomStartRef.current);
-      playSlice(buffer, randomStartRef.current, duration);
-    } else {
-      // Full 30s clip
-      playSlice(buffer, 0, buffer.duration);
-    }
+    const { offset, duration } = getRelistenSlice(
+      stage,
+      randomStartRef.current,
+      buffer.duration,
+    );
+    playSlice(buffer, offset, duration);
   }, [relistenCount, incrementRelisten, playSlice]);
+
+  // Close AudioContext on unmount to prevent resource leaks
+  useEffect(() => {
+    return () => {
+      audioContextRef.current?.close().catch(() => {});
+      audioContextRef.current = null;
+    };
+  }, []);
 
   return {
     playing,
+    paused,
     loading,
     progress,
+    clipDuration,
     relistenStage: relistenCount,
     play,
     relisten,
+    pause,
+    resume,
     stop: stopPlayback,
     reset,
   };

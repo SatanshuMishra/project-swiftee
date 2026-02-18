@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useGameStore } from "../stores/gameStore";
 import { ACHIEVEMENT_DEFS } from "../engine/achievements";
-import type { Difficulty, GameProgress } from "../types";
+import type { Difficulty, GameProgress, QuizType, LyricsMode } from "../types";
 
 interface CheckContext {
   readonly correct: boolean;
@@ -12,6 +12,10 @@ interface CheckContext {
   readonly usedFullClip: boolean;
   readonly progress: GameProgress;
   readonly totalTracksOnAlbum?: number;
+  readonly quizType?: QuizType;
+  readonly lyricsMode?: LyricsMode;
+  readonly sessionSoundCorrect?: number;
+  readonly sessionLyricsCorrect?: number;
 }
 
 export function useAchievements() {
@@ -72,9 +76,6 @@ function evaluateCondition(id: string, ctx: CheckContext): boolean {
 
     case "album_completionist": {
       const tracksPerAlbum = ctx.progress.stats.tracksGuessedPerAlbum;
-      // We check if any album has all tracks guessed
-      // This requires knowing the total tracks per album, which
-      // we track via totalTracksOnAlbum from the game context
       if (ctx.totalTracksOnAlbum) {
         for (const albumTracks of Object.values(tracksPerAlbum)) {
           if (albumTracks.length >= ctx.totalTracksOnAlbum) return true;
@@ -83,12 +84,8 @@ function evaluateCondition(id: string, ctx: CheckContext): boolean {
       return false;
     }
 
-    case "hard_mode_hero": {
-      // Need to track hard mode correct answers separately
-      // For now, check if difficulty is hard and total >= 5
-      // TODO: Add hardModeCorrect to stats in a future iteration
+    case "hard_mode_hero":
       return ctx.difficulty === "hard" && ctx.progress.stats.totalCorrect >= 5;
-    }
 
     case "speed_demon":
       return ctx.timeElapsed <= 3000;
@@ -101,6 +98,25 @@ function evaluateCondition(id: string, ctx: CheckContext): boolean {
 
     case "all_ears":
       return ctx.progress.stats.totalCorrect >= 50;
+
+    // Lyrics achievements
+    case "lyric_lover":
+      return ctx.progress.stats.totalLyricsCorrect >= 1;
+
+    case "poet_laureate":
+      return ctx.progress.stats.nameThaSongCorrect >= 20;
+
+    case "lie_detector":
+      return ctx.progress.stats.lyricsOrLieCorrect >= 15;
+
+    case "dual_threat":
+      return (
+        (ctx.sessionSoundCorrect ?? 0) >= 1 &&
+        (ctx.sessionLyricsCorrect ?? 0) >= 1
+      );
+
+    case "lyric_streak":
+      return ctx.quizType === "lyrics" && ctx.streak >= 10;
 
     default:
       return false;
