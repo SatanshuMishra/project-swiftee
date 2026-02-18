@@ -76,6 +76,7 @@ export function MainMenu() {
   const setPhase = useGameStore((s) => s.setPhase);
   const setMode = useGameStore((s) => s.setMode);
   const [showBirthdayCard, setShowBirthdayCard] = useState(false);
+  const [catAnimDone, setCatAnimDone] = useState(false);
 
   useEffect(() => {
     if (shouldAutoShowBirthdayCard()) {
@@ -100,21 +101,34 @@ export function MainMenu() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gradient-to-br from-background to-muted/20 px-6">
       {/* Birthday Card Cat Button */}
-      <div className="fixed top-6 right-6 z-40">
+      <div className="group fixed top-6 right-6 z-40">
         <motion.div
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{
-            delay: 0.8,
             type: "spring",
             stiffness: 300,
             damping: 30,
+            delay: catAnimDone ? 0 : 0.8,
           }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
+          onAnimationComplete={() => {
+            if (!catAnimDone) setCatAnimDone(true);
+          }}
+          whileHover={{
+            scale: 1.1,
+            transition: { type: "spring", stiffness: 400, damping: 20 },
+          }}
+          whileTap={{
+            scale: 0.95,
+            transition: { type: "spring", stiffness: 400, damping: 20 },
+          }}
+          className="cursor-pointer"
         >
           <CatIconButton onClick={() => setShowBirthdayCard(true)} />
         </motion.div>
+        <span className="pointer-events-none absolute -bottom-7 right-0 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+          Birthday Card
+        </span>
       </div>
 
       <BirthdayCard
