@@ -15,35 +15,22 @@ describe("BirthdayCard", () => {
 
   it("renders the signature text", () => {
     render(<BirthdayCard isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByText(/With Love/)).toBeInTheDocument();
+    expect(screen.getByText(/Your Best Friend/)).toBeInTheDocument();
     expect(screen.getByText(/Satanshu/)).toBeInTheDocument();
   });
 
   it("renders the addressee", () => {
     render(<BirthdayCard isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByText("Dear Swiftie")).toBeInTheDocument();
+    expect(screen.getByText("Dear Ana,")).toBeInTheDocument();
   });
 
-  it("renders the postage stamp with SwiftieLogo", () => {
+  it("renders the header with cake icons", () => {
     const { container } = render(
       <BirthdayCard isOpen={true} onClose={vi.fn()} />,
     );
+    expect(screen.getByText("Happy Birthday!")).toBeInTheDocument();
     const svgs = container.querySelectorAll("svg");
-    const logoSvg = Array.from(svgs).find(
-      (svg) => svg.getAttribute("viewBox") === "0 0 64 64",
-    );
-    expect(logoSvg).toBeInTheDocument();
-  });
-
-  it("renders the penguin SVG", () => {
-    const { container } = render(
-      <BirthdayCard isOpen={true} onClose={vi.fn()} />,
-    );
-    const svgs = container.querySelectorAll("svg");
-    const penguinSvg = Array.from(svgs).find(
-      (svg) => svg.getAttribute("viewBox") === "0 0 24 24",
-    );
-    expect(penguinSvg).toBeInTheDocument();
+    expect(svgs.length).toBeGreaterThanOrEqual(3);
   });
 
   it("calls onClose when close button is clicked", () => {
