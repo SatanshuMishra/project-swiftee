@@ -76,6 +76,7 @@ function getDifficulties(
       {
         ...base.easy,
         features: [
+          "3 lyric lines shown",
           "Album cover shown",
           "Fakes from different eras",
           "No time limit",
@@ -83,11 +84,21 @@ function getDifficulties(
       },
       {
         ...base.medium,
-        features: ["No hints", "Fakes from similar albums", "15-second timer"],
+        features: [
+          "2 lyric lines shown",
+          "No hints",
+          "Fakes from similar albums",
+          "15-second timer",
+        ],
       },
       {
         ...base.hard,
-        features: ["No hints", "Fakes from same album", "10-second timer"],
+        features: [
+          "1 lyric line shown",
+          "No hints",
+          "Fakes from same album",
+          "10-second timer",
+        ],
       },
     ];
   }

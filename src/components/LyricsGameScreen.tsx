@@ -52,6 +52,11 @@ function getLineCount(lyricsMode: string | null, difficulty: string): number {
     if (difficulty === "medium") return 3;
     return 2;
   }
+  if (lyricsMode === "lyrics-or-lie") {
+    if (difficulty === "easy") return 3;
+    if (difficulty === "medium") return 2;
+    return 1;
+  }
   return 1;
 }
 
@@ -148,6 +153,8 @@ export function LyricsGameScreen() {
         decoyPool,
         difficulty,
         lyrics.sourceAlbum,
+        lineCount,
+        track.title,
       );
     }
 
@@ -391,7 +398,7 @@ export function LyricsGameScreen() {
                   songTitle={track.titleShort || track.title}
                   albumCover={track.album.coverMedium}
                   showAlbumCover={difficulty === "easy"}
-                  lyricLine={decoyResult.line}
+                  lyricLines={decoyResult.lines}
                   onAnswer={(isReal) => handleAnswer(isReal)}
                   disabled={false}
                 />
