@@ -143,10 +143,12 @@ describe("selectDecoyOrReal", () => {
     sourceAlbum: "Some Album",
   };
 
-  it("returns a result with line and isReal flag", () => {
+  it("returns a result with lines array and isReal flag", () => {
     const pool = new Map<number, TrackLyrics>([[999, decoyLyrics]]);
     const result = selectDecoyOrReal(currentLines, pool, "medium");
-    expect(result.line).toBeTruthy();
+    expect(result.lines).toBeInstanceOf(Array);
+    expect(result.lines.length).toBeGreaterThan(0);
+    expect(result.lines[0]).toBeTruthy();
     expect(typeof result.isReal).toBe("boolean");
   });
 
@@ -169,5 +171,105 @@ describe("selectDecoyOrReal", () => {
     const emptyPool = new Map<number, TrackLyrics>();
     const result = selectDecoyOrReal(currentLines, emptyPool, "medium");
     expect(result.isReal).toBe(true);
+    expect(result.lines.length).toBe(1);
+  });
+
+  it("returns multiple contiguous lines when lineCount > 1", () => {
+    const manyLines = Array.from(
+      { length: 20 },
+      (_, i) => `This is line number ${i + 1} with enough words`,
+    );
+    const pool = new Map<number, TrackLyrics>([
+      [
+        999,
+        {
+          lrclibId: 999,
+          lines: manyLines,
+          lineCount: 20,
+          sourceTrack: "Decoy Song",
+          sourceAlbum: "Decoy Album",
+        },
+      ],
+    ]);
+    for (let i = 0; i < 20; i++) {
+      const result = selectDecoyOrReal(manyLines, pool, "easy", undefined, 3);
+      expect(result.lines.length).toBe(3);
+    }
+  });
+
+  it("returns exactly 1 line when lineCount defaults", () => {
+    const pool = new Map<number, TrackLyrics>([[999, decoyLyrics]]);
+    const result = selectDecoyOrReal(currentLines, pool, "hard");
+    expect(result.lines.length).toBe(1);
+  });
+
+  it("returns 2 lines for medium lineCount", () => {
+    const manyLines = Array.from(
+      { length: 20 },
+      (_, i) => `This is line number ${i + 1} with enough words`,
+    );
+    const pool = new Map<number, TrackLyrics>([
+      [
+        999,
+        {
+          lrclibId: 999,
+          lines: manyLines,
+          lineCount: 20,
+          sourceTrack: "Decoy Song",
+          sourceAlbum: "Decoy Album",
+        },
+      ],
+    ]);
+    for (let i = 0; i < 20; i++) {
+      const result = selectDecoyOrReal(manyLines, pool, "medium", undefined, 2);
+      expect(result.lines.length).toBe(2);
+    }
+  });
+
+  it("excludes lines containing the song title from real results", () => {
+    const linesWithTitle = [
+      "Enchanted by the moonlight glow tonight",
+      "Dancing in the dark with you my love",
+      "Enchanted is all I ever felt for you",
+      "Sparkling lights across the endless sky tonight",
+      "I was so Enchanted to meet you there",
+    ];
+    const emptyPool = new Map<number, TrackLyrics>();
+
+    for (let i = 0; i < 30; i++) {
+      const result = selectDecoyOrReal(
+        linesWithTitle,
+        emptyPool,
+        "easy",
+        undefined,
+        1,
+        "Enchanted",
+      );
+      expect(result.isReal).toBe(true);
+      for (const line of result.lines) {
+        expect(line.toLowerCase()).not.toContain("enchanted");
+      }
+    }
+  });
+
+  it("falls back to unfiltered lines when all contain the title", () => {
+    const allTitleLines = [
+      "Enchanted by the glow of the evening stars",
+      "I was so Enchanted to meet you at the ball",
+      "Enchanted nights and enchanted days forever more",
+    ];
+    const emptyPool = new Map<number, TrackLyrics>();
+
+    const result = selectDecoyOrReal(
+      allTitleLines,
+      emptyPool,
+      "easy",
+      undefined,
+      1,
+      "Enchanted",
+    );
+    expect(result.isReal).toBe(true);
+    expect(result.lines.length).toBe(1);
+    expect(result.lines[0]).toBeTruthy();
   });
 });
