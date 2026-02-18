@@ -118,7 +118,7 @@ export function LyricsModeSelect() {
           onClick={() => handleMode("lyrics-or-lie")}
           icon={<Eye className="h-6 w-6 text-white" />}
           label="Lyrics or Lie"
-          description="Real lyric or clever fake?"
+          description="See a lyric, decide if it's real or fake"
           gradientFrom="#f97316"
           gradientTo="#eab308"
           delay={0.2}
