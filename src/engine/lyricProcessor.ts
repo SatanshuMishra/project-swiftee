@@ -233,37 +233,168 @@ export function sanitiseSnippet(
   });
 }
 
+// --- Helpers for multi-line selection ---
+
+/**
+ * Check if a lyric line contains the song title (word-boundary aware).
+ * Mirrors sanitiseSnippet's regex approach to avoid false positives on
+ * short titles like "Red" matching inside "surrendered".
+ */
+function containsTitle(line: string, songTitle: string): boolean {
+  const normalizedTitle = normalizeForComparison(songTitle);
+  if (normalizedTitle.length === 0) return false;
+  const escaped = normalizedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`\\b${escaped}\\b`, "i");
+  const normalizedLine = normalizeForComparison(line);
+  return pattern.test(normalizedLine);
+}
+
+/**
+ * Pick a contiguous block of N lines from a lyrics array.
+ * Works in original index space to preserve contiguity even when
+ * some indices are excluded (e.g. title-containing lines).
+ * - Skips first and last lines of the source.
+ * - Each line in the block must have 4-15 words.
+ * - Falls back gracefully through multiple tiers.
+ */
+function pickContiguousBlock(
+  allLines: readonly string[],
+  lineCount: number,
+  excludeIndices?: ReadonlySet<number>,
+): readonly string[] {
+  if (lineCount <= 0 || allLines.length === 0) return [];
+
+  // For lineCount === 1, preserve existing single-line behavior
+  if (lineCount === 1) {
+    const validLines: string[] = [];
+    for (let i = 0; i < allLines.length; i++) {
+      if (excludeIndices?.has(i)) continue;
+      const words = allLines[i].split(/\s+/).length;
+      if (words >= 4 && words <= 15) validLines.push(allLines[i]);
+    }
+    if (validLines.length === 0) {
+      // Fallback: any non-excluded line
+      for (let i = 0; i < allLines.length; i++) {
+        if (!excludeIndices?.has(i)) validLines.push(allLines[i]);
+      }
+    }
+    const pool = validLines.length > 0 ? validLines : [...allLines];
+    return [pool[Math.floor(Math.random() * pool.length)]];
+  }
+
+  // Multi-line: build eligible indices (skip first/last, skip excluded)
+  const minIdx = allLines.length > 2 ? 1 : 0;
+  const maxIdx =
+    allLines.length > 2 ? allLines.length - 2 : allLines.length - 1;
+
+  const eligible: number[] = [];
+  for (let i = minIdx; i <= maxIdx; i++) {
+    if (!excludeIndices?.has(i)) eligible.push(i);
+  }
+
+  // Find contiguous runs of eligible indices where ALL lines have 4-15 words
+  const strictStarts: number[] = [];
+  for (let i = 0; i <= eligible.length - lineCount; i++) {
+    let valid = true;
+    for (let j = 0; j < lineCount; j++) {
+      if (j > 0 && eligible[i + j] !== eligible[i + j - 1] + 1) {
+        valid = false;
+        break;
+      }
+      const words = allLines[eligible[i + j]].split(/\s+/).length;
+      if (words < 4 || words > 15) {
+        valid = false;
+        break;
+      }
+    }
+    if (valid) strictStarts.push(i);
+  }
+
+  if (strictStarts.length > 0) {
+    const s = strictStarts[Math.floor(Math.random() * strictStarts.length)];
+    return Array.from(
+      { length: lineCount },
+      (_, j) => allLines[eligible[s + j]],
+    );
+  }
+
+  // Fallback: contiguous in original, ignore word count
+  const relaxedStarts: number[] = [];
+  for (let i = 0; i <= eligible.length - lineCount; i++) {
+    let contiguous = true;
+    for (let j = 1; j < lineCount; j++) {
+      if (eligible[i + j] !== eligible[i + j - 1] + 1) {
+        contiguous = false;
+        break;
+      }
+    }
+    if (contiguous) relaxedStarts.push(i);
+  }
+
+  if (relaxedStarts.length > 0) {
+    const s = relaxedStarts[Math.floor(Math.random() * relaxedStarts.length)];
+    return Array.from(
+      { length: lineCount },
+      (_, j) => allLines[eligible[s + j]],
+    );
+  }
+
+  // Ultimate fallback: first N eligible lines (may not be contiguous)
+  if (eligible.length >= lineCount) {
+    return eligible.slice(0, lineCount).map((i) => allLines[i]);
+  }
+
+  // Absolute fallback: first N lines
+  return allLines.slice(0, Math.min(lineCount, allLines.length));
+}
+
 // --- Decoy Selection (Lyrics or Lie) ---
 
 /**
- * Select either a real lyric line or a decoy from another song.
+ * Select either real lyric lines or decoy lines from another song.
  * 50/50 split between real and fake.
+ *
+ * @param lineCount Number of contiguous lines to return (default 1)
+ * @param currentTrackTitle Song title to exclude from real-line candidates
  */
 export function selectDecoyOrReal(
   currentTrackLyrics: readonly string[],
   decoyPool: ReadonlyMap<number, TrackLyrics>,
   difficulty: Difficulty,
   currentTrackAlbum?: string,
+  lineCount: number = 1,
+  currentTrackTitle?: string,
 ): DecoyResult {
   const showReal = Math.random() < 0.5;
 
+  // Build title-exclusion set for "real" picks
+  const titleExcluded = currentTrackTitle
+    ? new Set(
+        currentTrackLyrics
+          .map((line, i) => (containsTitle(line, currentTrackTitle) ? i : -1))
+          .filter((i): i is number => i >= 0),
+      )
+    : undefined;
+
   if (showReal) {
-    const validLines = currentTrackLyrics.filter((line) => {
-      const words = line.split(/\s+/).length;
-      return words >= 4 && words <= 15;
-    });
-    const pool = validLines.length > 0 ? validLines : currentTrackLyrics;
-    const line = pool[Math.floor(Math.random() * pool.length)];
-    return { line, isReal: true };
+    const lines = pickContiguousBlock(
+      currentTrackLyrics,
+      lineCount,
+      titleExcluded,
+    );
+    return { lines, isReal: true };
   }
 
   // Select a decoy from another song
   const decoyEntries = Array.from(decoyPool.entries());
   if (decoyEntries.length === 0) {
     // Fallback to real if no decoys available
-    const line =
-      currentTrackLyrics[Math.floor(Math.random() * currentTrackLyrics.length)];
-    return { line, isReal: true };
+    const lines = pickContiguousBlock(
+      currentTrackLyrics,
+      lineCount,
+      titleExcluded,
+    );
+    return { lines, isReal: true };
   }
 
   const avgWordCount =
@@ -274,13 +405,11 @@ export function selectDecoyOrReal(
   let candidates = decoyEntries;
 
   if (difficulty === "hard" && currentTrackAlbum) {
-    // Same album
     const sameAlbum = candidates.filter(
       ([, lyrics]) => lyrics.sourceAlbum === currentTrackAlbum,
     );
     if (sameAlbum.length > 0) candidates = sameAlbum;
   } else if (difficulty === "easy") {
-    // Different era
     const currentEra = findEraGroup(currentTrackAlbum ?? "");
     if (currentEra) {
       const differentEra = candidates.filter(([, lyrics]) => {
@@ -291,31 +420,40 @@ export function selectDecoyOrReal(
     }
   }
 
-  // Pick a random decoy source
   const [, decoyLyrics] =
     candidates[Math.floor(Math.random() * candidates.length)];
 
-  // Filter decoy lines by similar length
-  const tolerance = avgWordCount * 0.3;
-  let decoyLines = decoyLyrics.lines.filter((line) => {
-    const words = line.split(/\s+/).length;
-    return (
-      words >= 4 && words <= 15 && Math.abs(words - avgWordCount) <= tolerance
-    );
-  });
+  if (lineCount === 1) {
+    // Preserve existing single-line decoy behavior: word-count + tolerance
+    const tolerance = avgWordCount * 0.3;
+    let decoyLines = decoyLyrics.lines.filter((line) => {
+      const words = line.split(/\s+/).length;
+      return (
+        words >= 4 && words <= 15 && Math.abs(words - avgWordCount) <= tolerance
+      );
+    });
 
-  if (decoyLines.length === 0) {
-    decoyLines = decoyLyrics.lines.filter(
-      (line) => line.split(/\s+/).length >= 4,
-    );
+    if (decoyLines.length === 0) {
+      decoyLines = decoyLyrics.lines.filter(
+        (line) => line.split(/\s+/).length >= 4,
+      );
+    }
+
+    if (decoyLines.length === 0) {
+      decoyLines = [...decoyLyrics.lines];
+    }
+
+    const line = decoyLines[Math.floor(Math.random() * decoyLines.length)];
+    return {
+      lines: [line],
+      isReal: false,
+      sourceSong: decoyLyrics.sourceTrack,
+    };
   }
 
-  if (decoyLines.length === 0) {
-    decoyLines = [...decoyLyrics.lines];
-  }
-
-  const line = decoyLines[Math.floor(Math.random() * decoyLines.length)];
-  return { line, isReal: false, sourceSong: decoyLyrics.sourceTrack };
+  // Multi-line decoy: pick contiguous block
+  const lines = pickContiguousBlock(decoyLyrics.lines, lineCount);
+  return { lines, isReal: false, sourceSong: decoyLyrics.sourceTrack };
 }
 
 function findEraGroup(albumTitle: string): string | null {
