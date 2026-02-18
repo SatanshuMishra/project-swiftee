@@ -14,10 +14,10 @@
       {
         "label": "main",
         "title": "Swiftie Quiz",
-        "width": 900,
-        "height": 700,
-        "minWidth": 600,
-        "minHeight": 500,
+        "width": 1024,
+        "height": 800,
+        "minWidth": 686,
+        "minHeight": 571,
         "center": true
       }
     ],
