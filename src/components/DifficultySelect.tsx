@@ -18,6 +18,8 @@ interface DifficultyDef {
 function getDifficulties(
   quizType: QuizType | null,
   lyricsMode: LyricsMode | null,
+  mediumTimer: number,
+  hardTimer: number,
 ): readonly DifficultyDef[] {
   const base = {
     easy: {
@@ -58,14 +60,18 @@ function getDifficulties(
       },
       {
         ...base.medium,
-        features: ["3 lyric lines", "Multiple choice", "20-second timer"],
+        features: [
+          "3 lyric lines",
+          "Multiple choice",
+          `${mediumTimer}-second timer`,
+        ],
       },
       {
         ...base.hard,
         features: [
           "2 lyric lines, no chorus",
           "Type your answer",
-          "15-second timer",
+          `${hardTimer}-second timer`,
         ],
       },
     ];
@@ -88,7 +94,7 @@ function getDifficulties(
           "2 lyric lines shown",
           "No hints",
           "Fakes from similar albums",
-          "15-second timer",
+          `${mediumTimer}-second timer`,
         ],
       },
       {
@@ -97,7 +103,7 @@ function getDifficulties(
           "1 lyric line shown",
           "No hints",
           "Fakes from same album",
-          "10-second timer",
+          `${hardTimer}-second timer`,
         ],
       },
     ];
@@ -111,11 +117,15 @@ function getDifficulties(
     },
     {
       ...base.medium,
-      features: ["Multiple choice", "No album hint", "20-second timer"],
+      features: [
+        "Multiple choice",
+        "No album hint",
+        `${mediumTimer}-second timer`,
+      ],
     },
     {
       ...base.hard,
-      features: ["Type your answer", "No hints", "15-second timer"],
+      features: ["Type your answer", "No hints", `${hardTimer}-second timer`],
     },
   ];
 }
@@ -125,8 +135,14 @@ export function DifficultySelect() {
   const setPhase = useGameStore((s) => s.setPhase);
   const quizType = useGameStore((s) => s.quizType);
   const lyricsMode = useGameStore((s) => s.lyricsMode);
+  const settings = useGameStore((s) => s.progress.settings);
 
-  const difficulties = getDifficulties(quizType, lyricsMode);
+  const difficulties = getDifficulties(
+    quizType,
+    lyricsMode,
+    settings.mediumTimer,
+    settings.hardTimer,
+  );
 
   const handleSelect = (difficulty: Difficulty) => {
     setDifficulty(difficulty);
