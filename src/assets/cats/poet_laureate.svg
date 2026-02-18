@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="16" fill="none"/>
+  <!-- Cat ears -->
+  <path d="M38,50 L50,20 L62,50" fill="#8b5cf6" opacity="0.8"/>
+  <path d="M66,50 L78,20 L90,50" fill="#8b5cf6" opacity="0.8"/>
+  <!-- Cat head -->
+  <circle cx="64" cy="62" r="24" fill="#8b5cf6"/>
+  <!-- Eyes -->
+  <circle cx="54" cy="58" r="3" fill="white"/>
+  <circle cx="74" cy="58" r="3" fill="white"/>
+  <circle cx="55" cy="58" r="1.5" fill="#1a1a1a"/>
+  <circle cx="75" cy="58" r="1.5" fill="#1a1a1a"/>
+  <!-- Nose -->
+  <path d="M62,66 L64,69 L66,66" fill="#ff9999" stroke="#ff9999" stroke-width="1"/>
+  <!-- Mouth -->
+  <path d="M60,71 Q64,75 68,71" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+  <!-- Body -->
+  <path d="M40,90 Q64,70 88,90" fill="#8b5cf6" opacity="0.6"/>
+  <!-- Quill pen -->
+  <line x1="80" y1="40" x2="90" y2="20" stroke="#fbbf24" stroke-width="2"/>
+  <path d="M88,22 L92,18 L90,24" fill="#fbbf24"/>
+  <!-- Ink pot -->
+  <rect x="74" y="82" width="10" height="10" rx="2" fill="#1a1a1a" opacity="0.7"/>
+</svg>
