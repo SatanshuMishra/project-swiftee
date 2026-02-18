@@ -5,6 +5,10 @@ import { MainMenu } from "./components/MainMenu";
 import { AlbumGrid } from "./components/AlbumGrid";
 import { DifficultySelect } from "./components/DifficultySelect";
 import { GameScreen } from "./components/GameScreen";
+import { QuizTypeSelect } from "./components/QuizTypeSelect";
+import { LyricsModeSelect } from "./components/LyricsModeSelect";
+import { LyricsLoadingScreen } from "./components/LyricsLoadingScreen";
+import { LyricsGameScreen } from "./components/LyricsGameScreen";
 import { CatGallery } from "./components/CatGallery";
 import { Settings } from "./components/Settings";
 import { AchievementToasts } from "./components/AchievementToast";
@@ -28,6 +32,7 @@ function useTheme() {
 
 export function App() {
   const phase = useGameStore((s) => s.phase);
+  const quizType = useGameStore((s) => s.quizType);
 
   useTheme();
   usePersistence();
@@ -38,10 +43,16 @@ export function App() {
         return <MainMenu />;
       case "album-select":
         return <AlbumGrid />;
+      case "quiz-type-select":
+        return <QuizTypeSelect />;
+      case "lyrics-mode-select":
+        return <LyricsModeSelect />;
       case "difficulty-select":
         return <DifficultySelect />;
+      case "lyrics-loading":
+        return <LyricsLoadingScreen />;
       case "playing":
-        return <GameScreen />;
+        return quizType === "lyrics" ? <LyricsGameScreen /> : <GameScreen />;
       case "cat-gallery":
         return <CatGallery />;
       case "settings":
