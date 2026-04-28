@@ -25,3 +25,15 @@ Thumbs.db
 
 # Tauri build artifacts
 src-tauri/gen/
+
+# Claude Code — personal/transient only (committed: settings.json, agents/, commands/, hooks/)
+.claude/settings.local.json
+.claude/sessions/
+.claude/state/
+.claude/cache/
+.claude/*.log
+.claude/audit.log
+
+# Superpowers — working drafts only (committed: specs/, plans/)
+docs/superpowers/scratch/
+docs/superpowers/**/*-wip.md
