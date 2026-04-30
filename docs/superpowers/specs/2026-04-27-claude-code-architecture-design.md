@@ -44,7 +44,7 @@ This spec designs the AI/agentic layer that catches these classes of regressions
 | Architecture ambition | Full agentic + autonomous quality loop | User-selected Option C; the project is past the prototype phase and warrants permanent scaffolding. |
 | MCP egress policy | **Balanced** — block `memory`, `Claude_in_Chrome`, `Claude_Preview`, `fal-ai-media`, `mcp-registry`, `scheduled-tasks`; allow `context7`, `sequential-thinking`, `playwright` (local), GitHub read-only. | Public-data app, no PII. Threat surface is leaking *codebase intent* to third parties. Strict mode is overkill; open-with-audit assumes a discipline that does not survive contact with reality. |
 | Hook strictness | **Block security, warn quality** | Security regressions are user-impacting; style violations are not. Style warnings encourage periodic cleanup runs without interrupting flow. |
-| Repo persistence | **Commit shared config, ignore personal/transient** | Architecture is useless if it does not ride with the repo (CI loads `setting_sources: project`). Personal overrides + session caches stay local. |
+| Repo persistence | **Commit shared config, ignore personal/transient** | Architecture is useless if it does not ride with the repo (CI loads `settings: ".claude/settings.json"`). Personal overrides + session caches stay local. |
 
 ## 4. Architecture overview
 
@@ -191,7 +191,7 @@ Committed to the repo. Inherits from `~/.claude/settings.json` global file; proj
       "Edit(package-lock.json)", "Edit(src-tauri/Cargo.lock)",
       "Edit(src-tauri/gen/**)", "Edit(node_modules/**)",
       "Edit(dist/**)", "Edit(.git/**)",
-      "Write(.env)", "Write(.env.*)",
+      "Write(.env)", "Write(.env.*)", "Edit(.env)", "Edit(.env.*)",
 
       "mcp__memory__*",
       "mcp__plugin_everything-claude-code_memory__*",
@@ -320,7 +320,7 @@ echo "$content" | grep -qE '"dangerousDisableAssetCspModification"[[:space:]]*:[
   && violations+=("dangerousDisableAssetCspModification flipped to true")
 echo "$content" | grep -qE "unsafe-(eval|inline)" \
   && violations+=("CSP contains unsafe-eval or unsafe-inline")
-echo "$content" | grep -qE 'default-src[^"]*\*' \
+echo "$content" | grep -qE "default-src[^;]*[[:space:]]\\*([[:space:]]|;|\\\"|$)" \
   && violations+=("CSP default-src wildcard '*'")
 
 for origin in "https://lrclib.net" "https://api.deezer.com" "dzcdn.net"; do
@@ -386,6 +386,8 @@ fi
 exit 0
 ```
 
+> **Known limitation (theoretical):** when invoked outside a git working tree, `git rev-parse --show-toplevel` writes to stderr and `cd ""` becomes a no-op, so execution falls through to `git diff` (which then fails). The script still exits 0 (Stop hooks must be non-blocking) and the spurious reminder is harmless. In practice the hook always fires inside the project repo, so this case is unreachable. A defensive variant would be `root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; cd "$root"`.
+
 ### Dependencies
 
 `jq` (for hook stdin parsing) and a Rust toolchain (already required by the project). The implementation plan's setup script will check both.
@@ -422,25 +424,21 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          mode: review
-          setting_sources: project
-          allowed_tools: Read,Glob,Grep,Bash(git diff:*),Bash(gh pr diff:*)
+          settings: ".claude/settings.json"
+          use_sticky_comment: "true"
+          claude_args: |
+            --allowed-tools "Read,Glob,Grep,Bash(git diff:*),Bash(gh pr diff:*),Bash(git log:*)"
           prompt: |
             Run /review-pr ${{ github.event.pull_request.number }}.
             Post a single consolidated review comment to the PR.
             If any CRITICAL findings, request changes; otherwise approve or comment.
-
-      - name: Post sticky comment
-        if: always()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: review.md
 ```
 
 ### CI safety properties
 
-1. `setting_sources: project` — Action loads only `.claude/settings.json` from the repo, not user-level settings. Same MCP allowlist + permissions as locally.
-2. `allowed_tools` is narrower than local — CI gets Read/Grep + diff-only Bash. No Edit/Write capability even if the prompt asked.
+1. `settings: ".claude/settings.json"` — Action loads project settings from the committed file, including the same MCP allowlist + permissions as locally. (Note: the action's `settings` input takes either a JSON string or a path to a settings file; do NOT use `setting_sources` — that input does not exist on the published action.)
+2. `claude_args: --allowed-tools "..."` is narrower than local — CI gets Read/Grep + diff-only Bash. No Edit/Write capability even if the prompt asked. (The action does NOT have a top-level `allowed_tools` input; allowed-tools is passed through `claude_args`.)
+3. `use_sticky_comment: true` posts (and updates) a single consolidated review comment per PR — no separate sticky-comment action needed.
 3. `ANTHROPIC_API_KEY` is the only required secret.
 4. Path filter — Action does not run on PRs that touch only docs/CI/icons.
 
@@ -505,7 +503,7 @@ If any criterion fails, the architecture has a defect — not the bug being fixe
 |---|---|---|
 | `schema-sync-checker` does not see drift | Subagent prompt lacks the four-place enumeration | Edit `.claude/agents/schema-sync-checker.md` to name the four locations explicitly |
 | Hook fires on the wrong file | `case` glob in the script is wrong | Test the glob in isolation |
-| CI reviewer disagrees with local reviewer | `setting_sources` not loading project settings | Pin Action to a known-good version |
+| CI reviewer disagrees with local reviewer | `settings:` path not resolving to .claude/settings.json | Confirm the file exists in the PR's tree; pin Action to a known-good version |
 | `/review-pr` runs sequentially | Dispatch not using single-message multi-tool-call | Edit command file to use parallel-dispatch pattern |
 
 ## 13. Open questions

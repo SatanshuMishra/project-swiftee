@@ -324,7 +324,7 @@ EOF
       "Edit(package-lock.json)", "Edit(src-tauri/Cargo.lock)",
       "Edit(src-tauri/gen/**)", "Edit(node_modules/**)",
       "Edit(dist/**)", "Edit(.git/**)",
-      "Write(.env)", "Write(.env.*)",
+      "Write(.env)", "Write(.env.*)", "Edit(.env)", "Edit(.env.*)",
 
       "mcp__memory__*",
       "mcp__plugin_everything-claude-code_memory__*",
@@ -557,7 +557,7 @@ echo "$content" | grep -qE '"dangerousDisableAssetCspModification"[[:space:]]*:[
   && violations+=("dangerousDisableAssetCspModification flipped to true")
 echo "$content" | grep -qE "unsafe-(eval|inline)" \
   && violations+=("CSP contains unsafe-eval or unsafe-inline")
-echo "$content" | grep -qE 'default-src[^"]*\*' \
+echo "$content" | grep -qE "default-src[^;]*[[:space:]]\\*([[:space:]]|;|\\\"|$)" \
   && violations+=("CSP default-src wildcard '*'")
 
 for origin in "https://lrclib.net" "https://api.deezer.com" "dzcdn.net"; do
@@ -1015,7 +1015,7 @@ You are the Tauri security reviewer for the Swiftie Quiz desktop app.
 
 ## Hard rules
 
-1. **CSP must contain** `'self'` default, the three Deezer CDN origins, `lrclib.net`, and `ipc:` / `http://ipc.localhost`.
+1. **CSP must contain** `'self'` default, the two Deezer preview CDN hosts (`cdns-preview-*.dzcdn.net`, `cdnt-preview.dzcdn.net`), the cover-image source (`api.deezer.com` + `*.dzcdn.net` for `img-src`), `lrclib.net`, and `ipc:` / `http://ipc.localhost`.
 2. **No `unsafe-eval`, `unsafe-inline`, wildcards** (`*` in source lists).
 3. **`dangerousDisableAssetCspModification` stays `false`.**
 4. **No new IPC capability** without naming the threat it mitigates / introduces.
@@ -1259,7 +1259,7 @@ Run the following commands sequentially. **Stop at the first failure** and repor
 
 1. `npx tsc --noEmit`
 2. `npm run lint`
-3. `npm test -- --run`
+3. `npm test` (the `test` script in package.json is already `vitest run`; no extra flag needed)
 4. `cd src-tauri && cargo clippy --all-targets -- -D warnings`
 5. `cd src-tauri && cargo test`
 
@@ -1624,7 +1624,7 @@ EOF
 ```bash
 gh api repos/anthropics/claude-code-action/contents/action.yml --jq '.content' | base64 -d 2>/dev/null | head -80
 ```
-Expected: prints the action's `inputs:` section. Confirm the actual input names (e.g. `anthropic_api_key`, `prompt`, `mode`, `setting_sources`, `allowed_tools`). If names differ from the spec draft below, **adjust the YAML before committing**.
+Expected: prints the action's `inputs:` section. The actual input names are `anthropic_api_key`, `prompt`, `settings` (path or JSON string), `claude_args` (CLI args including `--allowed-tools`), and `use_sticky_comment` (built-in sticky comment). The YAML in Step 3 below uses the verified names.
 
 - [ ] **Step 2: Note the latest stable version**
 
@@ -1677,11 +1677,13 @@ jobs:
           fetch-depth: 0
 
       - name: Run Claude reviewers
-        uses: anthropics/claude-code-action@<PIN-TO-LATEST>
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          setting_sources: project
-          allowed_tools: "Read,Glob,Grep,Bash(git diff:*),Bash(gh pr diff:*),Bash(git log:*)"
+          settings: ".claude/settings.json"
+          use_sticky_comment: "true"
+          claude_args: |
+            --allowed-tools "Read,Glob,Grep,Bash(git diff:*),Bash(gh pr diff:*),Bash(git log:*)"
           prompt: |
             Run the /review-pr slash command for PR #${{ github.event.pull_request.number }}.
 
@@ -1689,7 +1691,8 @@ jobs:
             three reviewers in parallel (rust-tauri-reviewer, react-tauri-reviewer,
             tauri-security-reviewer), then santa-method convergence.
 
-            Write the consolidated review to ./review.md in this format:
+            Post a single consolidated review comment to this PR in this format:
+
               # Claude Review
 
               **Verdict:** APPROVED | CHANGES REQUESTED | COMMENT
@@ -1699,16 +1702,9 @@ jobs:
 
               ## Files reviewed
               <list>
-
-      - name: Post sticky review comment
-        if: always()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: review.md
-          header: claude-review
 ```
 
-> **Important:** the `<PIN-TO-LATEST>` placeholder must be replaced with the tag from Task 6.1 step 2 before commit. If the action's actual input keys differ from `anthropic_api_key` / `setting_sources` / `allowed_tools` / `prompt`, adjust accordingly using the output of Task 6.1 step 1.
+> **Important:** the action's actual input keys are `settings` (path to .claude/settings.json or inline JSON), `claude_args` (additional Claude CLI args including `--allowed-tools`), and `use_sticky_comment` (built-in single-comment posting). Earlier drafts of this plan referenced `setting_sources` and `allowed_tools` and a separate `marocchino/sticky-pull-request-comment` step — those do NOT exist on the published action and must NOT be used. Pin to `@v1` (latest stable tag from Task 6.1 step 2).
 
 - [ ] **Step 2: Validate YAML**
 
