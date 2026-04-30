@@ -31,11 +31,22 @@ pub struct GameStats {
     pub lyrics_or_lie_correct: u64,
 }
 
+fn default_medium_timer() -> u32 {
+    30
+}
+fn default_hard_timer() -> u32 {
+    20
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameSettings {
     pub theme: String,
     pub volume: f64,
+    #[serde(default = "default_medium_timer")]
+    pub medium_timer: u32,
+    #[serde(default = "default_hard_timer")]
+    pub hard_timer: u32,
 }
 
 impl Default for GameProgress {
@@ -54,6 +65,8 @@ impl Default for GameProgress {
             settings: GameSettings {
                 theme: "dark".to_string(),
                 volume: 0.8,
+                medium_timer: default_medium_timer(),
+                hard_timer: default_hard_timer(),
             },
         }
     }
@@ -147,5 +160,21 @@ mod tests {
         let loaded: GameProgress = serde_json::from_str(&contents).unwrap();
         assert_eq!(loaded.version, progress.version);
         assert_eq!(loaded.settings.theme, progress.settings.theme);
+    }
+
+    #[test]
+    fn test_default_includes_timer_fields() {
+        let progress = GameProgress::default();
+        assert_eq!(progress.settings.medium_timer, 30);
+        assert_eq!(progress.settings.hard_timer, 20);
+    }
+
+    #[test]
+    fn test_settings_serde_round_trip_preserves_timers() {
+        let progress = GameProgress::default();
+        let json = serde_json::to_string(&progress).unwrap();
+        let back: GameProgress = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.settings.medium_timer, 30);
+        assert_eq!(back.settings.hard_timer, 20);
     }
 }
