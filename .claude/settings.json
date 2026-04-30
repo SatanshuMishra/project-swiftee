@@ -39,7 +39,7 @@
       "Edit(package-lock.json)", "Edit(src-tauri/Cargo.lock)",
       "Edit(src-tauri/gen/**)", "Edit(node_modules/**)",
       "Edit(dist/**)", "Edit(.git/**)",
-      "Write(.env)", "Write(.env.*)",
+      "Write(.env)", "Write(.env.*)", "Edit(.env)", "Edit(.env.*)",
 
       "mcp__memory__*",
       "mcp__plugin_everything-claude-code_memory__*",
