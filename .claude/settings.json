@@ -57,5 +57,33 @@
       "mcp__plugin_everything-claude-code_github__merge_*",
       "mcp__plugin_everything-claude-code_github__push_*"
     ]
+  },
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": ".claude/hooks/block-secrets.sh" }]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": ".claude/hooks/block-csp-weakening.sh" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": ".claude/hooks/warn-console-log.sh" }]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": ".claude/hooks/check-rust-after-edit.sh" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": ".claude/hooks/stop-reminder.sh" }]
+      }
+    ]
   }
 }
