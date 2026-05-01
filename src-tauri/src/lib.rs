@@ -2,6 +2,7 @@ pub mod commands;
 pub mod models;
 pub mod services;
 pub mod state;
+pub mod storage;
 
 use state::AppState;
 
@@ -18,6 +19,8 @@ pub fn run() {
             commands::deezer::fetch_top_tracks,
             commands::storage::save_progress,
             commands::storage::load_progress,
+            commands::storage::list_save_backups,
+            commands::storage::restore_save_backup,
             commands::lyrics::fetch_lyrics,
             commands::lyrics::fetch_lyrics_batch,
         ])

@@ -25,6 +25,9 @@ pub enum AppError {
 
     #[error("Lyrics response malformed.")]
     LyricsMalformed,
+
+    #[error("Missing migration step from version {0}")]
+    MissingMigration(u32),
 }
 
 impl Serialize for AppError {
