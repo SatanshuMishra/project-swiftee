@@ -4,7 +4,7 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [0.2.0] - 2026-05-DD
+## [0.2.0] - 2026-05-01
 
 ### Added
 - **Auto-update support.** The app now checks GitHub Releases for new versions

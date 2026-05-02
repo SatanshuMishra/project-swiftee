@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/tauri-v2/main/tooling/cli/schema.json",
   "productName": "Swiftie Quiz",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.swiftiequiz.desktop",
   "build": {
     "frontendDist": "../dist",
