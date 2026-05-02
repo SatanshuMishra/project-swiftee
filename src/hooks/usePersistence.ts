@@ -10,6 +10,12 @@ export function usePersistence() {
   const setProgress = useGameStore((s) => s.setProgress);
   const progress = useGameStore((s) => s.progress);
   const lastSaved = useRef<string>("");
+  // Auto-save is gated on a successful load. Until load_progress returns a
+  // recognized LoadResult variant (Fresh / Loaded / Migrated), we MUST NOT
+  // write the in-memory DEFAULT_PROGRESS to disk — doing so would silently
+  // destroy a user's existing save when the file errored on read (e.g.
+  // FutureSaveVersion after a downgrade, or a corrupted JSON).
+  const loadCompletedSuccessfully = useRef(false);
 
   const applyProgress = useCallback(
     (p: GameProgress) =>
@@ -42,13 +48,18 @@ export function usePersistence() {
         default:
           assertNever(result);
       }
+      loadCompletedSuccessfully.current = true;
     } catch {
-      // Backend errored (e.g., FutureSaveVersion or filesystem failure).
-      // Fall back to defaults so the app remains usable; user can
-      // restore from backup via Settings if needed.
-      setProgress(DEFAULT_PROGRESS);
+      // Load failed — most likely FutureSaveVersion (user downgraded) or a
+      // corrupt save.json. Surface to the user via toast so they know to
+      // restore from backup. Crucially, DO NOT overwrite the file: we leave
+      // loadCompletedSuccessfully=false so the auto-save effect skips the
+      // write.
+      showToast(
+        "Couldn't load your save. Open Settings → Backups to restore from a backup.",
+      );
     }
-  }, [setProgress, applyProgress]);
+  }, [applyProgress]);
 
   const save = useCallback(async (progressToSave: GameProgress) => {
     const json = JSON.stringify(progressToSave);
@@ -63,13 +74,16 @@ export function usePersistence() {
     }
   }, []);
 
-  // Load on mount
+  // Load on mount.
   useEffect(() => {
     load();
   }, [load]);
 
-  // Auto-save when progress changes (debounced 1s)
+  // Auto-save when progress changes (debounced 1s) — but ONLY if load
+  // succeeded. Otherwise we'd be writing DEFAULT_PROGRESS over the user's
+  // real (possibly recoverable) save.
   useEffect(() => {
+    if (!loadCompletedSuccessfully.current) return;
     const timer = setTimeout(() => {
       save(progress);
     }, 1000);

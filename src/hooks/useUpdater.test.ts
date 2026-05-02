@@ -219,4 +219,86 @@ describe("useUpdater", () => {
     expect(until - before).toBeGreaterThan(23 * 3600 * 1000);
     expect(until - before).toBeLessThan(25 * 3600 * 1000);
   });
+
+  it("auto-check is skipped when autoCheckEnabled is false", async () => {
+    useGameStore.setState({
+      progress: {
+        ...DEFAULT_PROGRESS,
+        updater: { ...DEFAULT_PROGRESS.updater, autoCheckEnabled: false },
+      },
+    });
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    expect(mockCheck).not.toHaveBeenCalled();
+    expect(result.current.state.kind).toBe("idle");
+  });
+
+  it("auto-check is skipped during remindLater cooldown", async () => {
+    const future = new Date(Date.now() + 12 * 3600 * 1000).toISOString();
+    useGameStore.setState({
+      progress: {
+        ...DEFAULT_PROGRESS,
+        updater: { ...DEFAULT_PROGRESS.updater, remindLaterUntil: future },
+      },
+    });
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    expect(mockCheck).not.toHaveBeenCalled();
+  });
+
+  it("manual check bypasses autoCheckEnabled=false", async () => {
+    useGameStore.setState({
+      progress: {
+        ...DEFAULT_PROGRESS,
+        updater: { ...DEFAULT_PROGRESS.updater, autoCheckEnabled: false },
+      },
+    });
+    mockCheck.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check({ manual: true });
+    });
+    expect(mockCheck).toHaveBeenCalledOnce();
+    expect(result.current.state.kind).toBe("up-to-date");
+  });
+
+  it("available update is demoted to up-to-date if version is in skippedVersions", async () => {
+    useGameStore.setState({
+      progress: {
+        ...DEFAULT_PROGRESS,
+        updater: { ...DEFAULT_PROGRESS.updater, skippedVersions: ["0.3.0"] },
+      },
+    });
+    mockCheck.mockResolvedValueOnce({
+      version: "0.3.0",
+      currentVersion: "0.2.0",
+      body: "",
+      date: "",
+      download: vi.fn(),
+      install: vi.fn(),
+    } as any);
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    expect(result.current.state.kind).toBe("up-to-date");
+  });
+
+  it("successful check writes lastCheckedAt to progress.updater", async () => {
+    mockCheck.mockResolvedValueOnce(null);
+    const before = Date.now();
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    const lastChecked = useGameStore.getState().progress.updater.lastCheckedAt;
+    expect(lastChecked).not.toBeNull();
+    const ts = Date.parse(lastChecked!);
+    expect(ts).toBeGreaterThanOrEqual(before);
+    expect(ts).toBeLessThanOrEqual(Date.now() + 1000);
+  });
 });

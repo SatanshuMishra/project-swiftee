@@ -87,19 +87,22 @@ describe("usePersistence", () => {
     expect(message).not.toMatch(/v\d/);
   });
 
-  it("falls back to DEFAULT_PROGRESS on invoke error", async () => {
+  it("does not overwrite store on invoke error (preserves seeded data for backup recovery)", async () => {
     mockInvoke.mockRejectedValueOnce(new Error("boom"));
-    // Seed the store with non-default state so we can detect the reset
-    useGameStore.setState({
-      progress: {
-        ...DEFAULT_PROGRESS,
-        stats: { ...DEFAULT_PROGRESS.stats, totalCorrect: 99 },
-      },
-    });
+    const seeded = {
+      ...DEFAULT_PROGRESS,
+      stats: { ...DEFAULT_PROGRESS.stats, totalCorrect: 99 },
+    };
+    useGameStore.setState({ progress: seeded });
     renderHook(() => usePersistence());
+    // Wait a tick for the load promise to reject and the catch to run.
     await waitFor(() => {
-      expect(useGameStore.getState().progress.stats.totalCorrect).toBe(0);
+      expect(mockInvoke).toHaveBeenCalledWith("load_progress");
     });
-    expect(mockShowToast).not.toHaveBeenCalled();
+    // The store should be UNCHANGED — no DEFAULT_PROGRESS reset.
+    expect(useGameStore.getState().progress.stats.totalCorrect).toBe(99);
+    // A toast should have been shown so the user knows.
+    expect(mockShowToast).toHaveBeenCalledOnce();
+    expect(mockShowToast.mock.calls[0][0]).toMatch(/couldn't load/i);
   });
 });

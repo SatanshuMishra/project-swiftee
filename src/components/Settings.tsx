@@ -339,8 +339,7 @@ export function Settings() {
             <span className="text-xs">
               Automatically check for updates
               <span className="block text-[11px] text-muted-foreground">
-                Sends only app version, OS, and architecture. No analytics or
-                unique identifiers.
+                Sends only the standard HTTP request to GitHub. No analytics, no install identifiers, no telemetry.
               </span>
             </span>
           </label>

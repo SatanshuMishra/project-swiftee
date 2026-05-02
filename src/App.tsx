@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useGameStore } from "./stores/gameStore";
 import { usePersistence } from "./hooks/usePersistence";
+import { useUpdater } from "./hooks/useUpdater";
 import { MainMenu } from "./components/MainMenu";
 import { AlbumGrid } from "./components/AlbumGrid";
 import { DifficultySelect } from "./components/DifficultySelect";
@@ -39,6 +40,25 @@ export function App() {
 
   useTheme();
   usePersistence();
+  const { check: checkForUpdates } = useUpdater();
+
+  useEffect(() => {
+    // 1.5s delay so the initial render isn't blocked by the network round-trip.
+    const initialTimer = setTimeout(() => {
+      void checkForUpdates();
+    }, 1500);
+
+    // Every 6 hours while running.
+    const intervalTimer = setInterval(
+      () => void checkForUpdates(),
+      6 * 60 * 60 * 1000,
+    );
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(intervalTimer);
+    };
+  }, [checkForUpdates]);
 
   const renderPhase = () => {
     switch (phase) {

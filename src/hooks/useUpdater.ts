@@ -42,25 +42,51 @@ export function useUpdater(): UseUpdater {
   const setProgress = useGameStore((s) => s.setProgress);
 
   const doCheck = useCallback(async (opts?: { manual?: boolean }) => {
-    // The `manual` flag is forwarded for future cadence handling (Phase 6
-    // will use it to bypass remindLaterUntil cooldowns). For Phase 4 it is
-    // accepted but unused.
-    void opts?.manual;
+    const isManual = opts?.manual === true;
+    const current = progress.updater;
+
+    // Auto-mode gates: respect user preferences. Manual checks (Settings →
+    // Check now) bypass autoCheckEnabled and remindLaterUntil but still
+    // honor skippedVersions for consistency.
+    if (!isManual) {
+      if (!current.autoCheckEnabled) return;
+      if (current.remindLaterUntil) {
+        const until = Date.parse(current.remindLaterUntil);
+        if (!Number.isNaN(until) && until > Date.now()) return;
+      }
+    }
+
     setState({ kind: "checking" });
     try {
       const update = await check();
+      const nowIso = new Date().toISOString();
+
+      // Persist lastCheckedAt regardless of outcome so Settings shows it.
+      setProgress({
+        ...progress,
+        updater: { ...progress.updater, lastCheckedAt: nowIso },
+      });
+
       if (!update) {
         ctx.pendingUpdate = null;
         setState({ kind: "up-to-date" });
         return;
       }
+
+      // Honor skippedVersions even on auto OR manual.
+      if (current.skippedVersions.includes(update.version)) {
+        ctx.pendingUpdate = null;
+        setState({ kind: "up-to-date" });
+        return;
+      }
+
       ctx.pendingUpdate = update;
       setState({ kind: "available", manifest: manifestFromUpdate(update) });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setState({ kind: "error", subtype: "check", message });
     }
-  }, [setState]);
+  }, [progress, setProgress, setState]);
 
   const doDownload = useCallback(async () => {
     if (!ctx.pendingUpdate) {
