@@ -92,6 +92,7 @@ export interface GameProgress {
   readonly achievements: Record<string, AchievementState>;
   readonly stats: GameStats;
   readonly settings: GameSettings;
+  readonly updater: UpdaterState;
 }
 
 export interface GameStats {
@@ -110,6 +111,13 @@ export interface GameSettings {
   readonly hardTimer: number;
 }
 
+export interface UpdaterState {
+  readonly autoCheckEnabled: boolean;
+  readonly lastCheckedAt: string | null;
+  readonly skippedVersions: readonly string[];
+  readonly remindLaterUntil: string | null;
+}
+
 // Round state
 export interface RoundResult {
   readonly correct: boolean;
@@ -121,7 +129,7 @@ export interface RoundResult {
 }
 
 export const DEFAULT_PROGRESS: GameProgress = {
-  version: 1,
+  version: 3,
   achievements: {},
   stats: {
     totalCorrect: 0,
@@ -136,5 +144,11 @@ export const DEFAULT_PROGRESS: GameProgress = {
     volume: 0.8,
     mediumTimer: 30,
     hardTimer: 20,
+  },
+  updater: {
+    autoCheckEnabled: true,
+    lastCheckedAt: null,
+    skippedVersions: [],
+    remindLaterUntil: null,
   },
 };

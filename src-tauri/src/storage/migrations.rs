@@ -5,10 +5,11 @@ use crate::models::error::AppError;
 
 pub type Migration = fn(Value) -> Result<Value, AppError>;
 
-pub const CURRENT_VERSION: u32 = 2;
+pub const CURRENT_VERSION: u32 = 3;
 
 const MIGRATIONS: &[(u32, Migration)] = &[
     (1, migrate_v1_to_v2),
+    (2, migrate_v2_to_v3),
 ];
 
 pub fn migrate_to_latest(mut state: Value) -> Result<Value, AppError> {
@@ -43,6 +44,20 @@ fn migrate_v1_to_v2(mut state: Value) -> Result<Value, AppError> {
     stats.entry("nameThaSongCorrect").or_insert(json!(0));
     stats.entry("lyricsOrLieCorrect").or_insert(json!(0));
     state["version"] = json!(2);
+    Ok(state)
+}
+
+fn migrate_v2_to_v3(mut state: Value) -> Result<Value, AppError> {
+    // Forward-compat: don't clobber if a future build already wrote `updater`.
+    if state.get("updater").is_none() {
+        state["updater"] = json!({
+            "autoCheckEnabled": true,
+            "lastCheckedAt": null,
+            "skippedVersions": [],
+            "remindLaterUntil": null
+        });
+    }
+    state["version"] = json!(3);
     Ok(state)
 }
 
@@ -81,10 +96,85 @@ mod tests {
         current["stats"]["totalLyricsCorrect"] = json!(0);
         current["stats"]["nameThaSongCorrect"] = json!(0);
         current["stats"]["lyricsOrLieCorrect"] = json!(0);
+        current["updater"] = json!({
+            "autoCheckEnabled": true,
+            "lastCheckedAt": null,
+            "skippedVersions": [],
+            "remindLaterUntil": null
+        });
 
         let before = current.clone();
         let after = migrate_to_latest(current).unwrap();
         assert_eq!(before, after);
+    }
+
+    #[test]
+    fn migrate_v2_to_v3_adds_updater_field() {
+        let v2 = json!({
+            "version": 2,
+            "achievements": {},
+            "stats": {
+                "totalCorrect": 0,
+                "albumsPlayed": [],
+                "tracksGuessedPerAlbum": {},
+                "totalLyricsCorrect": 0,
+                "nameThaSongCorrect": 0,
+                "lyricsOrLieCorrect": 0
+            },
+            "settings": { "theme": "dark", "volume": 0.8, "mediumTimer": 30, "hardTimer": 20 }
+        });
+        let result = migrate_to_latest(v2).unwrap();
+        assert_eq!(result["version"], 3);
+        assert_eq!(result["updater"]["autoCheckEnabled"], true);
+        assert_eq!(result["updater"]["lastCheckedAt"], serde_json::Value::Null);
+        assert!(result["updater"]["skippedVersions"].is_array());
+        assert!(result["updater"]["skippedVersions"].as_array().unwrap().is_empty());
+        assert_eq!(result["updater"]["remindLaterUntil"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn migrate_v1_through_v3_chain() {
+        let v1 = json!({
+            "version": 1,
+            "achievements": {},
+            "stats": {
+                "totalCorrect": 99,
+                "albumsPlayed": [],
+                "tracksGuessedPerAlbum": {}
+            },
+            "settings": { "theme": "dark", "volume": 0.8, "mediumTimer": 30, "hardTimer": 20 }
+        });
+        let result = migrate_to_latest(v1).unwrap();
+        assert_eq!(result["version"], 3);
+        assert_eq!(result["stats"]["totalCorrect"], 99);
+        assert_eq!(result["stats"]["totalLyricsCorrect"], 0);
+        assert_eq!(result["updater"]["autoCheckEnabled"], true);
+    }
+
+    #[test]
+    fn migrate_v2_to_v3_preserves_existing_updater_field() {
+        let v2_with_updater = json!({
+            "version": 2,
+            "achievements": {},
+            "stats": {
+                "totalCorrect": 0,
+                "albumsPlayed": [],
+                "tracksGuessedPerAlbum": {},
+                "totalLyricsCorrect": 0,
+                "nameThaSongCorrect": 0,
+                "lyricsOrLieCorrect": 0
+            },
+            "settings": { "theme": "dark", "volume": 0.8, "mediumTimer": 30, "hardTimer": 20 },
+            "updater": {
+                "autoCheckEnabled": false,
+                "lastCheckedAt": "2026-01-01T00:00:00Z",
+                "skippedVersions": ["0.3.0"],
+                "remindLaterUntil": null
+            }
+        });
+        let result = migrate_to_latest(v2_with_updater).unwrap();
+        assert_eq!(result["updater"]["autoCheckEnabled"], false);
+        assert_eq!(result["updater"]["skippedVersions"][0], "0.3.0");
     }
 
     #[test]
