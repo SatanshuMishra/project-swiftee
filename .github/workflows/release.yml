@@ -15,8 +15,10 @@ concurrency:
 
 jobs:
   validate-versions:
-    name: Validate version coherence
+    name: Validate version coherence + extract release notes
     runs-on: ubuntu-latest
+    outputs:
+      release_notes: ${{ steps.extract-notes.outputs.notes }}
     steps:
       - uses: actions/checkout@v4
       - name: Assert versions match across package.json, Cargo.toml, tauri.conf.json
@@ -70,6 +72,24 @@ jobs:
               process.exit(1);
             }
           '
+      - name: Extract release notes from CHANGELOG section for this tag
+        id: extract-notes
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # Capture lines under "## [$TAG]" until the next "## [" heading.
+          # Strips trailing blank lines so the body lands cleanly in the
+          # release page and in tauri-action's emitted latest.json.
+          NOTES=$(awk -v ver="## [$TAG]" '
+            index($0, ver) == 1 { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}')
+          {
+            echo "notes<<NOTES_EOF"
+            printf '%s\n' "$NOTES"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
 
   build-macos:
     name: Build (macOS aarch64)
@@ -96,11 +116,14 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Swiftie Quiz ${{ github.ref_name }}"
-          releaseBody: "See CHANGELOG.md for details. Manifest is published after the operator swap-test."
+          # tauri-action embeds releaseBody verbatim into both the GitHub Release
+          # body AND the auto-generated latest.json `notes` field, so a single
+          # source of truth (CHANGELOG.md) flows through to both surfaces.
+          releaseBody: ${{ needs.validate-versions.outputs.release_notes }}
           releaseDraft: true
           prerelease: false
           args: --target aarch64-apple-darwin
-      - name: Upload macOS artifacts
+      - name: Upload macOS artifacts (for SLSA attestations)
         uses: actions/upload-artifact@v4
         with:
           name: macos-bundles
@@ -135,11 +158,11 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Swiftie Quiz ${{ github.ref_name }}"
-          releaseBody: "See CHANGELOG.md for details. Manifest is published after the operator swap-test."
+          releaseBody: ${{ needs.validate-versions.outputs.release_notes }}
           releaseDraft: true
           prerelease: false
           args: --target x86_64-pc-windows-msvc
-      - name: Upload Windows artifacts
+      - name: Upload Windows artifacts (for SLSA attestations)
         uses: actions/upload-artifact@v4
         with:
           name: windows-bundles
@@ -148,12 +171,11 @@ jobs:
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
           if-no-files-found: error
 
-  publish-manifest:
-    name: Compose latest.json + provenance attestations
+  attest:
+    name: SLSA build provenance attestations
     needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: macos-bundles
@@ -162,19 +184,13 @@ jobs:
         with:
           name: windows-bundles
           path: artifacts/windows
-      - name: Compose latest.json
-        run: bash .github/scripts/compose-manifest.sh
-        env:
-          GITHUB_REF: ${{ github.ref }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-      - name: Upload manifest to draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.ref_name }}" latest.json --clobber
+      # actions/upload-artifact@v4 collapses paths to the least-common-ancestor
+      # of all inputs, so multi-source uploads land in subdirectories under the
+      # artifact root. Globs use ** to match recursively.
       - name: Generate SLSA build provenance
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: |
-            artifacts/macos/*.app.tar.gz
-            artifacts/macos/*.dmg
-            artifacts/windows/*-setup.exe
+            artifacts/macos/**/*.app.tar.gz
+            artifacts/macos/**/*.dmg
+            artifacts/windows/**/*-setup.exe
