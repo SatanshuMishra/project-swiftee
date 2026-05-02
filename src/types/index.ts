@@ -135,6 +135,13 @@ export interface UpdateManifest {
   readonly pubDate: string;
 }
 
+// Mirrors src-tauri/src/storage/backup.rs BackupEntry (camelCase via serde)
+export interface BackupEntry {
+  readonly timestamp: number;
+  readonly path: string;
+  readonly sizeBytes: number;
+}
+
 export type UpdaterMachineState =
   | { readonly kind: "idle" }
   | { readonly kind: "checking" }
