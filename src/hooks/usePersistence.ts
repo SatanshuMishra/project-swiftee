@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { GameProgress } from "../types";
+
+import type { GameProgress, LoadResult } from "../types";
 import { DEFAULT_PROGRESS } from "../types";
 import { useGameStore } from "../stores/gameStore";
+import { showToast } from "../lib/toast";
 
 export function usePersistence() {
   const setProgress = useGameStore((s) => s.setProgress);
@@ -11,13 +13,37 @@ export function usePersistence() {
 
   const load = useCallback(async () => {
     try {
-      const loaded = await invoke<GameProgress>("load_progress");
-      const mergedSettings = {
-        ...DEFAULT_PROGRESS.settings,
-        ...loaded.settings,
-      };
-      setProgress({ ...loaded, settings: mergedSettings });
+      const result = await invoke<LoadResult>("load_progress");
+      switch (result.kind) {
+        case "fresh":
+          // First run — leave the store at DEFAULT_PROGRESS. No toast.
+          break;
+        case "loaded": {
+          const mergedSettings = {
+            ...DEFAULT_PROGRESS.settings,
+            ...result.progress.settings,
+          };
+          setProgress({ ...result.progress, settings: mergedSettings });
+          break;
+        }
+        case "migrated": {
+          const mergedSettings = {
+            ...DEFAULT_PROGRESS.settings,
+            ...result.progress.settings,
+          };
+          setProgress({ ...result.progress, settings: mergedSettings });
+          const message =
+            result.fromVersion !== null
+              ? `Welcome back! Your progress has been preserved. (Migrated from save format v${result.fromVersion}.)`
+              : "Welcome back! Your progress has been preserved.";
+          showToast(message);
+          break;
+        }
+      }
     } catch {
+      // Backend errored (e.g., FutureSaveVersion or filesystem failure).
+      // Fall back to defaults so the app remains usable; user can
+      // restore from backup via Settings if needed.
       setProgress(DEFAULT_PROGRESS);
     }
   }, [setProgress]);
@@ -29,6 +55,8 @@ export function usePersistence() {
     try {
       await invoke("save_progress", { progress: progressToSave });
     } catch (err) {
+      // Project rule allows console.error (rule is no console.log specifically);
+      // saving failures are operational events worth surfacing in dev tools.
       console.error("Failed to save progress:", err);
     }
   }, []);
