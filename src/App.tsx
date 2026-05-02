@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGameStore } from "./stores/gameStore";
 import { usePersistence } from "./hooks/usePersistence";
+import { useUpdater } from "./hooks/useUpdater";
 import { MainMenu } from "./components/MainMenu";
 import { AlbumGrid } from "./components/AlbumGrid";
 import { DifficultySelect } from "./components/DifficultySelect";
@@ -12,6 +13,8 @@ import { LyricsGameScreen } from "./components/LyricsGameScreen";
 import { CatGallery } from "./components/CatGallery";
 import { Settings } from "./components/Settings";
 import { AchievementToasts } from "./components/AchievementToast";
+import { UpdateBadge } from "./components/UpdateBadge";
+import { UpdateModal } from "./components/UpdateModal";
 
 function useTheme() {
   const theme = useGameStore((s) => s.progress.settings.theme);
@@ -33,9 +36,29 @@ function useTheme() {
 export function App() {
   const phase = useGameStore((s) => s.phase);
   const quizType = useGameStore((s) => s.quizType);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
 
   useTheme();
   usePersistence();
+  const { check: checkForUpdates } = useUpdater();
+
+  useEffect(() => {
+    // 1.5s delay so the initial render isn't blocked by the network round-trip.
+    const initialTimer = setTimeout(() => {
+      void checkForUpdates();
+    }, 1500);
+
+    // Every 6 hours while running.
+    const intervalTimer = setInterval(
+      () => void checkForUpdates(),
+      6 * 60 * 60 * 1000,
+    );
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(intervalTimer);
+    };
+  }, [checkForUpdates]);
 
   const renderPhase = () => {
     switch (phase) {
@@ -64,6 +87,11 @@ export function App() {
     <div className="min-h-screen bg-background">
       {renderPhase()}
       <AchievementToasts />
+      <UpdateBadge onClick={() => setUpdateModalOpen(true)} />
+      <UpdateModal
+        isOpen={updateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+      />
     </div>
   );
 }

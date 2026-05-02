@@ -1,4 +1,4 @@
-use std::fs;
+// src-tauri/src/commands/storage.rs
 use std::path::PathBuf;
 
 use tauri::{AppHandle, Manager, State};
@@ -6,6 +6,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::models::error::AppError;
 use crate::models::progress::GameProgress;
 use crate::state::AppState;
+use crate::storage::{self, BackupEntry, LoadResult};
 
 fn save_path(app: &AppHandle) -> Result<PathBuf, AppError> {
     let app_data = app
@@ -22,50 +23,40 @@ pub async fn save_progress(
     _state: State<'_, AppState>,
 ) -> Result<(), AppError> {
     let path = save_path(&app)?;
-
-    // Ensure parent directory exists
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    // Atomic write: write to temp file, then rename
-    let temp_path = path.with_extension("json.tmp");
-    let json = serde_json::to_string_pretty(&progress)?;
-    fs::write(&temp_path, json)?;
-    fs::rename(&temp_path, &path)?;
-
-    Ok(())
+    storage::write_atomic(&path, &progress)
 }
 
 #[tauri::command]
 pub async fn load_progress(
     app: AppHandle,
     _state: State<'_, AppState>,
-) -> Result<GameProgress, AppError> {
+) -> Result<LoadResult, AppError> {
     let path = save_path(&app)?;
+    storage::load_and_migrate(&path)
+}
 
-    if !path.exists() {
-        return Ok(GameProgress::default());
-    }
+#[tauri::command]
+pub async fn list_save_backups(
+    app: AppHandle,
+    _state: State<'_, AppState>,
+) -> Result<Vec<BackupEntry>, AppError> {
+    let path = save_path(&app)?;
+    let dir = path.parent().ok_or_else(|| {
+        AppError::FileError("save path has no parent directory".to_string())
+    })?;
+    storage::list_backups(dir)
+}
 
-    let contents = match fs::read_to_string(&path) {
-        Ok(c) => c,
-        Err(_) => return Ok(GameProgress::default()),
-    };
-
-    match serde_json::from_str::<GameProgress>(&contents) {
-        Ok(mut progress) => {
-            if progress.version < 2 {
-                progress.version = 2;
-                // Save migrated progress
-                if let Ok(json) = serde_json::to_string_pretty(&progress) {
-                    let temp_path = path.with_extension("json.tmp");
-                    let _ = fs::write(&temp_path, &json);
-                    let _ = fs::rename(&temp_path, &path);
-                }
-            }
-            Ok(progress)
-        }
-        Err(_) => Ok(GameProgress::default()),
-    }
+#[tauri::command]
+pub async fn restore_save_backup(
+    timestamp: u64,
+    app: AppHandle,
+    _state: State<'_, AppState>,
+) -> Result<(), AppError> {
+    let path = save_path(&app)?;
+    let dir = path.parent().ok_or_else(|| {
+        AppError::FileError("save path has no parent directory".to_string())
+    })?;
+    let backup_path = dir.join(format!("save.backup.{timestamp}.json"));
+    storage::restore_from_backup(&backup_path, &path)
 }

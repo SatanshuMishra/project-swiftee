@@ -92,6 +92,7 @@ export interface GameProgress {
   readonly achievements: Record<string, AchievementState>;
   readonly stats: GameStats;
   readonly settings: GameSettings;
+  readonly updater: UpdaterState;
 }
 
 export interface GameStats {
@@ -110,6 +111,13 @@ export interface GameSettings {
   readonly hardTimer: number;
 }
 
+export interface UpdaterState {
+  readonly autoCheckEnabled: boolean;
+  readonly lastCheckedAt: string | null;
+  readonly skippedVersions: readonly string[];
+  readonly remindLaterUntil: string | null;
+}
+
 // Round state
 export interface RoundResult {
   readonly correct: boolean;
@@ -120,8 +128,48 @@ export interface RoundResult {
   readonly usedFullClip: boolean;
 }
 
+// Updater types (client-only — UpdaterMachineState is ephemeral session state)
+export interface UpdateManifest {
+  readonly version: string;
+  readonly notes: string;
+  readonly pubDate: string;
+}
+
+// Mirrors src-tauri/src/storage/backup.rs BackupEntry (camelCase via serde)
+export interface BackupEntry {
+  readonly timestamp: number;
+  readonly path: string;
+  readonly sizeBytes: number;
+}
+
+export type UpdaterMachineState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "checking" }
+  | { readonly kind: "up-to-date" }
+  | { readonly kind: "available"; readonly manifest: UpdateManifest }
+  | { readonly kind: "downloading"; readonly manifest: UpdateManifest; readonly progress: number }
+  | { readonly kind: "ready"; readonly manifest: UpdateManifest }
+  | { readonly kind: "installing" }
+  | {
+      readonly kind: "error";
+      readonly subtype: "check" | "download" | "signature" | "install";
+      readonly message: string;
+    };
+
+// Mirrors src-tauri/src/storage/load.rs LoadResult (serde tag = "kind", camelCase)
+export type LoadResult =
+  | { readonly kind: "fresh" }
+  | { readonly kind: "loaded"; readonly progress: GameProgress }
+  | {
+      readonly kind: "migrated";
+      readonly progress: GameProgress;
+      // null when the save file was missing or had a non-numeric `version`
+      // field. Otherwise the explicit pre-migration version.
+      readonly fromVersion: number | null;
+    };
+
 export const DEFAULT_PROGRESS: GameProgress = {
-  version: 1,
+  version: 3,
   achievements: {},
   stats: {
     totalCorrect: 0,
@@ -137,4 +185,26 @@ export const DEFAULT_PROGRESS: GameProgress = {
     mediumTimer: 30,
     hardTimer: 20,
   },
+  updater: {
+    autoCheckEnabled: true,
+    lastCheckedAt: null,
+    skippedVersions: [],
+    remindLaterUntil: null,
+  },
 };
+
+/**
+ * Exhaustiveness helper for discriminated unions. Use as the `default` case
+ * in a switch over a discriminated-union variant (e.g. UpdaterMachineState):
+ *
+ *     switch (state.kind) {
+ *       case "idle": ...
+ *       // ...
+ *       default: return assertNever(state);
+ *     }
+ *
+ * The compiler errors at the call site if any variant is unhandled.
+ */
+export function assertNever(value: never): never {
+  throw new Error(`Unexpected variant: ${JSON.stringify(value)}`);
+}

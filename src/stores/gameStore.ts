@@ -11,6 +11,7 @@ import type {
   TrackLyrics,
   TrackWithLyrics,
   Theme,
+  UpdaterMachineState,
 } from "../types";
 import { DEFAULT_PROGRESS } from "../types";
 
@@ -56,6 +57,9 @@ interface GameStore {
   // Persistent state
   readonly progress: GameProgress;
 
+  // Updater FSM state (ephemeral; not persisted)
+  readonly updaterState: UpdaterMachineState;
+
   // Pending achievement toasts
   readonly pendingToasts: readonly string[];
 
@@ -79,6 +83,7 @@ interface GameStore {
   readonly incrementRelisten: () => void;
   readonly resetGame: () => void;
   readonly setProgress: (progress: GameProgress) => void;
+  readonly setUpdaterState: (next: UpdaterMachineState) => void;
   readonly setTheme: (theme: Theme) => void;
   readonly setVolume: (volume: number) => void;
   readonly setMediumTimer: (seconds: number) => void;
@@ -120,6 +125,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   sessionLyricsCorrect: 0,
   albums: [],
   progress: DEFAULT_PROGRESS,
+  updaterState: { kind: "idle" },
   pendingToasts: [],
 
   // Actions -- all return new state (immutable)
@@ -227,6 +233,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     })),
 
   setProgress: (progress) => set({ progress }),
+
+  setUpdaterState: (next) => set({ updaterState: next }),
 
   setTheme: (theme) =>
     set((state) => ({

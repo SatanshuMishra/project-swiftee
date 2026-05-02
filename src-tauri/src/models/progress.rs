@@ -8,6 +8,8 @@ pub struct GameProgress {
     pub achievements: HashMap<String, AchievementState>,
     pub stats: GameStats,
     pub settings: GameSettings,
+    #[serde(default)] // forward-compat: allow loading v2 saves before migration runs
+    pub updater: UpdaterState,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,10 +51,30 @@ pub struct GameSettings {
     pub hard_timer: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdaterState {
+    pub auto_check_enabled: bool,
+    pub last_checked_at: Option<String>,
+    pub skipped_versions: Vec<String>,
+    pub remind_later_until: Option<String>,
+}
+
+impl Default for UpdaterState {
+    fn default() -> Self {
+        Self {
+            auto_check_enabled: true,
+            last_checked_at: None,
+            skipped_versions: Vec::new(),
+            remind_later_until: None,
+        }
+    }
+}
+
 impl Default for GameProgress {
     fn default() -> Self {
         Self {
-            version: 2,
+            version: 3,
             achievements: HashMap::new(),
             stats: GameStats {
                 total_correct: 0,
@@ -68,6 +90,7 @@ impl Default for GameProgress {
                 medium_timer: default_medium_timer(),
                 hard_timer: default_hard_timer(),
             },
+            updater: UpdaterState::default(),
         }
     }
 }
@@ -79,7 +102,7 @@ mod tests {
     #[test]
     fn test_default_progress() {
         let progress = GameProgress::default();
-        assert_eq!(progress.version, 2);
+        assert_eq!(progress.version, 3);
         assert_eq!(progress.stats.total_correct, 0);
         assert_eq!(progress.stats.total_lyrics_correct, 0);
         assert_eq!(progress.stats.name_tha_song_correct, 0);
@@ -87,6 +110,26 @@ mod tests {
         assert_eq!(progress.settings.theme, "dark");
         assert!((progress.settings.volume - 0.8).abs() < f64::EPSILON);
         assert!(progress.achievements.is_empty());
+    }
+
+    #[test]
+    fn test_default_progress_includes_updater_state() {
+        let p = GameProgress::default();
+        assert!(p.updater.auto_check_enabled);
+        assert!(p.updater.last_checked_at.is_none());
+        assert!(p.updater.skipped_versions.is_empty());
+        assert!(p.updater.remind_later_until.is_none());
+    }
+
+    #[test]
+    fn test_updater_state_serializes_with_camel_case() {
+        let p = GameProgress::default();
+        let json = serde_json::to_value(&p).unwrap();
+        let updater = json.get("updater").unwrap().as_object().unwrap();
+        assert!(updater.contains_key("autoCheckEnabled"));
+        assert!(updater.contains_key("lastCheckedAt"));
+        assert!(updater.contains_key("skippedVersions"));
+        assert!(updater.contains_key("remindLaterUntil"));
     }
 
     #[test]
