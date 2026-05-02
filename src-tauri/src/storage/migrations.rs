@@ -24,6 +24,13 @@ pub fn migrate_to_latest(mut state: Value) -> Result<Value, AppError> {
             .1;
         state = step(state)?;
         v += 1;
+        debug_assert_eq!(
+            state.get("version").and_then(Value::as_u64),
+            Some(v as u64),
+            "migration step from v{} did not bump state[\"version\"] to v{}",
+            v - 1,
+            v
+        );
     }
     Ok(state)
 }

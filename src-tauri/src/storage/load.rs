@@ -31,9 +31,11 @@ pub fn load_and_migrate(save_path: &Path) -> Result<LoadResult, AppError> {
     if from_version < migrations::CURRENT_VERSION {
         backup::create_backup(save_path)?;
         let migrated = migrations::migrate_to_latest(value)?;
-        let progress: GameProgress = serde_json::from_value(migrated.clone())?;
-        save::write_atomic(save_path, &migrated)?;
+        let progress: GameProgress = serde_json::from_value(migrated)?;
+        save::write_atomic(save_path, &progress)?;
         Ok(LoadResult::Migrated { progress, from_version })
+    } else if from_version > migrations::CURRENT_VERSION {
+        Err(AppError::FutureSaveVersion(from_version))
     } else {
         let progress: GameProgress = serde_json::from_value(value)?;
         Ok(LoadResult::Loaded { progress })
@@ -110,6 +112,36 @@ mod tests {
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["version"], migrations::CURRENT_VERSION);
+    }
+
+    #[test]
+    fn returns_future_save_version_error_when_newer() {
+        let dir = tempdir().unwrap();
+        // Use a high version that's higher than CURRENT_VERSION
+        let future_version = migrations::CURRENT_VERSION + 5;
+        let future_state = json!({
+            "version": future_version,
+            "achievements": {},
+            "stats": {
+                "totalCorrect": 0,
+                "albumsPlayed": [],
+                "tracksGuessedPerAlbum": {},
+                "totalLyricsCorrect": 0,
+                "nameThaSongCorrect": 0,
+                "lyricsOrLieCorrect": 0
+            },
+            "settings": { "theme": "dark", "volume": 0.8, "mediumTimer": 30, "hardTimer": 20 }
+        });
+        let path = write_save_json(dir.path(), &future_state);
+        let result = load_and_migrate(&path);
+        assert!(matches!(
+            result,
+            Err(crate::models::error::AppError::FutureSaveVersion(v)) if v == future_version
+        ));
+        // Original file should be untouched
+        let on_disk: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(on_disk["version"], future_version);
     }
 
     #[test]

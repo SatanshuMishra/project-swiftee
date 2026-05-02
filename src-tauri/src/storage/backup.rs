@@ -79,6 +79,9 @@ fn parse_backup_timestamp(filename: &str) -> Option<u64> {
 fn prune_old_backups(dir: &Path) -> Result<(), AppError> {
     let backups = list_backups(dir)?;
     for stale in backups.iter().skip(MAX_BACKUPS) {
+        // Best-effort: a failed delete is non-fatal — we'll have >MAX_BACKUPS
+        // briefly and prune again on the next backup. Avoids cascading I/O
+        // errors from unrelated files in the dir.
         let _ = fs::remove_file(&stale.path);
     }
     Ok(())

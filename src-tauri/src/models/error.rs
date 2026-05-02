@@ -28,6 +28,9 @@ pub enum AppError {
 
     #[error("Missing migration step from version {0}")]
     MissingMigration(u32),
+
+    #[error("Save file is from a newer version (v{0}) than this app supports")]
+    FutureSaveVersion(u32),
 }
 
 impl Serialize for AppError {
