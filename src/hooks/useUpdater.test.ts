@@ -1,8 +1,9 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-import { useUpdater } from "./useUpdater";
+import { useUpdater, __resetUpdaterCtxForTests } from "./useUpdater";
 import { useGameStore } from "../stores/gameStore";
+import { DEFAULT_PROGRESS } from "../types";
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
   check: vi.fn(),
@@ -13,6 +14,11 @@ const mockCheck = vi.mocked(check);
 
 beforeEach(() => {
   vi.resetAllMocks();
+  __resetUpdaterCtxForTests();
+  useGameStore.setState({
+    progress: DEFAULT_PROGRESS,
+    updaterState: { kind: "idle" },
+  });
 });
 
 describe("useUpdater", () => {
@@ -202,17 +208,6 @@ describe("useUpdater", () => {
   });
 
   it("remindLater sets remindLaterUntil to ~24h in the future", () => {
-    // Reset the seeded skippedVersions from the previous test
-    const initial = useGameStore.getState().progress;
-    useGameStore.getState().setProgress({
-      ...initial,
-      updater: {
-        ...initial.updater,
-        skippedVersions: [],
-        remindLaterUntil: null,
-      },
-    });
-
     const before = Date.now();
     const { result } = renderHook(() => useUpdater());
     act(() => {

@@ -4,6 +4,8 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { useGameStore } from "../stores/gameStore";
 import type { UpdateManifest, UpdaterMachineState } from "../types";
 
+const REMIND_LATER_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 export interface UseUpdater {
   state: UpdaterMachineState;
   check(opts?: { manual?: boolean }): Promise<void>;
@@ -39,7 +41,11 @@ export function useUpdater(): UseUpdater {
   const progress = useGameStore((s) => s.progress);
   const setProgress = useGameStore((s) => s.setProgress);
 
-  const doCheck = useCallback(async () => {
+  const doCheck = useCallback(async (opts?: { manual?: boolean }) => {
+    // The `manual` flag is forwarded for future cadence handling (Phase 6
+    // will use it to bypass remindLaterUntil cooldowns). For Phase 4 it is
+    // accepted but unused.
+    void opts?.manual;
     setState({ kind: "checking" });
     try {
       const update = await check();
@@ -131,7 +137,7 @@ export function useUpdater(): UseUpdater {
   );
 
   const remindLater = useCallback(() => {
-    const until = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const until = new Date(Date.now() + REMIND_LATER_INTERVAL_MS).toISOString();
     setProgress({
       ...progress,
       updater: { ...progress.updater, remindLaterUntil: until },
@@ -152,4 +158,10 @@ export function useUpdater(): UseUpdater {
     remindLater,
     dismiss,
   };
+}
+
+// Test-only helper. Resets the module-scope pending-update state. Not part
+// of the public hook API; do NOT call this from production code.
+export function __resetUpdaterCtxForTests(): void {
+  ctx.pendingUpdate = null;
 }

@@ -125,7 +125,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   sessionLyricsCorrect: 0,
   albums: [],
   progress: DEFAULT_PROGRESS,
-  updaterState: { kind: "idle" } as UpdaterMachineState,
+  updaterState: { kind: "idle" },
   pendingToasts: [],
 
   // Actions -- all return new state (immutable)

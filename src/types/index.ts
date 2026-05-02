@@ -179,3 +179,19 @@ export const DEFAULT_PROGRESS: GameProgress = {
     remindLaterUntil: null,
   },
 };
+
+/**
+ * Exhaustiveness helper for discriminated unions. Use as the `default` case
+ * in a switch over a discriminated-union variant (e.g. UpdaterMachineState):
+ *
+ *     switch (state.kind) {
+ *       case "idle": ...
+ *       // ...
+ *       default: return assertNever(state);
+ *     }
+ *
+ * The compiler errors at the call site if any variant is unhandled.
+ */
+export function assertNever(value: never): never {
+  throw new Error(`Unexpected variant: ${JSON.stringify(value)}`);
+}
