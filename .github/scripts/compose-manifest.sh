@@ -4,6 +4,7 @@
 # Inputs (files): artifacts/macos/*.app.tar.gz + .sig, artifacts/windows/*-setup.exe + .sig, CHANGELOG.md.
 # Output: latest.json in CWD.
 set -euo pipefail
+shopt -s nullglob   # missing globs expand to empty array, not literal pattern
 
 VERSION="${GITHUB_REF#refs/tags/v}"
 REPO="${GITHUB_REPOSITORY}"
@@ -18,14 +19,28 @@ NOTES="$(awk -v ver="## [$VERSION]" '
   capture { print }
 ' CHANGELOG.md | sed -e :a -e '/^\s*$/{$d;N;ba' -e '}')"
 
-# Resolve artifact paths and read .sig contents.
-DARWIN_TGZ="$(ls artifacts/macos/*.app.tar.gz | head -n1)"
-DARWIN_SIG="$(cat artifacts/macos/*.app.tar.gz.sig)"
+# Assert exactly one bundle per architecture. Multiple bundles would mean a
+# stale-artifact bleed or a misconfigured bundler — fail loudly rather than
+# silently picking the wrong one.
+require_exactly_one() {
+  local label="$1"; shift
+  local -a matches=("$@")
+  if [ "${#matches[@]}" -ne 1 ] || [ ! -e "${matches[0]}" ]; then
+    echo "::error::Expected exactly 1 ${label}, found ${#matches[@]}: ${matches[*]:-<none>}" >&2
+    exit 1
+  fi
+  printf '%s\n' "${matches[0]}"
+}
+
+DARWIN_TGZ="$(require_exactly_one "macOS .app.tar.gz" artifacts/macos/*.app.tar.gz)"
+DARWIN_SIG_FILE="$(require_exactly_one "macOS .app.tar.gz.sig" artifacts/macos/*.app.tar.gz.sig)"
+DARWIN_SIG="$(cat "$DARWIN_SIG_FILE")"
 DARWIN_NAME="$(basename "$DARWIN_TGZ")"
 DARWIN_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${DARWIN_NAME}"
 
-WIN_EXE="$(ls artifacts/windows/*-setup.exe | head -n1)"
-WIN_SIG="$(cat artifacts/windows/*-setup.exe.sig)"
+WIN_EXE="$(require_exactly_one "Windows -setup.exe" artifacts/windows/*-setup.exe)"
+WIN_SIG_FILE="$(require_exactly_one "Windows -setup.exe.sig" artifacts/windows/*-setup.exe.sig)"
+WIN_SIG="$(cat "$WIN_SIG_FILE")"
 WIN_NAME="$(basename "$WIN_EXE")"
 WIN_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${WIN_NAME}"
 

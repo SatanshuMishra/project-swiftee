@@ -9,6 +9,10 @@ permissions:
   id-token: write
   attestations: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   validate-versions:
     name: Validate version coherence
@@ -42,20 +46,30 @@ jobs:
       - name: Refuse to release with the development minisign pubkey
         run: |
           set -euo pipefail
-          # The development placeholder pubkey embedded by the Phase 3
-          # implementer has key ID 2A43CC33F3FB57BB. The operator MUST
-          # rotate to a production keypair (plan Task 10) before tagging.
-          # The pubkey is base64-encoded inside tauri.conf.json, so we
-          # decode it and grep the plaintext for the sentinel key ID.
-          node -e "
-            const conf = require('./src-tauri/tauri.conf.json');
-            const pk = (conf.plugins && conf.plugins.updater && conf.plugins.updater.pubkey) || '';
-            const decoded = Buffer.from(pk, 'base64').toString('utf8');
-            if (decoded.includes('2A43CC33F3FB57BB')) {
-              console.error('::error::Development minisign pubkey (key ID 2A43CC33F3FB57BB) is still embedded in tauri.conf.json. Rotate to a production keypair before releasing — see plan Task 10.');
+          # Three independent failure modes are distinguished:
+          #   1. Empty/missing/too-short pubkey → operator forgot to embed.
+          #   2. Non-base64 pubkey → typo or copy-paste corruption.
+          #   3. Dev pubkey (key ID 2A43CC33F3FB57BB) still embedded → must
+          #      rotate to production keypair (plan Task 10) before tagging.
+          node -e '
+            const conf = require("./src-tauri/tauri.conf.json");
+            const pk = conf?.plugins?.updater?.pubkey ?? "";
+            if (!pk || pk.length < 64) {
+              console.error("::error::tauri.conf.json plugins.updater.pubkey is empty or implausibly short. Embed a production minisign pubkey before releasing.");
               process.exit(1);
             }
-          "
+            let decoded;
+            try {
+              decoded = Buffer.from(pk, "base64").toString("utf8");
+            } catch {
+              console.error("::error::tauri.conf.json plugins.updater.pubkey is not valid base64.");
+              process.exit(1);
+            }
+            if (decoded.includes("2A43CC33F3FB57BB")) {
+              console.error("::error::Development minisign pubkey (key ID 2A43CC33F3FB57BB) is still embedded in tauri.conf.json. Rotate to a production keypair before releasing — see plan Task 10.");
+              process.exit(1);
+            }
+          '
 
   build-macos:
     name: Build (macOS aarch64)
