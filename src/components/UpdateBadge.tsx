@@ -1,14 +1,51 @@
-import { Download, Loader2, AlertCircle, RefreshCcw } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
+import {
+  Download,
+  Loader2,
+  AlertCircle,
+  RefreshCcw,
+  type LucideIcon,
+} from "lucide-react";
 
 import { useUpdater } from "../hooks/useUpdater";
 import { cn } from "../lib/cn";
+import type { UpdaterMachineState } from "../types";
 
 interface UpdateBadgeProps {
   readonly onClick: () => void;
 }
 
-type IconType = ComponentType<SVGProps<SVGSVGElement>>;
+type VisibleKind = Extract<
+  UpdaterMachineState,
+  { kind: "available" | "downloading" | "ready" | "error" }
+>["kind"];
+
+interface BadgeVisuals {
+  readonly Icon: LucideIcon;
+  readonly colorClass: string;
+  readonly spinning?: boolean;
+}
+
+const VARIANTS: Record<VisibleKind, BadgeVisuals> = {
+  available: { Icon: Download, colorClass: "bg-violet-600" },
+  downloading: { Icon: Loader2, colorClass: "bg-blue-600", spinning: true },
+  ready: { Icon: RefreshCcw, colorClass: "bg-emerald-600" },
+  error: { Icon: AlertCircle, colorClass: "bg-yellow-600" },
+};
+
+function labelFor(state: UpdaterMachineState): string {
+  switch (state.kind) {
+    case "available":
+      return `Update available (${state.manifest.version})`;
+    case "downloading":
+      return `Downloading update… ${state.progress}%`;
+    case "ready":
+      return `Restart to install ${state.manifest.version}`;
+    case "error":
+      return "Update issue — click for details";
+    default:
+      return "";
+  }
+}
 
 export function UpdateBadge({ onClick }: UpdateBadgeProps) {
   const { state } = useUpdater();
@@ -17,35 +54,10 @@ export function UpdateBadge({ onClick }: UpdateBadgeProps) {
     state.kind === "downloading" ||
     state.kind === "ready" ||
     state.kind === "error";
-
   if (!visible) return null;
 
-  let label: string;
-  let Icon: IconType;
-  let colorClass: string;
-
-  switch (state.kind) {
-    case "available":
-      label = `Update available (${state.manifest.version})`;
-      Icon = Download;
-      colorClass = "bg-violet-600";
-      break;
-    case "downloading":
-      label = `Downloading update… ${state.progress}%`;
-      Icon = Loader2;
-      colorClass = "bg-blue-600";
-      break;
-    case "ready":
-      label = `Restart to install ${state.manifest.version}`;
-      Icon = RefreshCcw;
-      colorClass = "bg-emerald-600";
-      break;
-    case "error":
-      label = "Update issue — click for details";
-      Icon = AlertCircle;
-      colorClass = "bg-yellow-600";
-      break;
-  }
+  const variant = VARIANTS[state.kind as VisibleKind];
+  const label = labelFor(state);
 
   return (
     <button
@@ -54,14 +66,11 @@ export function UpdateBadge({ onClick }: UpdateBadgeProps) {
       aria-label={label}
       className={cn(
         "fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full px-4 py-2 text-sm text-white shadow-lg transition-colors",
-        colorClass,
+        variant.colorClass,
       )}
     >
-      <Icon
-        className={cn(
-          "h-4 w-4",
-          state.kind === "downloading" && "animate-spin",
-        )}
+      <variant.Icon
+        className={cn("h-4 w-4", variant.spinning && "motion-safe:animate-spin")}
       />
       <span>{label}</span>
     </button>

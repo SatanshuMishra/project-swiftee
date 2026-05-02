@@ -12,7 +12,7 @@ import {
   Archive,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import type { BackupEntry, GameProgress, Theme } from "../types";
+import type { BackupEntry, LoadResult, Theme } from "../types";
 import { useGameStore } from "../stores/gameStore";
 import { useUpdater } from "../hooks/useUpdater";
 import { cn } from "../lib/cn";
@@ -70,18 +70,15 @@ export function Settings() {
     }
     try {
       await invoke("restore_save_backup", { timestamp });
-      const result = await invoke<unknown>("load_progress");
-      if (
-        result &&
-        typeof result === "object" &&
-        "kind" in result &&
-        "progress" in result
-      ) {
-        setProgress((result as { progress: GameProgress }).progress);
+      const result = await invoke<LoadResult>("load_progress");
+      if (result.kind === "loaded" || result.kind === "migrated") {
+        setProgress(result.progress);
       }
     } catch (err) {
-      // Surface via state if needed; v1 swallows since the modal isn't wired here.
-      void err;
+      // M3: surface the failure to the user (best-effort; v1 uses native alert).
+      window.alert(
+        `Could not restore backup: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   };
 
@@ -318,8 +315,7 @@ export function Settings() {
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">Updates</p>
               <p className="text-xs text-muted-foreground">
-                Current version:{" "}
-                <code>v{__APP_VERSION__ ?? "?"}</code>
+                Current version: <code>v{__APP_VERSION__}</code>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Last checked: {lastChecked}

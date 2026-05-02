@@ -95,6 +95,17 @@ describe("UpdateModal", () => {
     expect(bar).toHaveAttribute("aria-valuemax", "100");
   });
 
+  it("clicking Cancel during downloading invokes useUpdater.cancel()", () => {
+    mockUpdater.state = {
+      kind: "downloading",
+      manifest: { version: "0.3.0", notes: "", pubDate: "" },
+      progress: 50,
+    };
+    render(<UpdateModal isOpen onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+    expect(mockUpdater.cancel).toHaveBeenCalledTimes(1);
+  });
+
   it("renders Install & Restart button when state is ready", () => {
     mockUpdater.state = {
       kind: "ready",
