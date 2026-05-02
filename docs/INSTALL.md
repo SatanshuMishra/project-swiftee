@@ -16,30 +16,38 @@ and download the appropriate file for your OS:
 
 ## First-time install — please read
 
-Swiftie Quiz is **not yet code-signed** with Apple Developer ID or Windows
-Authenticode. This means your operating system will show a warning the first
-time you launch it. The app is safe (you can verify by inspecting the public
-source on GitHub), but you do need to click through the warning. After the
-first launch, all subsequent updates apply silently — the warning only
-appears once.
+Swiftie Quiz is **ad-hoc code-signed** but not signed with an Apple Developer
+ID and not notarized. This means your operating system will show a one-time
+"unidentified developer" warning the first time you launch the app. Once you
+allow the launch, every subsequent run is silent. Future in-app updates also
+apply silently — the warning only appears for the very first install.
 
 ### macOS first-launch walkthrough
 
-1. **Mount the DMG** by double-clicking it. The Finder will open the disk
-   image with the app icon and an Applications shortcut.
-2. **Drag "Swiftie Quiz" to the Applications folder.** If you already have
-   an older version, the Finder will ask whether to replace it — choose
-   **Replace**. Your save data is stored separately and is **not** affected.
-3. **Open the app from Applications.** macOS will block the launch with the
-   message:
-   *"Swiftie Quiz" cannot be opened because the developer cannot be verified.*
-4. **Open System Settings → Privacy & Security.** Scroll down. Near
-   the bottom you'll see a line that says
-   *"Swiftie Quiz" was blocked from use because it is not from an identified developer.*
-   Click **Open Anyway** next to it.
-5. macOS will show one more confirmation prompt. Click **Open**.
+1. **Mount the DMG** by double-clicking it. Finder opens the disk image with
+   the app icon and an Applications shortcut.
+2. **Drag "Swiftie Quiz" to the Applications folder.** If you already have an
+   older version, Finder asks whether to replace it — choose **Replace**.
+   Your save data is stored separately and is **not** affected.
+3. **Open the app from Applications.** macOS blocks the launch with an
+   unidentified-developer dialog (the exact wording differs between macOS
+   versions, but the buttons are usually **Done** / **Move to Trash** with
+   no Open option). Click **Done**.
+4. **Open System Settings → Privacy & Security.** Scroll to the Security
+   section near the bottom. You'll see a line like:
+   *"'Swiftie Quiz' was blocked from use because it is not from an
+   identified developer."* Click **Open Anyway** next to it. macOS may ask
+   you to authenticate with Touch ID or your password.
+5. **Re-launch the app** from Applications. macOS shows one final
+   confirmation: *"Are you sure you want to open it?"* — click **Open**.
 6. The app launches. From now on, double-clicking the icon opens it normally
-   — the warning will not return.
+   — the dialog will not return.
+
+> **Why is there an extra step?** Swiftie Quiz uses an ad-hoc code signature
+> rather than an Apple Developer ID signature ($99/year). Both are
+> cryptographically valid, but Apple only auto-trusts apps signed with a
+> registered Developer ID. The first launch is the only time you'll see this
+> friction; the in-app updater handles all future versions silently.
 
 ### Windows first-launch walkthrough
 
