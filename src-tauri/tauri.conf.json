@@ -51,8 +51,10 @@
       "endpoints": [
         "https://github.com/SatanshuMishra/project-swiftee/releases/latest/download/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJBNDNDQzMzRjNGQjU3QkIKUldTN1YvdnpNOHhES29nNXAyZnpBd1BWTVpsRzZSZVE4TjNyNEk3WjhqWC9EeHdoRkZJc2I2UlQK",
-      "windows": { "installMode": "passive" }
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0NEZFQkM5NDVEQTlCRUYKUldUdm05cEZ5ZXRQNUs3a2RLYkpuUzU4cTVEN20yR1NpZE9iQXdiZWxOZDlQZC9Vczd1QUtMdDgK",
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }
