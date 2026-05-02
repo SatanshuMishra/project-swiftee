@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "fs:allow-appdata-read",
-    "fs:allow-appdata-write"
+    "fs:allow-appdata-write",
+    "updater:default"
   ]
 }
