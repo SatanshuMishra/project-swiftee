@@ -128,6 +128,33 @@ export interface RoundResult {
   readonly usedFullClip: boolean;
 }
 
+// Updater types (client-only — UpdaterMachineState is ephemeral session state)
+export interface UpdateManifest {
+  readonly version: string;
+  readonly notes: string;
+  readonly pubDate: string;
+}
+
+export type UpdaterMachineState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "checking" }
+  | { readonly kind: "up-to-date" }
+  | { readonly kind: "available"; readonly manifest: UpdateManifest }
+  | { readonly kind: "downloading"; readonly manifest: UpdateManifest; readonly progress: number }
+  | { readonly kind: "ready"; readonly manifest: UpdateManifest }
+  | { readonly kind: "installing" }
+  | {
+      readonly kind: "error";
+      readonly subtype: "check" | "download" | "signature" | "install";
+      readonly message: string;
+    };
+
+// Mirrors src-tauri/src/storage/load.rs LoadResult (serde tag = "kind", camelCase)
+export type LoadResult =
+  | { readonly kind: "fresh" }
+  | { readonly kind: "loaded"; readonly progress: GameProgress }
+  | { readonly kind: "migrated"; readonly progress: GameProgress; readonly fromVersion: number };
+
 export const DEFAULT_PROGRESS: GameProgress = {
   version: 3,
   achievements: {},
