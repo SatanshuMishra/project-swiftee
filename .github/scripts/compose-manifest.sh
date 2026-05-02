@@ -12,8 +12,8 @@ PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # Extract release notes from the section under "## [VERSION]" until the
 # next "## [" heading (or EOF). Strips the heading itself and trims trailing
 # blank lines.
-NOTES="$(awk -v ver="## \\[$VERSION\\]" '
-  $0 ~ ver { capture=1; next }
+NOTES="$(awk -v ver="## [$VERSION]" '
+  index($0, ver) == 1 { capture=1; next }
   capture && /^## \[/ { exit }
   capture { print }
 ' CHANGELOG.md | sed -e :a -e '/^\s*$/{$d;N;ba' -e '}')"
