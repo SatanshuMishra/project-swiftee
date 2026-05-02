@@ -36,6 +36,8 @@ function manifestFromUpdate(u: Update): UpdateManifest {
 export function useUpdater(): UseUpdater {
   const state = useGameStore((s) => s.updaterState);
   const setState = useGameStore((s) => s.setUpdaterState);
+  const progress = useGameStore((s) => s.progress);
+  const setProgress = useGameStore((s) => s.setProgress);
 
   const doCheck = useCallback(async () => {
     setState({ kind: "checking" });
@@ -109,20 +111,34 @@ export function useUpdater(): UseUpdater {
     setState({ kind: "idle" });
   }, [setState]);
 
-  // Task 16 will extend skipVersion + remindLater to persist into
-  // GameProgress.updater. For Task 15 they only reset the FSM.
+  // skipVersion appends the version to progress.updater.skippedVersions.
+  // remindLater writes an ISO timestamp 24h in the future to
+  // progress.updater.remindLaterUntil. Both go through gameStore.setProgress
+  // so the existing save_progress IPC persists them to disk.
   const skipVersion = useCallback(
-    (_version: string) => {
+    (version: string) => {
+      setProgress({
+        ...progress,
+        updater: {
+          ...progress.updater,
+          skippedVersions: [...progress.updater.skippedVersions, version],
+        },
+      });
       ctx.pendingUpdate = null;
       setState({ kind: "idle" });
     },
-    [setState],
+    [progress, setProgress, setState],
   );
 
   const remindLater = useCallback(() => {
+    const until = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    setProgress({
+      ...progress,
+      updater: { ...progress.updater, remindLaterUntil: until },
+    });
     ctx.pendingUpdate = null;
     setState({ kind: "idle" });
-  }, [setState]);
+  }, [progress, setProgress, setState]);
 
   const dismiss = useCallback(() => setState({ kind: "idle" }), [setState]);
 

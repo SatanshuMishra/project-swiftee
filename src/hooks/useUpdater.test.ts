@@ -2,6 +2,7 @@ import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { useUpdater } from "./useUpdater";
+import { useGameStore } from "../stores/gameStore";
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
   check: vi.fn(),
@@ -170,5 +171,57 @@ describe("useUpdater", () => {
       result.current.cancel();
     });
     expect(result.current.state.kind).toBe("idle");
+  });
+
+  it("skipVersion appends to gameStore.progress.updater.skippedVersions", () => {
+    const { result } = renderHook(() => useUpdater());
+    act(() => {
+      result.current.skipVersion("0.3.0");
+    });
+    const progress = useGameStore.getState().progress;
+    expect(progress.updater.skippedVersions).toContain("0.3.0");
+  });
+
+  it("skipVersion preserves prior skippedVersions (immutable append)", () => {
+    // Seed the store with an existing skipped version
+    const initial = useGameStore.getState().progress;
+    useGameStore.getState().setProgress({
+      ...initial,
+      updater: {
+        ...initial.updater,
+        skippedVersions: ["0.2.5"],
+      },
+    });
+
+    const { result } = renderHook(() => useUpdater());
+    act(() => {
+      result.current.skipVersion("0.3.0");
+    });
+    const progress = useGameStore.getState().progress;
+    expect(progress.updater.skippedVersions).toEqual(["0.2.5", "0.3.0"]);
+  });
+
+  it("remindLater sets remindLaterUntil to ~24h in the future", () => {
+    // Reset the seeded skippedVersions from the previous test
+    const initial = useGameStore.getState().progress;
+    useGameStore.getState().setProgress({
+      ...initial,
+      updater: {
+        ...initial.updater,
+        skippedVersions: [],
+        remindLaterUntil: null,
+      },
+    });
+
+    const before = Date.now();
+    const { result } = renderHook(() => useUpdater());
+    act(() => {
+      result.current.remindLater();
+    });
+    const progress = useGameStore.getState().progress;
+    expect(progress.updater.remindLaterUntil).not.toBeNull();
+    const until = new Date(progress.updater.remindLaterUntil!).getTime();
+    expect(until - before).toBeGreaterThan(23 * 3600 * 1000);
+    expect(until - before).toBeLessThan(25 * 3600 * 1000);
   });
 });
