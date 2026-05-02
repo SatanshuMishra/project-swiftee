@@ -12,8 +12,16 @@ use crate::storage::{backup, migrations, save};
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum LoadResult {
     Fresh,
-    Loaded { progress: GameProgress },
-    Migrated { progress: GameProgress, from_version: u32 },
+    Loaded {
+        progress: GameProgress,
+    },
+    Migrated {
+        progress: GameProgress,
+        /// None when the save file was missing or had a non-numeric `version`
+        /// field (i.e., the legacy/corrupted case). Some(N) when the file
+        /// explicitly declared version N before migration.
+        from_version: Option<u32>,
+    },
 }
 
 pub fn load_and_migrate(save_path: &Path) -> Result<LoadResult, AppError> {
@@ -23,19 +31,26 @@ pub fn load_and_migrate(save_path: &Path) -> Result<LoadResult, AppError> {
     let raw = fs::read_to_string(save_path)?;
     let value: serde_json::Value = serde_json::from_str(&raw)?;
 
-    let from_version = value
+    let raw_version = value
         .get("version")
         .and_then(|v| v.as_u64())
-        .unwrap_or(1) as u32;
+        .map(|v| v as u32);
+    // Migration logic still treats a missing version as v1 for the sake of the
+    // migration chain. The Option<u32> we report to the frontend reflects the
+    // real (possibly-missing) value.
+    let assumed_version_for_migration = raw_version.unwrap_or(1);
 
-    if from_version < migrations::CURRENT_VERSION {
+    if assumed_version_for_migration < migrations::CURRENT_VERSION {
         backup::create_backup(save_path)?;
         let migrated = migrations::migrate_to_latest(value)?;
         let progress: GameProgress = serde_json::from_value(migrated)?;
         save::write_atomic(save_path, &progress)?;
-        Ok(LoadResult::Migrated { progress, from_version })
-    } else if from_version > migrations::CURRENT_VERSION {
-        Err(AppError::FutureSaveVersion(from_version))
+        Ok(LoadResult::Migrated {
+            progress,
+            from_version: raw_version,
+        })
+    } else if assumed_version_for_migration > migrations::CURRENT_VERSION {
+        Err(AppError::FutureSaveVersion(assumed_version_for_migration))
     } else {
         let progress: GameProgress = serde_json::from_value(value)?;
         Ok(LoadResult::Loaded { progress })
@@ -97,7 +112,7 @@ mod tests {
         let result = load_and_migrate(&path).unwrap();
         match result {
             LoadResult::Migrated { progress, from_version } => {
-                assert_eq!(from_version, 1);
+                assert_eq!(from_version, Some(1));
                 assert_eq!(progress.version, migrations::CURRENT_VERSION);
                 assert_eq!(progress.stats.total_correct, 7);
             }
@@ -112,6 +127,34 @@ mod tests {
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["version"], migrations::CURRENT_VERSION);
+    }
+
+    #[test]
+    fn returns_migrated_with_none_from_version_when_version_missing() {
+        let dir = tempdir().unwrap();
+        // No "version" key at all — the legacy/corrupted case I-1 disambiguates.
+        let no_version = json!({
+            "achievements": {},
+            "stats": {
+                "totalCorrect": 3,
+                "albumsPlayed": [],
+                "tracksGuessedPerAlbum": {}
+            },
+            "settings": { "theme": "dark", "volume": 0.8 }
+        });
+        let path = write_save_json(dir.path(), &no_version);
+
+        let result = load_and_migrate(&path).unwrap();
+        match result {
+            LoadResult::Migrated { from_version, progress } => {
+                // from_version is None because the input had no version field
+                assert_eq!(from_version, None);
+                // Migration still ran and bumped to current
+                assert_eq!(progress.version, migrations::CURRENT_VERSION);
+                assert_eq!(progress.stats.total_correct, 3);
+            }
+            other => panic!("expected Migrated, got {:?}", other),
+        }
     }
 
     #[test]

@@ -160,7 +160,13 @@ export type UpdaterMachineState =
 export type LoadResult =
   | { readonly kind: "fresh" }
   | { readonly kind: "loaded"; readonly progress: GameProgress }
-  | { readonly kind: "migrated"; readonly progress: GameProgress; readonly fromVersion: number };
+  | {
+      readonly kind: "migrated";
+      readonly progress: GameProgress;
+      // null when the save file was missing or had a non-numeric `version`
+      // field. Otherwise the explicit pre-migration version.
+      readonly fromVersion: number | null;
+    };
 
 export const DEFAULT_PROGRESS: GameProgress = {
   version: 3,
