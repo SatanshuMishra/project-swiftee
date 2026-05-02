@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameProgress, LoadResult } from "../types";
-import { DEFAULT_PROGRESS } from "../types";
+import { DEFAULT_PROGRESS, assertNever } from "../types";
 import { useGameStore } from "../stores/gameStore";
 import { showToast } from "../lib/toast";
 
@@ -11,6 +11,15 @@ export function usePersistence() {
   const progress = useGameStore((s) => s.progress);
   const lastSaved = useRef<string>("");
 
+  const applyProgress = useCallback(
+    (p: GameProgress) =>
+      setProgress({
+        ...p,
+        settings: { ...DEFAULT_PROGRESS.settings, ...p.settings },
+      }),
+    [setProgress],
+  );
+
   const load = useCallback(async () => {
     try {
       const result = await invoke<LoadResult>("load_progress");
@@ -18,20 +27,11 @@ export function usePersistence() {
         case "fresh":
           // First run — leave the store at DEFAULT_PROGRESS. No toast.
           break;
-        case "loaded": {
-          const mergedSettings = {
-            ...DEFAULT_PROGRESS.settings,
-            ...result.progress.settings,
-          };
-          setProgress({ ...result.progress, settings: mergedSettings });
+        case "loaded":
+          applyProgress(result.progress);
           break;
-        }
         case "migrated": {
-          const mergedSettings = {
-            ...DEFAULT_PROGRESS.settings,
-            ...result.progress.settings,
-          };
-          setProgress({ ...result.progress, settings: mergedSettings });
+          applyProgress(result.progress);
           const message =
             result.fromVersion !== null
               ? `Welcome back! Your progress has been preserved. (Migrated from save format v${result.fromVersion}.)`
@@ -39,6 +39,8 @@ export function usePersistence() {
           showToast(message);
           break;
         }
+        default:
+          assertNever(result);
       }
     } catch {
       // Backend errored (e.g., FutureSaveVersion or filesystem failure).
@@ -46,7 +48,7 @@ export function usePersistence() {
       // restore from backup via Settings if needed.
       setProgress(DEFAULT_PROGRESS);
     }
-  }, [setProgress]);
+  }, [setProgress, applyProgress]);
 
   const save = useCallback(async (progressToSave: GameProgress) => {
     const json = JSON.stringify(progressToSave);
