@@ -139,9 +139,9 @@ git push origin v0.2.0
 
 This triggers `.github/workflows/release.yml`:
 
-- **`validate-versions`** asserts `package.json`, `Cargo.toml`, `tauri.conf.json`, the git tag, and `CHANGELOG.md` all align on `0.2.0`. The dev-pubkey guard runs.
-- **`build-macos`** (Apple Silicon) and **`build-windows`** (x86_64) build in parallel. `tauri-action` injects the signing key, builds bundles + `.sig` files, and uploads to a Draft GitHub release.
-- **`publish-manifest`** downloads both bundles' artifacts, runs `.github/scripts/compose-manifest.sh` to produce `latest.json` from the `.sig` files + the `## [0.2.0]` section of `CHANGELOG.md`, uploads `latest.json` as a release asset, and emits SLSA Build L2 provenance attestations.
+- **`validate-versions`** asserts `package.json`, `Cargo.toml`, `tauri.conf.json`, the git tag, and `CHANGELOG.md` all align on `0.2.0`. The dev-pubkey guard runs. The `## [0.2.0]` section is extracted and exposed as a job output.
+- **`build-macos`** (Apple Silicon) and **`build-windows`** (x86_64) build in parallel. `tauri-action` injects the signing key, builds bundles + `.sig` files, and uploads to a Draft GitHub release. `tauri-action` also auto-generates `latest.json` natively from the bundle outputs and the `releaseBody` (which we feed from the extracted CHANGELOG section), so manifest composition needs no separate step.
+- **`attest`** downloads both bundles' artifacts and emits SLSA Build L2 provenance attestations via `actions/attest-build-provenance`.
 
 Watch the run:
 ```bash
@@ -270,7 +270,7 @@ From the final review:
 
 1. **SHA-pin third-party GitHub Actions** in `release.yml` (currently uses floating major-tags like `tauri-apps/tauri-action@v0`). Recommend pinning to specific SHAs and bumping deliberately via Dependabot or Renovate. Useful before public v1.0.
 2. **Cancel during downloading** does not abort the in-flight `pendingUpdate.download(...)` Promise. Resolved progress events after cancel could update state. Add a generation counter to `useUpdater`'s `ctx` to drop stale resolutions.
-3. **`compose-manifest.sh` literal-prefix match** could match `## [0.2` against `## [0.20.0]`. Tightening to require trailing `]` or whitespace would be one-line defensive.
+3. **CHANGELOG section extractor literal-prefix match** (now in `validate-versions`'s `extract-notes` step) could in principle widen-match in the future. Current `index($0, ver) == 1` with `ver = "## [$TAG]"` requires the bracket-closing `]` at a fixed position, so e.g. `## [0.20.0]` does not match the pattern for `0.2.0` — but tightening to require trailing whitespace would be one-line defensive.
 4. **Privacy disclosure copy** could be even more specific (e.g., document the User-Agent string, mention IP/timestamp visibility to GitHub). Current copy is accurate; could be more transparent.
 
 ## Final verdict
