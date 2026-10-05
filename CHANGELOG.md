@@ -4,6 +4,30 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] - 2026-10-04
+
+### Fixed
+- **Lyrics mode loading.** The 30-second loading timeout is now cleared as
+  soon as lyrics finish loading, instead of staying pending in the
+  background, and the first round can no longer be scheduled after you
+  leave the screen.
+- **Timer and loading transitions.** The round timer and the loading
+  screen now update in the same frame as the change that drives them,
+  instead of briefly showing the previous value.
+
+### Changed
+- **Updated foundations.** The app now runs on React 19.3, Tauri 2.12,
+  Vite 8, Motion 14 and the Rust 2024 edition, with network requests on
+  reqwest 0.13. Gameplay is unchanged.
+- **Checked before shipping.** Every release now runs the full test suite
+  on macOS, Windows and Linux before it is built, and its update file is
+  verified to list both macOS and Windows before it can be published.
+
+### Migrating from v0.2.1
+- Installed copies update through the in-app updater as usual. The save
+  format is unchanged, so your progress, achievements and settings carry
+  over as they are.
+
 ## [0.2.1] - 2026-05-02
 
 ### Fixed
