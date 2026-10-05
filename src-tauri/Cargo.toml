@@ -15,6 +15,7 @@ tauri-build = { version = "2.7", features = [] }
 [dependencies]
 tauri = { version = "2.12", features = [] }
 tauri-plugin-fs = "2.6"
+tauri-plugin-process = "2.4"
 tauri-plugin-updater = "2.13"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }

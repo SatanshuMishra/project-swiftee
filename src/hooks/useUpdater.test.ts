@@ -9,8 +9,34 @@ vi.mock("@tauri-apps/plugin-updater", () => ({
   check: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/plugin-process", () => ({
+  relaunch: vi.fn(),
+}));
+
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 const mockCheck = vi.mocked(check);
+const mockRelaunch = vi.mocked(relaunch);
+
+async function reachReady(install: () => Promise<void>) {
+  const update = {
+    version: "0.3.0",
+    currentVersion: "0.2.0",
+    body: "notes",
+    date: "2026-05-01T00:00:00Z",
+    download: vi.fn().mockResolvedValue(undefined),
+    install: vi.fn(install),
+  };
+  mockCheck.mockResolvedValueOnce(update as unknown as Update);
+  const hook = renderHook(() => useUpdater());
+  await act(async () => {
+    await hook.result.current.check();
+  });
+  await act(async () => {
+    await hook.result.current.download();
+  });
+  return { update, result: hook.result };
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -144,6 +170,30 @@ describe("useUpdater", () => {
     if (result.current.state.kind === "error") {
       expect(result.current.state.subtype).toBe("download");
     }
+  });
+
+  it("install() relaunches the app after the update is installed", async () => {
+    const { update, result } = await reachReady(async () => {});
+    await act(async () => {
+      await result.current.install();
+    });
+    expect(mockRelaunch).toHaveBeenCalledOnce();
+    expect(update.install).toHaveBeenCalledBefore(mockRelaunch);
+  });
+
+  it("install() failure reports an install error and does not relaunch", async () => {
+    const { result } = await reachReady(async () => {
+      throw new Error("permission denied");
+    });
+    await act(async () => {
+      await result.current.install();
+    });
+    expect(mockRelaunch).not.toHaveBeenCalled();
+    expect(result.current.state).toEqual({
+      kind: "error",
+      subtype: "install",
+      message: "permission denied",
+    });
   });
 
   it("dismiss clears error to idle", async () => {

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 import { useGameStore } from "../stores/gameStore";
 import type { UpdateManifest, UpdaterMachineState } from "../types";
@@ -139,7 +140,7 @@ export function useUpdater(): UseUpdater {
     setState({ kind: "installing" });
     try {
       await ctx.pendingUpdate.install();
-      // App relaunches; control flow doesn't return.
+      await relaunch();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setState({ kind: "error", subtype: "install", message });
