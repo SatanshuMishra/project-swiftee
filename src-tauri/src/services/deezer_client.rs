@@ -21,7 +21,7 @@ impl Default for DeezerClient {
 
 impl DeezerClient {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
+        let client = super::http_client_builder()
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .https_only(true)
             .build()

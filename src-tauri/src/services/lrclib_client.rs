@@ -19,7 +19,7 @@ impl Default for LrclibClient {
 
 impl LrclibClient {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
+        let client = super::http_client_builder()
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .user_agent("SwiftieQuiz/1.0.0 (https://github.com/satanshumishra/swiftie-quiz)")
             .build()
