@@ -120,7 +120,6 @@ function ModalContent({
           </>
         );
       }
-      // download | install
       return (
         <>
           <Header title="Update failed" tone="warn" />
@@ -130,7 +129,11 @@ function ModalContent({
           <Actions>
             <Primary
               onClick={() =>
-                state.subtype === "download" ? updater.download() : updater.install()
+                state.subtype === "check"
+                  ? updater.check({ manual: true })
+                  : state.subtype === "download"
+                    ? updater.download()
+                    : updater.install()
               }
             >
               Retry
@@ -139,6 +142,19 @@ function ModalContent({
                 tauri-plugin-shell so we can open https URLs from the renderer.
                 Deferred per spec's v1 simplifications. */}
             <Tertiary onClick={() => updater.dismiss()}>Close</Tertiary>
+          </Actions>
+        </>
+      );
+
+    case "installed":
+      return (
+        <>
+          <Header title={`Version ${state.manifest.version} installed`} />
+          <p className="text-muted-foreground">
+            Quit and reopen Swiftie Quiz to start using it.
+          </p>
+          <Actions>
+            <Tertiary onClick={onClose}>Close</Tertiary>
           </Actions>
         </>
       );

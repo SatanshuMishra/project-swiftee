@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { useUpdater, __resetUpdaterCtxForTests } from "./useUpdater";
 import { useGameStore } from "../stores/gameStore";
-import { DEFAULT_PROGRESS } from "../types";
+import { DEFAULT_PROGRESS, type UpdaterMachineState } from "../types";
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
   check: vi.fn(),
@@ -18,15 +18,40 @@ import { relaunch } from "@tauri-apps/plugin-process";
 const mockCheck = vi.mocked(check);
 const mockRelaunch = vi.mocked(relaunch);
 
-async function reachReady(install: () => Promise<void>) {
-  const update = {
-    version: "0.3.0",
+const MANIFEST = {
+  version: "0.3.0",
+  notes: "notes",
+  pubDate: "2026-05-01T00:00:00Z",
+};
+
+function fakeUpdate(
+  download: (onEvent: (event: DownloadEvent) => void) => Promise<void> = async () => {},
+  install: () => Promise<void> = async () => {},
+) {
+  return {
+    version: MANIFEST.version,
     currentVersion: "0.2.0",
-    body: "notes",
-    date: "2026-05-01T00:00:00Z",
-    download: vi.fn().mockResolvedValue(undefined),
+    body: MANIFEST.notes,
+    date: MANIFEST.pubDate,
+    download: vi.fn(download),
     install: vi.fn(install),
   };
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  let reject: (reason: unknown) => void = () => {};
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+type Deferred<T> = ReturnType<typeof deferred<T>>;
+
+async function reachReady(install: () => Promise<void>) {
+  const update = fakeUpdate(undefined, install);
   mockCheck.mockResolvedValueOnce(update as unknown as Update);
   const hook = renderHook(() => useUpdater());
   await act(async () => {
@@ -380,29 +405,47 @@ describe("useUpdater", () => {
     expect(progress.updater.lastCheckedAt).not.toBeNull();
   });
 
-  it("a check while a downloaded update waits to install keeps that update installable", async () => {
-    const downloaded = {
-      version: "0.3.0",
-      currentVersion: "0.2.0",
-      body: "notes",
-      date: "2026-05-01T00:00:00Z",
-      download: vi.fn().mockResolvedValue(undefined),
-      install: vi.fn().mockResolvedValue(undefined),
-    };
-    const refetched = { ...downloaded, download: vi.fn(), install: vi.fn() };
-    mockCheck
-      .mockResolvedValueOnce(downloaded as unknown as Update)
-      .mockResolvedValueOnce(refetched as unknown as Update);
-
+  it.each<UpdaterMachineState>([
+    { kind: "downloading", manifest: MANIFEST, progress: 40 },
+    { kind: "ready", manifest: MANIFEST },
+    { kind: "installing" },
+    { kind: "installed", manifest: MANIFEST },
+  ])("a check while the update is $kind leaves it alone", async (inHand) => {
+    useGameStore.setState({ updaterState: inHand });
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
-      await result.current.check();
+      await result.current.check({ manual: true });
+    });
+    expect(mockCheck).not.toHaveBeenCalled();
+    expect(result.current.state).toEqual(inHand);
+  });
+
+  it.each([
+    { outcome: "finds an update", settle: (d: Deferred<Update | null>) => d.resolve(fakeUpdate() as unknown as Update) },
+    { outcome: "fails", settle: (d: Deferred<Update | null>) => d.reject(new Error("network down")) },
+  ])("a check that $outcome after a download started leaves the download alone", async ({ settle }) => {
+    const first = deferred<Update | null>();
+    const second = deferred<Update | null>();
+    const downloaded = fakeUpdate();
+    mockCheck.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+
+    const { result } = renderHook(() => useUpdater());
+    let firstCheck: Promise<void> = Promise.resolve();
+    let secondCheck: Promise<void> = Promise.resolve();
+    act(() => {
+      firstCheck = result.current.check({ manual: true });
+      secondCheck = result.current.check({ manual: true });
+    });
+    await act(async () => {
+      first.resolve(downloaded as unknown as Update);
+      await firstCheck;
     });
     await act(async () => {
       await result.current.download();
     });
     await act(async () => {
-      await result.current.check({ manual: true });
+      settle(second);
+      await secondCheck;
     });
     expect(result.current.state.kind).toBe("ready");
 
@@ -410,6 +453,53 @@ describe("useUpdater", () => {
       await result.current.install();
     });
     expect(downloaded.install).toHaveBeenCalledOnce();
-    expect(refetched.install).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { outcome: "completes", settle: (d: Deferred<void>) => d.resolve() },
+    { outcome: "fails", settle: (d: Deferred<void>) => d.reject(new Error("connection reset")) },
+  ])("a cancelled download that later $outcome leaves the updater idle and checkable", async ({ settle }) => {
+    const transfer = deferred<void>();
+    let report: (event: DownloadEvent) => void = () => {};
+    const update = fakeUpdate((onEvent) => {
+      report = onEvent;
+      return transfer.promise;
+    });
+    mockCheck.mockResolvedValueOnce(update as unknown as Update).mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    let downloading: Promise<void> = Promise.resolve();
+    act(() => {
+      downloading = result.current.download();
+    });
+    act(() => {
+      result.current.cancel();
+    });
+    await act(async () => {
+      report({ event: "Started", data: { contentLength: 100 } });
+      report({ event: "Progress", data: { chunkLength: 100 } });
+      settle(transfer);
+      await downloading;
+    });
+    expect(result.current.state.kind).toBe("idle");
+
+    await act(async () => {
+      await result.current.check({ manual: true });
+    });
+    expect(mockCheck).toHaveBeenCalledTimes(2);
+    expect(result.current.state.kind).toBe("up-to-date");
+  });
+
+  it("a failed restart after a successful install reports the update as installed", async () => {
+    mockRelaunch.mockRejectedValueOnce(new Error("restart not allowed"));
+    const { update, result } = await reachReady(async () => {});
+    await act(async () => {
+      await result.current.install();
+    });
+    expect(update.install).toHaveBeenCalledOnce();
+    expect(result.current.state).toEqual({ kind: "installed", manifest: MANIFEST });
   });
 });

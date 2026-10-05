@@ -150,6 +150,7 @@ export type UpdaterMachineState =
   | { readonly kind: "downloading"; readonly manifest: UpdateManifest; readonly progress: number }
   | { readonly kind: "ready"; readonly manifest: UpdateManifest }
   | { readonly kind: "installing" }
+  | { readonly kind: "installed"; readonly manifest: UpdateManifest }
   | {
       readonly kind: "error";
       readonly subtype: "check" | "download" | "signature" | "install";
