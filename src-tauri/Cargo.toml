@@ -1,6 +1,6 @@
 [package]
 name = "swiftie-quiz"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 description = "A Taylor Swift trivia game"
 license = "Apache-2.0"
