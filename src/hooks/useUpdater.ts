@@ -1,10 +1,22 @@
 import { useCallback } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 import { useGameStore } from "../stores/gameStore";
 import type { UpdateManifest, UpdaterMachineState } from "../types";
 
 const REMIND_LATER_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+const UPDATE_IN_HAND: ReadonlySet<UpdaterMachineState["kind"]> = new Set([
+  "downloading",
+  "ready",
+  "installing",
+  "installed",
+]);
+
+function updateInHand(): boolean {
+  return UPDATE_IN_HAND.has(useGameStore.getState().updaterState.kind);
+}
 
 export interface UseUpdater {
   state: UpdaterMachineState;
@@ -38,12 +50,12 @@ function manifestFromUpdate(u: Update): UpdateManifest {
 export function useUpdater(): UseUpdater {
   const state = useGameStore((s) => s.updaterState);
   const setState = useGameStore((s) => s.setUpdaterState);
-  const progress = useGameStore((s) => s.progress);
   const setProgress = useGameStore((s) => s.setProgress);
 
   const doCheck = useCallback(async (opts?: { manual?: boolean }) => {
+    if (updateInHand()) return;
     const isManual = opts?.manual === true;
-    const current = progress.updater;
+    const current = useGameStore.getState().progress.updater;
 
     // Auto-mode gates: respect user preferences. Manual checks (Settings →
     // Check now) bypass autoCheckEnabled and remindLaterUntil but still
@@ -61,11 +73,13 @@ export function useUpdater(): UseUpdater {
       const update = await check();
       const nowIso = new Date().toISOString();
 
-      // Persist lastCheckedAt regardless of outcome so Settings shows it.
+      const latest = useGameStore.getState().progress;
       setProgress({
-        ...progress,
-        updater: { ...progress.updater, lastCheckedAt: nowIso },
+        ...latest,
+        updater: { ...latest.updater, lastCheckedAt: nowIso },
       });
+
+      if (updateInHand()) return;
 
       if (!update) {
         ctx.pendingUpdate = null;
@@ -74,7 +88,7 @@ export function useUpdater(): UseUpdater {
       }
 
       // Honor skippedVersions even on auto OR manual.
-      if (current.skippedVersions.includes(update.version)) {
+      if (latest.updater.skippedVersions.includes(update.version)) {
         ctx.pendingUpdate = null;
         setState({ kind: "up-to-date" });
         return;
@@ -83,13 +97,15 @@ export function useUpdater(): UseUpdater {
       ctx.pendingUpdate = update;
       setState({ kind: "available", manifest: manifestFromUpdate(update) });
     } catch (err) {
+      if (updateInHand()) return;
       const message = err instanceof Error ? err.message : String(err);
       setState({ kind: "error", subtype: "check", message });
     }
-  }, [progress, setProgress, setState]);
+  }, [setProgress, setState]);
 
   const doDownload = useCallback(async () => {
-    if (!ctx.pendingUpdate) {
+    const update = ctx.pendingUpdate;
+    if (!update) {
       setState({
         kind: "error",
         subtype: "download",
@@ -97,12 +113,13 @@ export function useUpdater(): UseUpdater {
       });
       return;
     }
-    const manifest = manifestFromUpdate(ctx.pendingUpdate);
+    const manifest = manifestFromUpdate(update);
     setState({ kind: "downloading", manifest, progress: 0 });
     try {
       let received = 0;
       let total = 0;
-      await ctx.pendingUpdate.download((event) => {
+      await update.download((event) => {
+        if (ctx.pendingUpdate !== update) return;
         if (event.event === "Started") {
           total = event.data?.contentLength ?? 0;
         } else if (event.event === "Progress") {
@@ -111,8 +128,10 @@ export function useUpdater(): UseUpdater {
           setState({ kind: "downloading", manifest, progress: pct });
         }
       });
+      if (ctx.pendingUpdate !== update) return;
       setState({ kind: "ready", manifest });
     } catch (err) {
+      if (ctx.pendingUpdate !== update) return;
       const message = err instanceof Error ? err.message : String(err);
       const subtype = /signature|verif/i.test(message) ? "signature" : "download";
       setState({ kind: "error", subtype, message });
@@ -120,7 +139,8 @@ export function useUpdater(): UseUpdater {
   }, [setState]);
 
   const doInstall = useCallback(async () => {
-    if (!ctx.pendingUpdate) {
+    const update = ctx.pendingUpdate;
+    if (!update) {
       setState({
         kind: "error",
         subtype: "install",
@@ -130,11 +150,16 @@ export function useUpdater(): UseUpdater {
     }
     setState({ kind: "installing" });
     try {
-      await ctx.pendingUpdate.install();
-      // App relaunches; control flow doesn't return.
+      await update.install();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setState({ kind: "error", subtype: "install", message });
+      return;
+    }
+    try {
+      await relaunch();
+    } catch {
+      setState({ kind: "installed", manifest: manifestFromUpdate(update) });
     }
   }, [setState]);
 
@@ -149,6 +174,7 @@ export function useUpdater(): UseUpdater {
   // so the existing save_progress IPC persists them to disk.
   const skipVersion = useCallback(
     (version: string) => {
+      const progress = useGameStore.getState().progress;
       setProgress({
         ...progress,
         updater: {
@@ -159,18 +185,19 @@ export function useUpdater(): UseUpdater {
       ctx.pendingUpdate = null;
       setState({ kind: "idle" });
     },
-    [progress, setProgress, setState],
+    [setProgress, setState],
   );
 
   const remindLater = useCallback(() => {
     const until = new Date(Date.now() + REMIND_LATER_INTERVAL_MS).toISOString();
+    const progress = useGameStore.getState().progress;
     setProgress({
       ...progress,
       updater: { ...progress.updater, remindLaterUntil: until },
     });
     ctx.pendingUpdate = null;
     setState({ kind: "idle" });
-  }, [progress, setProgress, setState]);
+  }, [setProgress, setState]);
 
   const dismiss = useCallback(() => setState({ kind: "idle" }), [setState]);
 

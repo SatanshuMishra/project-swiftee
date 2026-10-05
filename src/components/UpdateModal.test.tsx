@@ -161,6 +161,29 @@ describe("UpdateModal", () => {
     expect(mockUpdater.download).toHaveBeenCalledTimes(1);
   });
 
+  it("Retry on check error checks again instead of installing", () => {
+    mockUpdater.state = {
+      kind: "error",
+      subtype: "check",
+      message: "network down",
+    };
+    render(<UpdateModal isOpen onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /^retry$/i }));
+    expect(mockUpdater.check).toHaveBeenCalledWith({ manual: true });
+    expect(mockUpdater.install).not.toHaveBeenCalled();
+  });
+
+  it("installed state asks the user to reopen the app and offers no retry", () => {
+    mockUpdater.state = {
+      kind: "installed",
+      manifest: { version: "0.3.0", notes: "", pubDate: "" },
+    };
+    render(<UpdateModal isOpen onClose={() => {}} />);
+    expect(screen.getByText(/0\.3\.0 installed/i)).toBeInTheDocument();
+    expect(screen.getByText(/quit and reopen/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /retry|install/i })).not.toBeInTheDocument();
+  });
+
   it("Escape key closes the modal", () => {
     const onClose = vi.fn();
     mockUpdater.state = {

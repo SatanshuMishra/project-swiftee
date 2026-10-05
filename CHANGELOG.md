@@ -4,6 +4,20 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- **Update checks no longer repeat every few seconds.** The app checks once at launch and then every six hours, as intended. Before, each check started the next one, so the update window kept resetting and a download could be lost before you installed it.
+- **Install & Restart now restarts the app on macOS.** The update was installed, but the old version kept running until you quit. The app now reopens on the new version by itself.
+- **Progress is no longer undone by an update check.** An achievement, score or setting changed while a check was in progress could be reverted when the check finished.
+- **A downloaded update stays ready to install.** A later update check no longer replaces an update you have already downloaded, and cancelling a download no longer leaves a "Restart to install" badge behind.
+- **Retry after a failed update check checks again.** Before, it tried to install an update that had never been found and failed with "No update to install".
+
+### Updating from v0.2.2 or v0.2.1
+- If this window keeps resetting before the download finishes, open Settings, untick "Automatically check for updates", click "Check now", then click the update badge, Download, and Install & Restart. You can turn automatic checks back on afterwards.
+- On macOS, quit and reopen the app once after installing this update. From this version on, it restarts by itself.
+- The save format is unchanged, so your progress, achievements and settings carry over.
+
 ## [0.2.2] - 2026-10-04
 
 ### Fixed
