@@ -20,7 +20,7 @@ jobs:
     outputs:
       release_notes: ${{ steps.extract-notes.outputs.notes }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Assert versions match across package.json, Cargo.toml, tauri.conf.json
         run: |
           set -euo pipefail
@@ -96,10 +96,10 @@ jobs:
     needs: validate-versions
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -108,7 +108,7 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -124,7 +124,7 @@ jobs:
           prerelease: false
           args: --target aarch64-apple-darwin
       - name: Upload macOS artifacts (for SLSA attestations)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-bundles
           path: |
@@ -138,10 +138,10 @@ jobs:
     needs: validate-versions
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -150,7 +150,7 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -163,7 +163,7 @@ jobs:
           prerelease: false
           args: --target x86_64-pc-windows-msvc
       - name: Upload Windows artifacts (for SLSA attestations)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-bundles
           path: |
@@ -176,19 +176,19 @@ jobs:
     needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: macos-bundles
           path: artifacts/macos
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: windows-bundles
           path: artifacts/windows
-      # actions/upload-artifact@v4 collapses paths to the least-common-ancestor
+      # actions/upload-artifact@v7 collapses paths to the least-common-ancestor
       # of all inputs, so multi-source uploads land in subdirectories under the
       # artifact root. Globs use ** to match recursively.
       - name: Generate SLSA build provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             artifacts/macos/**/*.app.tar.gz
