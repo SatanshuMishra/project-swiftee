@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/services/updater/update_config.dart';
 
 import '../../tool/release/make_manifest.dart';
 
@@ -149,14 +150,20 @@ void main() {
     });
 
     group('command line', () {
+      const fixtures = 'test/fixtures/updater';
       late Directory temp;
       late StringBuffer output;
       late StringBuffer errors;
+      late String signature;
+      late String testKey;
 
       String write(String name, String contents) {
         final file = File('${temp.path}/$name')..writeAsStringSync(contents);
         return file.path;
       }
+
+      String copyArtifact(String name) =>
+          File('$fixtures/artifact.bin').copySync('${temp.path}/$name').path;
 
       List<String> arguments(String out) => [
         '--version',
@@ -168,40 +175,62 @@ void main() {
         '--base-url',
         baseUrl,
         '--mac-tar',
-        'artifacts/macos/Swiftie.Quiz.app.tar.gz',
+        copyArtifact('Swiftie.Quiz.app.tar.gz'),
         '--mac-sig',
-        write('Swiftie.Quiz.app.tar.gz.sig', macSignature),
+        write('Swiftie.Quiz.app.tar.gz.sig', signature),
         '--win-exe',
-        'artifacts/windows/Swiftie.Quiz_0.3.0_x64-setup.exe',
+        copyArtifact('Swiftie.Quiz_0.3.0_x64-setup.exe'),
         '--win-sig',
-        write('Swiftie.Quiz_0.3.0_x64-setup.exe.sig', '$windowsSignature\n'),
+        write('Swiftie.Quiz_0.3.0_x64-setup.exe.sig', '$signature\n'),
         '--out',
         out,
       ];
+
+      Future<int> run(List<String> arguments, {String? publicKey}) =>
+          runMakeManifest(
+            arguments,
+            output: output,
+            errors: errors,
+            publicKey: publicKey ?? testKey,
+          );
 
       setUp(() {
         temp = Directory.systemTemp.createTempSync('swiftie_manifest_');
         output = StringBuffer();
         errors = StringBuffer();
+        signature = File('$fixtures/artifact.bin.sig')
+            .readAsStringSync()
+            .trim();
+        testKey = File('$fixtures/test_key.pub').readAsStringSync().trim();
       });
 
       tearDown(() => temp.deleteSync(recursive: true));
 
-      test('writes latest.json from the signature files', () {
+      test('writes latest.json from signatures that verify', () async {
         final out = '${temp.path}/latest.json';
 
-        final code = runMakeManifest(
-          arguments(out),
-          output: output,
-          errors: errors,
-        );
+        final code = await run(arguments(out));
 
+        Map<String, String> expectedEntry(String fileName) => {
+          'signature': signature,
+          'url': '$baseUrl/$fileName',
+        };
         expect(code, 0, reason: errors.toString());
-        expect(jsonDecode(File(out).readAsStringSync()), expectedManifest);
+        expect(jsonDecode(File(out).readAsStringSync()), {
+          ...expectedManifest,
+          'platforms': {
+            'darwin-aarch64': expectedEntry('Swiftie.Quiz.app.tar.gz'),
+            'darwin-aarch64-app': expectedEntry('Swiftie.Quiz.app.tar.gz'),
+            'windows-x86_64': expectedEntry('Swiftie.Quiz_0.3.0_x64-setup.exe'),
+            'windows-x86_64-nsis': expectedEntry(
+              'Swiftie.Quiz_0.3.0_x64-setup.exe',
+            ),
+          },
+        });
         expect(File(out).readAsStringSync(), endsWith('}\n'));
       });
 
-      test('refuses missing, unknown and repeated options', () {
+      test('refuses missing, unknown and repeated options', () async {
         final out = '${temp.path}/latest.json';
         final complete = arguments(out);
 
@@ -211,18 +240,14 @@ void main() {
           [...complete, '--version', '0.3.1'],
           [...complete, '--out'],
         ]) {
-          expect(
-            runMakeManifest(broken, output: output, errors: errors),
-            64,
-            reason: broken.join(' '),
-          );
+          expect(await run(broken), 64, reason: broken.join(' '));
         }
         expect(File(out).existsSync(), isFalse);
         expect(errors.toString(), contains('::error::Missing --out'));
         expect(errors.toString(), contains('::error::Unknown option --arch'));
       });
 
-      test('fails when a signature file is missing', () {
+      test('fails when a signature file is missing', () async {
         final out = '${temp.path}/latest.json';
         final broken = [
           for (final value in arguments(out))
@@ -231,9 +256,55 @@ void main() {
                 : value,
         ];
 
-        expect(runMakeManifest(broken, output: output, errors: errors), 1);
+        expect(await run(broken), 1);
         expect(errors.toString(), contains('missing.sig'));
         expect(File(out).existsSync(), isFalse);
+      });
+
+      test(
+        'refuses a signature made with a key other than the update key',
+        () async {
+          final out = '${temp.path}/latest.json';
+
+          final code = await run(arguments(out), publicKey: updaterPublicKey);
+
+          expect(code, 1);
+          expect(
+            errors.toString(),
+            contains(
+              '::error::The signature of Swiftie.Quiz.app.tar.gz does not '
+              "verify with the app's update key",
+            ),
+          );
+          expect(File(out).existsSync(), isFalse);
+        },
+      );
+
+      test('refuses an artifact changed after it was signed', () async {
+        final out = '${temp.path}/latest.json';
+        final complete = arguments(out);
+        File('${temp.path}/Swiftie.Quiz_0.3.0_x64-setup.exe')
+            .writeAsBytesSync([1, 2, 3], mode: FileMode.append);
+
+        expect(await run(complete), 1);
+        expect(
+          errors.toString(),
+          contains('The signature of Swiftie.Quiz_0.3.0_x64-setup.exe'),
+        );
+        expect(File(out).existsSync(), isFalse);
+      });
+
+      test('uses the update key of the app by default', () async {
+        final out = '${temp.path}/latest.json';
+
+        final code = await runMakeManifest(
+          arguments(out),
+          output: output,
+          errors: errors,
+        );
+
+        expect(code, 1);
+        expect(errors.toString(), contains("the app's update key"));
       });
     });
   });

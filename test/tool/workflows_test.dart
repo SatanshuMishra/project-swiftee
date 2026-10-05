@@ -71,16 +71,13 @@ void main() {
       };
     });
 
-    test('CI runs on main pushes, pull requests and release calls', () {
+    test('CI runs on main pushes and pull requests', () {
       final on = triggers(ci);
-      final skipBundle =
-          ((on['workflow_call'] as YamlMap)['inputs'] as YamlMap)['skip-bundle']
-              as YamlMap;
 
       expect((on['push'] as YamlMap)['branches'], ['main']);
       expect(on.containsKey('pull_request'), isTrue);
-      expect(skipBundle['type'], 'boolean');
-      expect(skipBundle['default'], false);
+      expect(on.containsKey('workflow_call'), isFalse);
+      expect(sources[ciPath], isNot(contains('skip-bundle')));
       expect(ci['permissions'], {'contents': 'read'});
       expect(
         (ci['concurrency'] as YamlMap)['group'],
@@ -206,7 +203,7 @@ void main() {
       expect(windows['runs-on'], 'windows-2025');
       for (final build in [macos, windows]) {
         expect(needsOf(build), ['analyze']);
-        expect(build['if'], r'${{ !inputs.skip-bundle }}');
+        expect(build['if'], isNull);
       }
       expect(runsOf(macos), contains('flutter build macos --release'));
       expect(
@@ -284,20 +281,18 @@ void main() {
       expect(release['permissions'], {'contents': 'read'});
       expect(jobsOf(release).keys.toSet(), {
         'validate-versions',
-        'ci',
+        'ci-passed',
         'create-release',
         'build-macos',
         'build-windows',
         'publish-manifest',
-        'verify-manifest',
         'attest',
+        'publish-release',
       });
-      expect(needsOf(job(release, 'ci')), ['validate-versions']);
-      expect(job(release, 'ci')['uses'], './.github/workflows/ci.yml');
-      expect(job(release, 'ci')['with'], {'skip-bundle': true});
+      expect(needsOf(job(release, 'ci-passed')), ['validate-versions']);
       expect(
         needsOf(job(release, 'create-release')),
-        containsAll(['validate-versions', 'ci']),
+        containsAll(['validate-versions', 'ci-passed']),
       );
       expect(
         needsOf(job(release, 'build-macos')),
@@ -305,20 +300,55 @@ void main() {
       );
       expect(
         needsOf(job(release, 'build-windows')),
-        containsAll(['create-release', 'build-macos']),
+        containsAll(['validate-versions', 'create-release']),
       );
       expect(
         needsOf(job(release, 'publish-manifest')),
         containsAll(['create-release', 'build-macos', 'build-windows']),
       );
       expect(
-        needsOf(job(release, 'verify-manifest')),
-        containsAll(['create-release', 'publish-manifest']),
-      );
-      expect(
         needsOf(job(release, 'attest')),
         containsAll(['build-macos', 'build-windows']),
       );
+      expect(
+        needsOf(job(release, 'publish-release')),
+        containsAll(['validate-versions', 'publish-manifest', 'attest']),
+      );
+    });
+
+    test('the macOS and Windows builds run side by side', () {
+      expect(
+        needsOf(job(release, 'build-windows')),
+        isNot(contains('build-macos')),
+      );
+      expect(
+        needsOf(job(release, 'build-macos')),
+        isNot(contains('build-windows')),
+      );
+    });
+
+    test('a release ships only a main commit whose CI OK passed, without '
+        'running CI again', () {
+      final gate = job(release, 'ci-passed');
+      final check = runsOf(gate).single;
+
+      expect(
+        jobsOf(release).values.where((j) => (j as YamlMap)['uses'] != null),
+        isEmpty,
+      );
+      expect(gate['permissions'], {'contents': 'read', 'checks': 'read'});
+      expect(check, contains(r'compare/main...$SHA'));
+      expect(check, contains('"identical"'));
+      expect(check, contains('"behind"'));
+      expect(check, contains('check-runs?check_name=CI%20OK'));
+      expect(check, contains('"completed success")'));
+      expect(check, contains('completed*)'));
+      expect(check, contains('exit 1'));
+      expect(stepsOf(gate).single['env'], {
+        'GH_TOKEN': r'${{ github.token }}',
+        'GH_REPO': r'${{ github.repository }}',
+        'SHA': r'${{ github.sha }}',
+      });
     });
 
     test('the release is created as a draft that is never overwritten once '
@@ -425,20 +455,28 @@ void main() {
       );
     });
 
-    test('latest.json is published from the signatures and verified against '
-        'the release assets', () {
-      final publish = runsOf(job(release, 'publish-manifest')).join('\n');
-      final verify = runsOf(job(release, 'verify-manifest')).single;
+    test('latest.json is published from verified signatures and checked '
+        'against the release assets', () {
+      final manifestJob = job(release, 'publish-manifest');
+      final publish = runsOf(manifestJob).join('\n');
+      final steps = stepsOf(manifestJob);
+      final upload = steps.indexWhere(
+        (s) => runsCommand(s, 'gh release upload "\$TAG" latest.json'),
+      );
+      final verifyIndex = steps.indexWhere(
+        (s) => runsCommand(s, 'latest.json is not publishable'),
+      );
+      final verify = steps[verifyIndex]['run'] as String;
 
       expect(publish, contains('--base-url "\$BASE_URL"'));
       expect(
-        (stepsOf(job(release, 'publish-manifest'))
-                .singleWhere((s) => runsCommand(s, 'make_manifest.dart'))['env']
+        (steps.singleWhere((s) => runsCommand(s, 'make_manifest.dart'))['env']
             as YamlMap)['BASE_URL'],
         r'https://github.com/${{ github.repository }}/releases/download/'
         r'${{ github.ref_name }}',
       );
-      expect(publish, contains('gh release upload "\$TAG" latest.json'));
+      expect(upload, isNonNegative);
+      expect(verifyIndex, greaterThan(upload));
       for (final platform in [
         'darwin-aarch64',
         'darwin-aarch64-app',
@@ -450,6 +488,25 @@ void main() {
       expect(verify, contains("--jq '.[].name'"));
       expect(verify, contains(r'expected="${TAG#v}"'));
       expect(verify, contains(r'grep -qxF -- "$name"'));
+    });
+
+    test('a verified release publishes itself with no manual step', () {
+      final publish = job(release, 'publish-release');
+      final command = runsOf(publish).single;
+
+      expect(publish['environment'], isNull);
+      expect(publish['permissions'], {'contents': 'write'});
+      expect(
+        command,
+        contains(r'gh release edit "$TAG" --draft=false --latest'),
+      );
+      expect(
+        command,
+        contains(
+          r'gh release edit "$TAG" --draft=false --prerelease --latest=false',
+        ),
+      );
+      expect(command, contains(r'[[ "$VERSION" == *-* ]]'));
     });
 
     test('attestations cover the archive, the DMG and the setup '

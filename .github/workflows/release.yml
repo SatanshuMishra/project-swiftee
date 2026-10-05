@@ -44,18 +44,48 @@ jobs:
             echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
-  ci:
-    name: CI
+  ci-passed:
+    name: Tagged commit passed CI on main
     needs: validate-versions
-    uses: ./.github/workflows/ci.yml
-    with:
-      skip-bundle: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     permissions:
       contents: read
+      checks: read
+    steps:
+      - name: Require the tagged commit to be on main with a successful CI OK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          position=$(gh api "repos/$GH_REPO/compare/main...$SHA" --jq .status)
+          if [ "$position" != "identical" ] && [ "$position" != "behind" ]; then
+            echo "::error::$SHA is not on main; releases ship only from main"
+            exit 1
+          fi
+          while true; do
+            state=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs?check_name=CI%20OK" --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last | "\(.status) \(.conclusion)"')
+            case "$state" in
+              "completed success")
+                echo "CI OK passed on $SHA"
+                exit 0
+                ;;
+              completed*)
+                echo "::error::CI OK on $SHA finished as ${state#completed }; re-run CI on main, then re-run this release"
+                exit 1
+                ;;
+              *)
+                echo "Waiting for CI OK on $SHA ($state)"
+                sleep 30
+                ;;
+            esac
+          done
 
   create-release:
     name: Create draft release
-    needs: [validate-versions, ci]
+    needs: [validate-versions, ci-passed]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -149,7 +179,7 @@ jobs:
 
   build-windows:
     name: Build (Windows x86_64)
-    needs: [validate-versions, create-release, build-macos]
+    needs: [validate-versions, create-release]
     runs-on: windows-2025
     timeout-minutes: 60
     environment: release
@@ -271,15 +301,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: gh release upload "$TAG" latest.json --clobber
-
-  verify-manifest:
-    name: Verify updater manifest
-    needs: [create-release, build-macos, build-windows, publish-manifest]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
       - name: Assert latest.json carries this version and every shipped platform
         env:
           GH_TOKEN: ${{ github.token }}
@@ -347,3 +368,26 @@ jobs:
             artifacts/macos/**/*.app.tar.gz
             artifacts/macos/**/*.dmg
             artifacts/windows/**/*-setup.exe
+
+  publish-release:
+    name: Publish the release
+    needs: [validate-versions, create-release, publish-manifest, attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the verified draft as the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.validate-versions.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "$VERSION" == *-* ]]; then
+            gh release edit "$TAG" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$TAG" --draft=false --latest
+          fi
+          gh release view "$TAG" --json isPrerelease,url --jq '"Published \(.url) (prerelease: \(.isPrerelease))"'
