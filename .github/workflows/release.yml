@@ -86,10 +86,15 @@ jobs:
             capture && /^## \[/ { exit }
             capture { print }
           ' CHANGELOG.md | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}')
+          if [ -z "$NOTES" ]; then
+            echo "::error::The CHANGELOG section for $TAG is empty"
+            exit 1
+          fi
+          delimiter="NOTES_$(openssl rand -hex 16)"
           {
-            echo "notes<<NOTES_EOF"
+            echo "notes<<$delimiter"
             printf '%s\n' "$NOTES"
-            echo "NOTES_EOF"
+            echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
 
@@ -145,6 +150,7 @@ jobs:
     needs: [validate-versions, create-release]
     runs-on: macos-26
     timeout-minutes: 60
+    environment: release
     permissions:
       contents: write
     steps:
@@ -180,9 +186,10 @@ jobs:
 
   build-windows:
     name: Build (Windows x86_64)
-    needs: [validate-versions, create-release]
+    needs: [validate-versions, create-release, build-macos]
     runs-on: windows-2025
     timeout-minutes: 60
+    environment: release
     permissions:
       contents: write
     steps:
@@ -244,14 +251,19 @@ jobs:
             echo "::error::latest.json version is $actual, expected $expected"
             exit 1
           fi
-          missing=""
+          asset_ids=$(gh api "repos/$GH_REPO/releases/$RELEASE_ID/assets" --paginate --jq '.[].id')
+          broken=""
           for platform in darwin-aarch64 darwin-aarch64-app windows-x86_64 windows-x86_64-nsis; do
-            if ! jq -e --arg p "$platform" '.platforms[$p].url and .platforms[$p].signature' latest.json > /dev/null; then
-              missing="$missing $platform"
+            url=$(jq -r --arg p "$platform" '.platforms[$p].url // ""' latest.json)
+            signature=$(jq -r --arg p "$platform" '.platforms[$p].signature // ""' latest.json)
+            if [ -z "$url" ] || [ -z "$signature" ]; then
+              broken="$broken $platform(missing url or signature)"
+            elif ! grep -qx "${url##*/}" <<< "$asset_ids"; then
+              broken="$broken $platform(url points at an asset not on this release)"
             fi
           done
-          if [ -n "$missing" ]; then
-            echo "::error::latest.json lacks a url or signature for:$missing"
+          if [ -n "$broken" ]; then
+            echo "::error::latest.json is not publishable:$broken"
             exit 1
           fi
 
