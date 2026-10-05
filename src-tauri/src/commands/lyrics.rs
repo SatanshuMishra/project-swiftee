@@ -72,9 +72,7 @@ pub async fn fetch_lyrics_batch(
             if let Some(cached) = cache.get(&cache_key) {
                 if cached.is_null() {
                     results.insert(track.track_id, None);
-                } else if let Ok(lyrics) =
-                    serde_json::from_value::<TrackLyrics>(cached.clone())
-                {
+                } else if let Ok(lyrics) = serde_json::from_value::<TrackLyrics>(cached.clone()) {
                     results.insert(track.track_id, Some(lyrics));
                 } else {
                     to_fetch.push(track);
@@ -110,8 +108,7 @@ pub async fn fetch_lyrics_batch(
             let cache_key = format!("lyrics:{}", track_id);
             match result {
                 Ok(lyrics) => {
-                    let value =
-                        serde_json::to_value(&lyrics).unwrap_or(serde_json::Value::Null);
+                    let value = serde_json::to_value(&lyrics).unwrap_or(serde_json::Value::Null);
                     cache.set(cache_key, value);
                     results.insert(track_id, Some(lyrics));
                 }

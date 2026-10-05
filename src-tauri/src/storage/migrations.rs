@@ -7,16 +7,10 @@ pub type Migration = fn(Value) -> Result<Value, AppError>;
 
 pub const CURRENT_VERSION: u32 = 3;
 
-const MIGRATIONS: &[(u32, Migration)] = &[
-    (1, migrate_v1_to_v2),
-    (2, migrate_v2_to_v3),
-];
+const MIGRATIONS: &[(u32, Migration)] = &[(1, migrate_v1_to_v2), (2, migrate_v2_to_v3)];
 
 pub fn migrate_to_latest(mut state: Value) -> Result<Value, AppError> {
-    let mut v = state
-        .get("version")
-        .and_then(Value::as_u64)
-        .unwrap_or(1) as u32;
+    let mut v = state.get("version").and_then(Value::as_u64).unwrap_or(1) as u32;
     while v < CURRENT_VERSION {
         let step = MIGRATIONS
             .iter()
@@ -37,9 +31,9 @@ pub fn migrate_to_latest(mut state: Value) -> Result<Value, AppError> {
 }
 
 fn migrate_v1_to_v2(mut state: Value) -> Result<Value, AppError> {
-    let stats = state["stats"].as_object_mut().ok_or_else(|| {
-        AppError::ParseError("stats missing or not an object".to_string())
-    })?;
+    let stats = state["stats"]
+        .as_object_mut()
+        .ok_or_else(|| AppError::ParseError("stats missing or not an object".to_string()))?;
     stats.entry("totalLyricsCorrect").or_insert(json!(0));
     stats.entry("nameThaSongCorrect").or_insert(json!(0));
     stats.entry("lyricsOrLieCorrect").or_insert(json!(0));
@@ -128,8 +122,16 @@ mod tests {
         assert_eq!(result["updater"]["autoCheckEnabled"], true);
         assert_eq!(result["updater"]["lastCheckedAt"], serde_json::Value::Null);
         assert!(result["updater"]["skippedVersions"].is_array());
-        assert!(result["updater"]["skippedVersions"].as_array().unwrap().is_empty());
-        assert_eq!(result["updater"]["remindLaterUntil"], serde_json::Value::Null);
+        assert!(
+            result["updater"]["skippedVersions"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            result["updater"]["remindLaterUntil"],
+            serde_json::Value::Null
+        );
     }
 
     #[test]

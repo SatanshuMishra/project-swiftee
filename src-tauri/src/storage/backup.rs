@@ -19,9 +19,7 @@ pub struct BackupEntry {
 
 pub fn create_backup(save_path: &Path) -> Result<PathBuf, AppError> {
     if !save_path.exists() {
-        return Err(AppError::FileError(
-            "save file does not exist".to_string(),
-        ));
+        return Err(AppError::FileError("save file does not exist".to_string()));
     }
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -104,11 +102,13 @@ mod tests {
         let save = write_save(dir.path(), "hello");
         let backup = create_backup(&save).unwrap();
         assert!(backup.exists());
-        assert!(backup
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .starts_with("save.backup."));
+        assert!(
+            backup
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("save.backup.")
+        );
         assert_eq!(fs::read_to_string(backup).unwrap(), "hello");
     }
 
@@ -152,11 +152,7 @@ mod tests {
     fn prune_keeps_only_max_backups() {
         let dir = tempdir().unwrap();
         for ts in 1..=5u64 {
-            fs::write(
-                dir.path().join(format!("save.backup.{ts}.json")),
-                "x",
-            )
-            .unwrap();
+            fs::write(dir.path().join(format!("save.backup.{ts}.json")), "x").unwrap();
         }
         prune_old_backups(dir.path()).unwrap();
         let remaining = list_backups(dir.path()).unwrap();

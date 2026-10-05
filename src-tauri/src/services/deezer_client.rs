@@ -35,13 +35,7 @@ impl DeezerClient {
             "{}/artist/{}/albums?limit=100",
             DEEZER_BASE_URL, TAYLOR_SWIFT_ID
         );
-        let response: DeezerResponse<Album> = self
-            .client
-            .get(&url)
-            .send()
-            .await?
-            .json()
-            .await?;
+        let response: DeezerResponse<Album> = self.client.get(&url).send().await?.json().await?;
         Ok(response.data)
     }
 
@@ -54,13 +48,7 @@ impl DeezerClient {
         }
 
         let url = format!("{}/album/{}", DEEZER_BASE_URL, album_id);
-        let detail: AlbumDetail = self
-            .client
-            .get(&url)
-            .send()
-            .await?
-            .json()
-            .await?;
+        let detail: AlbumDetail = self.client.get(&url).send().await?.json().await?;
 
         let album = Album {
             id: detail.id,
@@ -88,18 +76,8 @@ impl DeezerClient {
             "{}/artist/{}/top?limit=100",
             DEEZER_BASE_URL, TAYLOR_SWIFT_ID
         );
-        let response: DeezerResponse<Track> = self
-            .client
-            .get(&url)
-            .send()
-            .await?
-            .json()
-            .await?;
-        let tracks = response
-            .data
-            .into_iter()
-            .filter(is_playable_song)
-            .collect();
+        let response: DeezerResponse<Track> = self.client.get(&url).send().await?.json().await?;
+        let tracks = response.data.into_iter().filter(is_playable_song).collect();
         Ok(tracks)
     }
 }

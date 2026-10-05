@@ -81,10 +81,7 @@ mod tests {
     fn returns_loaded_when_already_current() {
         let dir = tempdir().unwrap();
         let progress = GameProgress::default();
-        let path = write_save_json(
-            dir.path(),
-            &serde_json::to_value(&progress).unwrap(),
-        );
+        let path = write_save_json(dir.path(), &serde_json::to_value(&progress).unwrap());
         let result = load_and_migrate(&path).unwrap();
         match result {
             LoadResult::Loaded { progress: p } => {
@@ -111,7 +108,10 @@ mod tests {
 
         let result = load_and_migrate(&path).unwrap();
         match result {
-            LoadResult::Migrated { progress, from_version } => {
+            LoadResult::Migrated {
+                progress,
+                from_version,
+            } => {
                 assert_eq!(from_version, Some(1));
                 assert_eq!(progress.version, migrations::CURRENT_VERSION);
                 assert_eq!(progress.stats.total_correct, 7);
@@ -146,7 +146,10 @@ mod tests {
 
         let result = load_and_migrate(&path).unwrap();
         match result {
-            LoadResult::Migrated { from_version, progress } => {
+            LoadResult::Migrated {
+                from_version,
+                progress,
+            } => {
                 // from_version is None because the input had no version field
                 assert_eq!(from_version, None);
                 // Migration still ran and bumped to current

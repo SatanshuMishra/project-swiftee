@@ -143,14 +143,11 @@ mod tests {
                 unlocked_at: Some("2026-02-15T14:30:00Z".to_string()),
             },
         );
-        progress
-            .stats
-            .albums_played
-            .push("12345".to_string());
-        progress
-            .stats
-            .tracks_guessed_per_album
-            .insert("12345".to_string(), vec!["111".to_string(), "222".to_string()]);
+        progress.stats.albums_played.push("12345".to_string());
+        progress.stats.tracks_guessed_per_album.insert(
+            "12345".to_string(),
+            vec!["111".to_string(), "222".to_string()],
+        );
 
         let json = serde_json::to_string(&progress).unwrap();
         let deserialized: GameProgress = serde_json::from_str(&json).unwrap();
