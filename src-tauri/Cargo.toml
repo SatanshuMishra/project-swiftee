@@ -3,6 +3,7 @@ name = "swiftie-quiz"
 version = "0.2.2"
 edition = "2024"
 description = "A Taylor Swift trivia game"
+license = "Apache-2.0"
 
 [lib]
 name = "swiftie_quiz_lib"

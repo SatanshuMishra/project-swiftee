@@ -1,0 +1,26 @@
+Swiftie Quiz
+Copyright 2026 Satanshu Mishra
+
+Licensed under the Apache License, Version 2.0. The full text is in the
+LICENSE file at the root of this repository and at
+https://www.apache.org/licenses/LICENSE-2.0
+
+Scope
+
+This license applies retroactively to the whole history of this repository.
+It covers every commit on every branch, tag and other ref, including every
+commit made while the repository carried the MIT License, from its first
+commit until this notice was added, and the tagged releases v0.2.0, v0.2.1
+and v0.2.2. Every branch, tag and pull request ref descends from a single
+root commit:
+
+  24b4d224d14f235130e7d1151f365110af36f188  2026-02-15  Initial commit
+
+Third-party material
+
+The following file is not the work of the copyright holder above. It keeps
+its own license and is not relicensed under the Apache License.
+
+- src/assets/sounds/quack.mp3: a sound effect whose source and license were
+  not recorded when it was added. It is excluded from this license until its
+  source is established.
