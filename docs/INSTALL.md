@@ -2,9 +2,10 @@
 
 ## System requirements
 
-- **macOS:** 11.0 (Big Sur) or later, Apple Silicon (M1, M2, M3, etc.).
-  Intel Macs are not supported.
-- **Windows:** 10 build 1809 or later, 64-bit (x86_64).
+- **macOS:** 12 (Monterey) or later, Apple Silicon (M1, M2, M3, etc.).
+  Intel Macs are not supported. macOS 11 is not supported from v0.3.0,
+  because the app is now built with Flutter, which requires macOS 12.
+- **Windows:** 10 or 11, 64-bit (x64).
 
 ## Downloading
 
@@ -58,9 +59,17 @@ apply silently — the warning only appears for the very first install.
 3. Click the small **More info** link. The dialog expands and shows a
    **Run anyway** button. Click it.
 4. The installer runs to completion. The app installs into
-   `%LOCALAPPDATA%\Programs\Swiftie Quiz` (no Administrator prompt — per-user
-   install).
+   `%LOCALAPPDATA%\Swiftie Quiz` (no Administrator prompt — per-user
+   install). Installing over an earlier version replaces it in place.
 5. Launch the app from the Start menu. Subsequent launches are silent.
+
+## Already installed? Updating to the Flutter version
+
+Version 0.3.0 rebuilds the app in Flutter. If you already have Swiftie Quiz
+v0.2.1 or later, you do not need to reinstall: the in-app updater offers
+v0.3.0 like any other update, installs it, and the app reopens on the new
+version with your save intact. On macOS 11, do not install v0.3.0; it needs
+macOS 12 or later.
 
 ## Where your save data lives
 
@@ -69,8 +78,10 @@ apply silently — the warning only appears for the very first install.
 | macOS | `~/Library/Application Support/com.swiftiequiz.desktop/save.json` |
 | Windows | `%APPDATA%\com.swiftiequiz.desktop\save.json` |
 
-Backups (the 3 most recent) live alongside as `save.backup.<unix-ts>.json`.
-You can browse this folder from the app via **Settings → Backups**.
+These are the same paths every earlier version used, so your progress,
+achievements and settings carry over. Backups (the 3 most recent) live
+alongside as `save.backup.<unix-ts>.json`. You can browse and restore them
+from the app via **Settings → Backups**.
 
 ## Updates
 
@@ -85,9 +96,32 @@ You can disable automatic checks via
 
 ## Privacy
 
-Update checks send only your app version, OS, and CPU architecture (the
-template substitutions in the manifest URL). No analytics, no install
-identifiers, no telemetry.
+Update checks send only the app's User-Agent, which names the app and its
+version (`SwiftieQuiz/<version>`). No analytics, no install identifiers, no
+telemetry.
+
+## Building from source
+
+You need Flutter 3.47.5 (Dart 3.13). macOS builds need a Mac with Xcode;
+Windows builds need Windows with Visual Studio's C++ desktop workload and
+NSIS 3 for the installer.
+
+```bash
+flutter pub get
+flutter test
+
+# macOS: Swiftie Quiz.app, Swiftie Quiz_<version>_aarch64.dmg and Swiftie Quiz.app.tar.gz
+flutter build macos --release
+tool/release/package_macos.sh <version>
+
+# Windows (PowerShell): Swiftie Quiz_<version>_x64-setup.exe
+flutter build windows --release
+./tool/release/package_windows.ps1 -Version <version>
+```
+
+The packaged files land in `build/release/`. Use the version from
+`pubspec.yaml` without its `+build` suffix. Builds made this way are not
+signed for the in-app updater; only the release workflow signs them.
 
 ## Uninstalling
 

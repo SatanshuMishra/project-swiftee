@@ -1,0 +1,46 @@
+{
+  "id": 3579685431,
+  "readable": true,
+  "title": "The Fate of Ophelia",
+  "title_short": "The Fate of Ophelia",
+  "title_version": "",
+  "link": "https://www.deezer.com/track/3579685431",
+  "duration": 226,
+  "rank": 800000,
+  "explicit_lyrics": false,
+  "explicit_content_lyrics": 0,
+  "explicit_content_cover": 0,
+  "preview": "https://cdnt-preview.dzcdn.net/api/1/1/x/y/z/0/abc.mp3?hdnea=exp=1791203400~acl=/api/1/1/x/y/z/0/abc.mp3*~data=user_id=0,application_id=42~hmac=00",
+  "md5_image": "3c2f6fd4e2a5d1b3",
+  "artist": {
+    "id": 12246,
+    "name": "Taylor Swift",
+    "tracklist": "https://api.deezer.com/artist/12246/top?limit=50",
+    "type": "artist"
+  },
+  "album": {
+    "id": 829966251,
+    "title": "The Life of a Showgirl",
+    "link": "https://www.deezer.com/album/829966251",
+    "cover_medium": "https://cdn-images.dzcdn.net/images/cover/3c2f6fd4e2a5d1b3/250x250-000000-80-0-0.jpg",
+    "md5_image": "3c2f6fd4e2a5d1b3",
+    "release_date": "2025-10-03",
+    "tracklist": "https://api.deezer.com/album/829966251/tracks",
+    "type": "album"
+  },
+  "type": "track",
+  "isrc": "USUG12505781",
+  "track_position": 1,
+  "disk_number": 1,
+  "release_date": "2025-10-03",
+  "bpm": 0,
+  "gain": -7.4,
+  "contributors": [
+    {
+      "id": 12246,
+      "name": "Taylor Swift",
+      "role": "Main",
+      "type": "artist"
+    }
+  ]
+}

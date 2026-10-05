@@ -1,5 +1,5 @@
 ---
-description: Santa-method dual-review on uncommitted changes (no arg) or a specific PR (with PR number arg). Dispatches three reviewers in parallel and converges.
+description: Santa-method dual-review on uncommitted changes (no arg) or a specific PR (with PR number arg). Dispatches two reviewers in parallel and converges.
 argument-hint: "[pr-number]"
 ---
 
@@ -17,10 +17,9 @@ gh pr diff $ARGUMENTS
 
 1. **Capture the diff** into a working buffer.
 
-2. **Dispatch three reviewers in parallel** — single message with three Agent tool calls:
-   - `rust-tauri-reviewer` — given the Rust portion of the diff
-   - `react-tauri-reviewer` — given the TS/React portion
-   - `tauri-security-reviewer` — given any tauri.conf.json or capabilities/* changes
+2. **Dispatch two reviewers in parallel** — single message with two Agent tool calls:
+   - `flutter-reviewer` — given the `lib/`, `test/`, `tool/` and `installer/` portion of the diff
+   - `audio-engine-reviewer` — given any change to `lib/domain/engine/clip_selector.dart`, `lib/domain/engine/relisten_schedule.dart`, `lib/data/lyrics/danger_zones.dart`, `lib/services/audio/` or `lib/state/audio_controller.dart`; if none changed, it reports no findings
 
 3. **Convergence loop** (santa-method):
    - Collect all findings into a numbered list.
@@ -31,12 +30,11 @@ gh pr diff $ARGUMENTS
 ## Output format
 
 ```
-═══ /review-pr — Santa-Method Dual Review ═══
+=== /review-pr — Santa-Method Dual Review ===
 Target: <diff source> (<N> files, +<X>/-<Y>)
 
-▶ rust-tauri-reviewer        <N findings>
-▶ react-tauri-reviewer       <N findings>
-▶ tauri-security-reviewer    <N findings>
+> flutter-reviewer        <N findings>
+> audio-engine-reviewer   <N findings>
 
 CRITICAL (block):
   1. <file:line> — <issue> — <fix>
