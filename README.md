@@ -85,5 +85,4 @@ npm run tauri build
 
 ## License
 
-(No license declared yet — repository is currently a personal
-distribution.)
+Licensed under the Apache License, Version 2.0; see [LICENSE](LICENSE). The license covers the whole history of this repository, from its first commit, including the period it carried the MIT License. The quack sound effect keeps its own license; [NOTICE](NOTICE) lists it.
