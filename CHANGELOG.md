@@ -4,6 +4,11 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] - 2026-10-05
+
+### Changed
+- **Macs on macOS 11 stay on this version.** The next version of Swiftie Quiz needs macOS 12 or later. On macOS 11 the app no longer offers that update, so it cannot install a version that would not open. Updating to macOS 12 or later brings the update back. Windows, and Macs on macOS 12 or later, update as usual.
+
 ## [0.2.3] - 2026-10-05
 
 ### Updating from v0.2.2 or v0.2.1
