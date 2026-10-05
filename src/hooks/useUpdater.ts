@@ -6,6 +6,12 @@ import type { UpdateManifest, UpdaterMachineState } from "../types";
 
 const REMIND_LATER_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+const UPDATE_IN_HAND: ReadonlySet<UpdaterMachineState["kind"]> = new Set([
+  "downloading",
+  "ready",
+  "installing",
+]);
+
 export interface UseUpdater {
   state: UpdaterMachineState;
   check(opts?: { manual?: boolean }): Promise<void>;
@@ -38,10 +44,11 @@ function manifestFromUpdate(u: Update): UpdateManifest {
 export function useUpdater(): UseUpdater {
   const state = useGameStore((s) => s.updaterState);
   const setState = useGameStore((s) => s.setUpdaterState);
-  const progress = useGameStore((s) => s.progress);
   const setProgress = useGameStore((s) => s.setProgress);
 
   const doCheck = useCallback(async (opts?: { manual?: boolean }) => {
+    const { progress, updaterState } = useGameStore.getState();
+    if (UPDATE_IN_HAND.has(updaterState.kind)) return;
     const isManual = opts?.manual === true;
     const current = progress.updater;
 
@@ -62,9 +69,10 @@ export function useUpdater(): UseUpdater {
       const nowIso = new Date().toISOString();
 
       // Persist lastCheckedAt regardless of outcome so Settings shows it.
+      const latest = useGameStore.getState().progress;
       setProgress({
-        ...progress,
-        updater: { ...progress.updater, lastCheckedAt: nowIso },
+        ...latest,
+        updater: { ...latest.updater, lastCheckedAt: nowIso },
       });
 
       if (!update) {
@@ -74,7 +82,7 @@ export function useUpdater(): UseUpdater {
       }
 
       // Honor skippedVersions even on auto OR manual.
-      if (current.skippedVersions.includes(update.version)) {
+      if (latest.updater.skippedVersions.includes(update.version)) {
         ctx.pendingUpdate = null;
         setState({ kind: "up-to-date" });
         return;
@@ -86,7 +94,7 @@ export function useUpdater(): UseUpdater {
       const message = err instanceof Error ? err.message : String(err);
       setState({ kind: "error", subtype: "check", message });
     }
-  }, [progress, setProgress, setState]);
+  }, [setProgress, setState]);
 
   const doDownload = useCallback(async () => {
     if (!ctx.pendingUpdate) {
@@ -149,6 +157,7 @@ export function useUpdater(): UseUpdater {
   // so the existing save_progress IPC persists them to disk.
   const skipVersion = useCallback(
     (version: string) => {
+      const progress = useGameStore.getState().progress;
       setProgress({
         ...progress,
         updater: {
@@ -159,18 +168,19 @@ export function useUpdater(): UseUpdater {
       ctx.pendingUpdate = null;
       setState({ kind: "idle" });
     },
-    [progress, setProgress, setState],
+    [setProgress, setState],
   );
 
   const remindLater = useCallback(() => {
     const until = new Date(Date.now() + REMIND_LATER_INTERVAL_MS).toISOString();
+    const progress = useGameStore.getState().progress;
     setProgress({
       ...progress,
       updater: { ...progress.updater, remindLaterUntil: until },
     });
     ctx.pendingUpdate = null;
     setState({ kind: "idle" });
-  }, [progress, setProgress, setState]);
+  }, [setProgress, setState]);
 
   const dismiss = useCallback(() => setState({ kind: "idle" }), [setState]);
 

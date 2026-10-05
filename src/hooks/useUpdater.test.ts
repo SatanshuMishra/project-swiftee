@@ -301,4 +301,65 @@ describe("useUpdater", () => {
     expect(ts).toBeGreaterThanOrEqual(before);
     expect(ts).toBeLessThanOrEqual(Date.now() + 1000);
   });
+
+  it("a check keeps progress changes made while it was in flight", async () => {
+    let resolveCheck: (update: Update | null) => void = () => {};
+    mockCheck.mockReturnValueOnce(
+      new Promise<Update | null>((resolve) => {
+        resolveCheck = resolve;
+      }),
+    );
+    const { result } = renderHook(() => useUpdater());
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.check();
+    });
+    act(() => {
+      const progress = useGameStore.getState().progress;
+      useGameStore.getState().setProgress({
+        ...progress,
+        stats: { ...progress.stats, totalCorrect: 7 },
+      });
+    });
+    await act(async () => {
+      resolveCheck(null);
+      await pending;
+    });
+    const progress = useGameStore.getState().progress;
+    expect(progress.stats.totalCorrect).toBe(7);
+    expect(progress.updater.lastCheckedAt).not.toBeNull();
+  });
+
+  it("a check while a downloaded update waits to install keeps that update installable", async () => {
+    const downloaded = {
+      version: "0.3.0",
+      currentVersion: "0.2.0",
+      body: "notes",
+      date: "2026-05-01T00:00:00Z",
+      download: vi.fn().mockResolvedValue(undefined),
+      install: vi.fn().mockResolvedValue(undefined),
+    };
+    const refetched = { ...downloaded, download: vi.fn(), install: vi.fn() };
+    mockCheck
+      .mockResolvedValueOnce(downloaded as unknown as Update)
+      .mockResolvedValueOnce(refetched as unknown as Update);
+
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    await act(async () => {
+      await result.current.download();
+    });
+    await act(async () => {
+      await result.current.check({ manual: true });
+    });
+    expect(result.current.state.kind).toBe("ready");
+
+    await act(async () => {
+      await result.current.install();
+    });
+    expect(downloaded.install).toHaveBeenCalledOnce();
+    expect(refetched.install).not.toHaveBeenCalled();
+  });
 });
