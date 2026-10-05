@@ -26,6 +26,8 @@ Thumbs.db
 # Tauri build artifacts
 src-tauri/gen/
 
+graphify-out/
+
 # Claude Code — personal/transient only (committed: settings.json, agents/, commands/, hooks/)
 .claude/settings.local.json
 .claude/sessions/
