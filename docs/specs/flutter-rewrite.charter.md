@@ -34,6 +34,12 @@ The existing implementation is the specification. Until the last Step removes th
 - Load the code under test inside the test body or `setUp`, never in a top-level variable initialiser, so a missing implementation fails the named test instead of the whole file failing to load.
 - Before you finish, run `flutter test` on every test file you wrote, and `flutter analyze --fatal-infos` and `dart format --output=none --set-exit-if-changed` on every file you wrote. All must pass.
 
+## Finishing
+
+- Never start background agents, background subagents or background shell tasks. This session runs non-interactively and is terminated, without your return line, when background work outlives it. If you want an independent review of your diff, run it in the foreground, wait for its result, and act on it before finishing.
+- Your last output must be the one-line JSON return your brief asks for, and nothing after it.
+- If the files of your write-set already exist when you start (an earlier attempt wrote them), read them, finish or fix the work, verify it, and return; do not start over.
+
 ## Commands
 
 - `flutter pub get`
