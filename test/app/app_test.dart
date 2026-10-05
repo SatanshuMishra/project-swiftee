@@ -200,6 +200,7 @@ final class _Harness {
   final _CountingManifestClient manifest = _CountingManifestClient();
   _RecordingUpdater? _updater;
   Brightness platformBrightness = Brightness.dark;
+  List<(Brightness, Color)> chrome = const [];
   int restarts = 0;
   List<Uri> requests = const [];
 
@@ -220,6 +221,9 @@ final class _Harness {
     catalogControllerProvider.overrideWith(catalog),
     lyricsControllerProvider.overrideWith(_HeldLyrics.new),
     platformBrightnessProvider.overrideWithValue(() => platformBrightness),
+    windowChromeProvider.overrideWithValue((brightness, background) async {
+      chrome = [...chrome, (brightness, background)];
+    }),
     renderFailuresProvider.overrideWithValue(failures),
     if (realUpdater)
       updateManifestClientProvider.overrideWithValue(AsyncData(manifest))
@@ -485,6 +489,29 @@ void main() {
       harness.game.setTheme(ThemeSetting.dark);
       await tester.pump();
       harness.expectTheme(Brightness.dark);
+    });
+
+    testWidgets('the window chrome follows the resolved theme', (tester) async {
+      final harness = _Harness(tester)..platformBrightness = Brightness.light;
+      await harness.launch();
+
+      expect(harness.chrome, [(Brightness.dark, AppTokens.dark.background)]);
+
+      harness.game.setTheme(ThemeSetting.light);
+      await tester.pump();
+      expect(harness.chrome.last, (
+        Brightness.light,
+        AppTokens.light.background,
+      ));
+
+      harness.platformBrightness = Brightness.dark;
+      harness.game.setTheme(ThemeSetting.system);
+      await tester.pump();
+      expect(harness.chrome.last, (Brightness.dark, AppTokens.dark.background));
+
+      harness.game.setVolume(0.4);
+      await tester.pump();
+      expect(harness.chrome, hasLength(3));
     });
 
     testWidgets('a saved system theme resolves from the platform at launch', (
