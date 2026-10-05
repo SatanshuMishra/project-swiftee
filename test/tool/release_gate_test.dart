@@ -46,18 +46,23 @@ void main() {
     });
 
     test('the newest push run of CI is the one that counts', () {
-      expect(latestPushRunId(runs(const [])), isNull);
-      expect(latestPushRunId(const {}), isNull);
-      expect(
-        latestPushRunId(
-          runs(const [
-            {'id': 11, 'run_number': 4},
-            {'id': 12, 'run_number': 7},
-            {'id': 13, 'run_number': 5},
-          ]),
-        ),
-        12,
-      );
+      expect(latestPushRun(runs(const [])), isNull);
+      expect(latestPushRun(const {}), isNull);
+      final newest = latestPushRun(
+        runs(const [
+          {'id': 11, 'run_number': 4, 'status': 'completed'},
+          {
+            'id': 12,
+            'run_number': 7,
+            'status': 'completed',
+            'conclusion': 'success',
+          },
+          {'id': 13, 'run_number': 5, 'status': 'completed'},
+        ]),
+      )!;
+      expect(newest.id, 12);
+      expect(newest.status, 'completed');
+      expect(newest.conclusion, 'success');
     });
 
     test('CI OK passes only when it completed with success', () {
@@ -222,6 +227,60 @@ void main() {
           ),
         );
       }
+    });
+
+    test('rides out a GitHub error on the main check', () async {
+      var compares = 0;
+      await wait((request) async {
+        if (request.url.path.endsWith('/compare/main...$sha')) {
+          compares += 1;
+          return compares == 1
+              ? json({'message': 'Bad Gateway'}, 502)
+              : json({'status': 'identical'});
+        }
+        if (request.url.path.endsWith('/ci.yml/runs')) {
+          return json(
+            runs(const [
+              {'id': 7, 'run_number': 3, 'status': 'completed'},
+            ]),
+          );
+        }
+        return json(jobs([ciOk('completed', 'success')]));
+      });
+
+      expect(compares, 2);
+      expect(sleeps, 1);
+    });
+
+    test('fails at once when CI on main ended without a CI OK job', () async {
+      await expectLater(
+        wait((request) async {
+          if (request.url.path.endsWith('/compare/main...$sha')) {
+            return json({'status': 'identical'});
+          }
+          if (request.url.path.endsWith('/ci.yml/runs')) {
+            return json(
+              runs(const [
+                {
+                  'id': 7,
+                  'run_number': 3,
+                  'status': 'completed',
+                  'conclusion': 'startup_failure',
+                },
+              ]),
+            );
+          }
+          return json(jobs(const []));
+        }),
+        throwsA(
+          isA<GateFailure>().having(
+            (failure) => failure.message,
+            'message',
+            contains('ended as startup_failure without a CI OK result'),
+          ),
+        ),
+      );
+      expect(sleeps, 0);
     });
 
     test('fails clearly when main never ran CI for the commit', () async {

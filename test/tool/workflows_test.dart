@@ -502,9 +502,19 @@ void main() {
       });
     });
 
-    test('no release job runs after a job it needs has failed', () {
+    test('no release job or step can pass while a check it runs fails', () {
       for (final entry in jobsOf(release).entries) {
-        expect((entry.value as YamlMap)['if'], isNull, reason: '${entry.key}');
+        final current = entry.value as YamlMap;
+        expect(current['if'], isNull, reason: '${entry.key}');
+        expect(current['continue-on-error'], isNull, reason: '${entry.key}');
+        for (final step in stepsOf(current)) {
+          expect(step['if'], isNull, reason: '${entry.key}: ${step['name']}');
+          expect(
+            step['continue-on-error'],
+            isNull,
+            reason: '${entry.key}: ${step['name']}',
+          );
+        }
       }
     });
 

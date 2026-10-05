@@ -43,7 +43,19 @@ final class CiFailed extends CiState {
 bool isOnMain(String compareStatus) =>
     compareStatus == 'identical' || compareStatus == 'behind';
 
-int? latestPushRunId(Map<String, Object?> runsResponse) {
+final class CiRun {
+  const CiRun({
+    required this.id,
+    required this.status,
+    required this.conclusion,
+  });
+
+  final int id;
+  final String status;
+  final String conclusion;
+}
+
+CiRun? latestPushRun(Map<String, Object?> runsResponse) {
   final runs = [
     for (final run in (runsResponse['workflow_runs'] as List?) ?? const [])
       if (run is Map && run['id'] is int && run['run_number'] is int) run,
@@ -55,7 +67,11 @@ int? latestPushRunId(Map<String, Object?> runsResponse) {
     (best, run) =>
         (run['run_number'] as int) > (best['run_number'] as int) ? run : best,
   );
-  return newest['id'] as int;
+  return CiRun(
+    id: newest['id'] as int,
+    status: '${newest['status']}',
+    conclusion: '${newest['conclusion']}',
+  );
 }
 
 CiState ciOkState(Map<String, Object?> jobsResponse) {
@@ -159,15 +175,8 @@ Future<void> waitForCiOnMain({
   Duration missingRunGrace = defaultMissingRunGrace,
   Duration deadline = defaultCiDeadline,
 }) async {
-  final compare = await api.getJson('compare/main...$sha');
-  final position = '${compare?['status']}';
-  if (!isOnMain(position)) {
-    throw GateFailure(
-      '$sha is not on main (compare status: $position); releases ship only '
-      'from main',
-    );
-  }
   final started = now();
+  var confirmedOnMain = false;
   while (true) {
     final elapsed = now().difference(started);
     if (elapsed > deadline) {
@@ -177,13 +186,24 @@ Future<void> waitForCiOnMain({
       );
     }
     try {
+      if (!confirmedOnMain) {
+        final compare = await api.getJson('compare/main...$sha');
+        final position = '${compare?['status']}';
+        if (!isOnMain(position)) {
+          throw GateFailure(
+            '$sha is not on main (compare status: $position); releases ship '
+            'only from main',
+          );
+        }
+        confirmedOnMain = true;
+      }
       final runs = await api.getJson('actions/workflows/$ciWorkflowFile/runs', {
         'head_sha': sha,
         'event': 'push',
         'branch': 'main',
       });
-      final runId = runs == null ? null : latestPushRunId(runs);
-      if (runId == null) {
+      final run = runs == null ? null : latestPushRun(runs);
+      if (run == null) {
         if (elapsed > missingRunGrace) {
           throw GateFailure(
             'No CI run on main exists for $sha. Tag the commit main pointed '
@@ -192,18 +212,24 @@ Future<void> waitForCiOnMain({
         }
         log.writeln('Waiting for CI on main to start for $sha');
       } else {
-        final jobs = await api.getJson('actions/runs/$runId/jobs');
+        final jobs = await api.getJson('actions/runs/${run.id}/jobs');
         switch (ciOkState(jobs ?? const {})) {
           case CiPassed():
-            log.writeln('$ciOkJobName passed on main for $sha (run $runId)');
+            log.writeln('$ciOkJobName passed on main for $sha (run ${run.id})');
             return;
           case CiFailed(:final conclusion):
             throw GateFailure(
-              '$ciOkJobName on $sha finished as $conclusion (run $runId); '
+              '$ciOkJobName on $sha finished as $conclusion (run ${run.id}); '
               're-run CI on main, then re-run this release',
             );
+          case CiPending() when run.status == 'completed':
+            throw GateFailure(
+              'CI run ${run.id} on main ended as ${run.conclusion} without a '
+              '$ciOkJobName result; fix or re-run CI on main, then re-run '
+              'this release',
+            );
           case CiPending(:final detail):
-            log.writeln('Waiting: $detail (run $runId)');
+            log.writeln('Waiting: $detail (run ${run.id})');
         }
       }
     } on http.ClientException catch (error) {
