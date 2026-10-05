@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { CatLoader } from "./CatLoader";
 
@@ -25,17 +25,19 @@ export function LoadingGate({
   onReady,
 }: LoadingGateProps) {
   const [showContent, setShowContent] = useState(!loading);
+  const [prevLoading, setPrevLoading] = useState(loading);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const loadingRef = useRef(loading);
   loadingRef.current = loading;
 
   // When loading becomes true, hide content immediately
-  useEffect(() => {
+  if (loading !== prevLoading) {
+    setPrevLoading(loading);
     if (loading) {
       setShowContent(false);
     }
-  }, [loading]);
+  }
 
   const handleExitComplete = useCallback(() => {
     // Use ref to avoid stale closure if loading toggled during animation

@@ -8,12 +8,14 @@ interface TimerProps {
 
 export function Timer({ duration, onExpire, active }: TimerProps) {
   const [remaining, setRemaining] = useState(duration);
+  const [prevDuration, setPrevDuration] = useState(duration);
   const onExpireRef = useRef(onExpire);
   onExpireRef.current = onExpire;
 
-  useEffect(() => {
+  if (duration !== prevDuration) {
+    setPrevDuration(duration);
     setRemaining(duration);
-  }, [duration]);
+  }
 
   useEffect(() => {
     if (!active) return;
