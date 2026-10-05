@@ -16,8 +16,8 @@
     "verify_against": "none"
   },
   "verify": {
-    "test_command": "npm test -- {test}",
-    "suite_command": "npm test",
+    "test_command": "flutter test {test}",
+    "suite_command": "flutter test",
     "live_drive": null
   },
   "degrade": {
@@ -31,22 +31,22 @@
     "staging_query_patterns": [],
     "observe": {
       "confirmed": true,
-      "surface": "the Swiftie Quiz main window (Tauri webview) in the affected GamePhase: menu, album-select, quiz-type-select, lyrics-mode-select, difficulty-select, lyrics-loading, playing, cat-gallery, settings; plus the native install and update prompts on macOS and Windows",
+      "surface": "the Swiftie Quiz main window (the Flutter app) in the affected GamePhase: menu, album-select, quiz-type-select, lyrics-mode-select, difficulty-select, lyrics-loading, playing, cat-gallery, settings; plus the native install and update prompts on macOS and Windows",
       "value": "the rendered state of the specific control the report names (question text, answer options, score, timer, clip playback, unlocked cat, setting value) and, for persistence, the GameProgress JSON written to the app data dir",
-      "observe_by": "deep checks: VMLab (`lab` CLI, vm-lab skill) driving the packaged app on fresh macOS 26 and Windows 11 copies via screenshot, click, type and exec; logic: Vitest + Testing Library for src/, cargo test + mockito for src-tauri/; a manual `npm run tauri dev` run on this Mac is a personal formality, never the deep check",
-      "terminal_action": "the action that commits the effect at the end of the flow: answering the final question so the round transitions to results and save_progress persists GameProgress; for settings, the change surviving an app restart; for the updater, the downloaded update installing and the app relaunching on the new version",
-      "build_artifact": "a bundle built from the commit under test: `npm run tauri build` locally or the CI build-job artifact (dmg/.app on macOS aarch64, NSIS setup.exe on Windows x86_64), installed into the VMLab copy; for releases, the release.yml draft-release assets for tag vX.Y.Z with package.json, Cargo.toml and tauri.conf.json versions equal",
-      "twin": "TS types in src/types/index.ts and Rust DTOs in src-tauri/src/models/*.rs (four-place rule: struct, impl Default, interface, DEFAULT_PROGRESS); the version string in package.json, src-tauri/Cargo.toml and src-tauri/tauri.conf.json; the build steps duplicated between .github/workflows/ci.yml and release.yml; sound vs lyrics quiz types sharing engine code",
-      "dependent": "frontend hooks in src/hooks/ that invoke the 7 Tauri commands; the save migration in src-tauri/src/commands/storage.rs for any GameProgress change; the auto-updater (latest.json on GitHub releases, minisign pubkey in tauri.conf.json, updater:default capability) for any release.yml or bundle config change; the Deezer and LRCLIB public APIs for commands/deezer.rs and commands/lyrics.rs",
-      "receipt": "a Vitest test (src/**/*.test.ts[x]) or a cargo test (mockito for HTTP) that asserts the reported symptom, red before the fix and green after; for user-facing behaviour, additionally a re-runnable VMLab script or step list that installs the build and reaches the terminal action on both macOS and Windows",
-      "compat_boundary": "the on-disk save file (GameProgress version in src-tauri/src/models/progress.rs, migrated in storage.rs): a new build must read saves written by every shipped version; installed clients verifying updates with the embedded minisign pubkey and fetching releases/latest/download/latest.json; Deezer and LRCLIB response shapes, which change without notice",
+      "observe_by": "deep checks: VMLab (`lab` CLI, vm-lab skill) driving the packaged app on fresh macOS 26 and Windows 11 copies via screenshot, click, type and exec; logic: flutter_test unit and widget tests under test/ (fakes for HTTP, audio, files and the clock); a manual `flutter run -d macos` on this Mac is the shallow look, a personal formality, never the deep check",
+      "terminal_action": "the action that commits the effect at the end of the flow: answering the final question so the round transitions to results and the persistence controller writes GameProgress to save.json; for settings, the change surviving an app restart; for the updater, the downloaded update installing and the app relaunching on the new version",
+      "build_artifact": "a bundle built from the commit under test: `flutter build macos --release` / `flutter build windows --release` plus tool/release/package_macos.sh or tool/release/package_windows.ps1 locally, or the CI build-job artifacts (.dmg and .app.tar.gz on macOS aarch64, NSIS setup .exe on Windows x86_64), installed into the VMLab copy; for releases, the release.yml draft-release assets for tag vX.Y.Z with pubspec.yaml's version equal to X.Y.Z",
+      "twin": "the Dart models in lib/domain/models/ and defaultProgress in lib/domain/models/progress.dart (field, fromJson, toJson, copyWith and the default move together); the version in pubspec.yaml and its CHANGELOG.md section; the build and packaging steps shared by .github/workflows/ci.yml and release.yml; sound vs lyrics quiz types sharing engine code in lib/domain/engine/",
+      "dependent": "the Riverpod controllers in lib/state/ that call lib/data/ and lib/services/; the save migrations in lib/data/save/migrations.dart for any GameProgress change; the updater protocol in lib/services/updater/ (latest.json on GitHub releases, the minisign public key in update_config.dart) for any release.yml, packaging or installer change; the Deezer and LRCLIB public APIs for the clients in lib/data/catalog/ and lib/data/lyrics/",
+      "receipt": "a flutter_test test under test/ that asserts the reported symptom, red before the fix and green after (MockClient for HTTP, fake_async for timers, fakes for audio and files); for user-facing behaviour, additionally a re-runnable VMLab script or step list that installs the build and reaches the terminal action on both macOS and Windows",
+      "compat_boundary": "the on-disk save file (save.json version in lib/domain/models/progress.dart, migrated by lib/data/save/migrations.dart): a new build must read saves written by every shipped version, including the Tauri-era app; installed clients, Tauri-era and Flutter, verifying updates with the embedded minisign public key, fetching releases/latest/download/latest.json and installing the .app.tar.gz and NSIS setup .exe artifact formats; Deezer and LRCLIB response shapes, which change without notice",
       "reach": {
-        "access": "`npm run tauri dev` on this Mac for quick looks; deep verification installs the packaged build into fresh VMLab macOS and Windows 11 copies (`lab up macos`, `lab up windows`, `lab install`, `lab open`). No accounts or credentials anywhere; Deezer and LRCLIB are public.",
+        "access": "`flutter run -d macos` on this Mac for quick looks; deep verification installs the packaged build into fresh VMLab macOS and Windows 11 copies (`lab up macos`, `lab up windows`, `lab install`, `lab open`). No accounts or credentials anywhere; Deezer and LRCLIB are public.",
         "shortcut": "none needed: every phase is a few clicks from the menu",
         "fixtures": "a clean install works for gameplay; achievement and cat-gallery states need a hand-edited GameProgress JSON placed in the app data dir before launch",
         "special_surfaces": [
           "all user-facing functionality: live e2e in VMLab on macOS and Windows is mandatory for deep checks; manual testing on this Mac is a shallow personal look only",
-          "audio clip playback (Web Audio, smart-clip timing)",
+          "audio clip playback (flutter_soloud, smart-clip timing)",
           "auto-update flow (needs a published release with signed latest.json and an older installed build)",
           "first-install prompts (macOS Gatekeeper Open Anyway for the ad-hoc signed app, Windows SmartScreen for the unsigned NSIS installer)"
         ]
