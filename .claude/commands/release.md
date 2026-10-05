@@ -32,7 +32,7 @@ Validate `$ARGUMENTS` is one of `patch`, `minor`, `major`. Otherwise ask.
 
 8. **Open the release pull request** to `main` titled `release: v<new-version>`, with the new CHANGELOG section as its body, through the `pr` skill.
 
-9. **Do NOT push tags.** The maintainer tags `v<new-version>` after the PR merges; the tag starts the release workflow, which builds a draft release with signed artifacts, `latest.json` and attestations for review before publishing.
+9. **Do NOT push tags.** The maintainer tags `v<new-version>` after the PR merges. The tag starts the release workflow. It waits for that commit's `CI OK` on `main`, builds and signs both platforms, writes `latest.json` from signatures that verify with the app's update key, attests the artifacts, and publishes the release as the latest one, with no manual step.
 
 ## Safety
 

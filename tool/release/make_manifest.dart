@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:swiftie_quiz/services/updater/minisign.dart' as minisign;
+import 'package:swiftie_quiz/services/updater/update_config.dart';
 
 const macPlatforms = ['darwin-aarch64', 'darwin-aarch64-app'];
 const windowsPlatforms = ['windows-x86_64', 'windows-x86_64-nsis'];
@@ -25,6 +27,15 @@ const usage =
 final rfc3339 = RegExp(
   r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$',
 );
+
+final class UnverifiedArtifact implements Exception {
+  const UnverifiedArtifact(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 final class SignedArtifact {
   const SignedArtifact({required this.fileName, required this.signature});
@@ -104,14 +115,46 @@ Map<String, String> parseOptions(List<String> arguments) {
   return options;
 }
 
-int runMakeManifest(
+Future<void> verifyArtifact({
+  required String artifactPath,
+  required String signature,
+  required String publicKey,
+}) async {
+  try {
+    await minisign.verify(
+      File(artifactPath).readAsBytesSync(),
+      signature.trim(),
+      publicKey,
+    );
+  } on minisign.MinisignException catch (failure) {
+    throw UnverifiedArtifact(
+      'The signature of ${p.basename(artifactPath)} does not verify with the '
+      "app's update key: ${failure.message}",
+    );
+  }
+}
+
+Future<int> runMakeManifest(
   List<String> arguments, {
   required StringSink output,
   required StringSink errors,
-}) {
+  String publicKey = updaterPublicKey,
+}) async {
   try {
     final options = parseOptions(arguments);
     String read(String option) => File(options[option]!).readAsStringSync();
+    final macSignature = read('mac-sig');
+    final windowsSignature = read('win-sig');
+    await verifyArtifact(
+      artifactPath: options['mac-tar']!,
+      signature: macSignature,
+      publicKey: publicKey,
+    );
+    await verifyArtifact(
+      artifactPath: options['win-exe']!,
+      signature: windowsSignature,
+      publicKey: publicKey,
+    );
     final manifest = buildManifest(
       version: options['version']!,
       notes: read('notes-file').trimRight(),
@@ -119,16 +162,19 @@ int runMakeManifest(
       baseUrl: options['base-url']!,
       macArchive: SignedArtifact(
         fileName: p.basename(options['mac-tar']!),
-        signature: read('mac-sig'),
+        signature: macSignature,
       ),
       windowsInstaller: SignedArtifact(
         fileName: p.basename(options['win-exe']!),
-        signature: read('win-sig'),
+        signature: windowsSignature,
       ),
     );
     File(options['out']!).writeAsStringSync(encodeManifest(manifest));
     output.writeln('Wrote ${options['out']}');
     return 0;
+  } on UnverifiedArtifact catch (failure) {
+    errors.writeln('::error::${failure.message}');
+    return 1;
   } on FormatException catch (failure) {
     errors
       ..writeln('::error::${failure.message}')
@@ -140,6 +186,6 @@ int runMakeManifest(
   }
 }
 
-void main(List<String> arguments) {
-  exitCode = runMakeManifest(arguments, output: stdout, errors: stderr);
+Future<void> main(List<String> arguments) async {
+  exitCode = await runMakeManifest(arguments, output: stdout, errors: stderr);
 }

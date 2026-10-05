@@ -4,12 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_call:
-    inputs:
-      skip-bundle:
-        description: Skip the platform bundle jobs when the caller builds its own bundles
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -47,7 +41,6 @@ jobs:
 
   build-macos:
     name: Build (macos-26)
-    if: ${{ !inputs.skip-bundle }}
     needs: [analyze]
     runs-on: macos-26
     timeout-minutes: 45
@@ -99,7 +92,6 @@ jobs:
 
   build-windows:
     name: Build (windows-2025)
-    if: ${{ !inputs.skip-bundle }}
     needs: [analyze]
     runs-on: windows-2025
     timeout-minutes: 45

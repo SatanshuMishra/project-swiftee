@@ -95,6 +95,24 @@ void main() {
       );
     });
 
+    test(
+      'refuses a pre-release or partial version before anything is built',
+      () {
+        for (final tag in ['v0.4.0-rc.1', 'v0.4', 'v0.4.0.1']) {
+          expect(
+            () => checkRelease(
+              tag: tag,
+              pubspec: pubspec.replaceFirst('0.3.0+1', '${tag.substring(1)}+1'),
+              changelog: changelog,
+              updateConfig: updateConfigWith(productionKey),
+            ),
+            refusesWith('Releases use MAJOR.MINOR.PATCH versions; $tag'),
+            reason: tag,
+          );
+        }
+      },
+    );
+
     test('refuses a pubspec.yaml without a version', () {
       expect(
         () => pubspecVersion('name: swiftie_quiz\n'),
