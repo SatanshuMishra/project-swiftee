@@ -15,88 +15,34 @@ jobs:
   validate-versions:
     name: Validate version coherence + extract release notes
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     outputs:
-      release_notes: ${{ steps.extract-notes.outputs.notes }}
+      release_notes: ${{ steps.check.outputs.notes }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Assert versions match across package.json, Cargo.toml, tauri.conf.json
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: false
+      - run: flutter pub get
+      - name: Check the version, CHANGELOG and updater key, and extract the release notes
+        id: check
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/v}"
-          PKG=$(node -p "require('./package.json').version")
-          CARGO=$(awk -F'"' '/^version/{print $2; exit}' src-tauri/Cargo.toml)
-          CONF=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          echo "Versions: tag=$TAG package=$PKG cargo=$CARGO conf=$CONF"
-          if [ "$TAG" != "$PKG" ] || [ "$PKG" != "$CARGO" ] || [ "$CARGO" != "$CONF" ]; then
-            echo "::error::Version drift detected — tag, package.json, Cargo.toml, and tauri.conf.json must all match"
-            exit 1
-          fi
-      - name: Assert CHANGELOG entry exists for this tag
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/v}"
-          if [ ! -f CHANGELOG.md ]; then
-            echo "::error::CHANGELOG.md is missing"
-            exit 1
-          fi
-          if ! grep -q "^## \[$TAG\]" CHANGELOG.md; then
-            echo "::error::No CHANGELOG.md entry found for ## [$TAG]"
-            exit 1
-          fi
-      - name: Refuse to release with the development minisign pubkey
-        run: |
-          set -euo pipefail
-          # Three independent failure modes are distinguished:
-          #   1. Empty/missing/too-short pubkey → operator forgot to embed.
-          #   2. Non-base64 pubkey → typo or copy-paste corruption.
-          #   3. Dev pubkey (key ID 2A43CC33F3FB57BB) still embedded → must
-          #      rotate to production keypair (plan Task 10) before tagging.
-          node -e '
-            const conf = require("./src-tauri/tauri.conf.json");
-            const pk = conf?.plugins?.updater?.pubkey ?? "";
-            if (!pk || pk.length < 64) {
-              console.error("::error::tauri.conf.json plugins.updater.pubkey is empty or implausibly short. Embed a production minisign pubkey before releasing.");
-              process.exit(1);
-            }
-            let decoded;
-            try {
-              decoded = Buffer.from(pk, "base64").toString("utf8");
-            } catch {
-              console.error("::error::tauri.conf.json plugins.updater.pubkey is not valid base64.");
-              process.exit(1);
-            }
-            if (decoded.includes("2A43CC33F3FB57BB")) {
-              console.error("::error::Development minisign pubkey (key ID 2A43CC33F3FB57BB) is still embedded in tauri.conf.json. Rotate to a production keypair before releasing — see plan Task 10.");
-              process.exit(1);
-            }
-          '
-      - name: Extract release notes from CHANGELOG section for this tag
-        id: extract-notes
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/v}"
-          # Capture lines under "## [$TAG]" until the next "## [" heading.
-          # Strips trailing blank lines so the body lands cleanly in the
-          # release page and in tauri-action's emitted latest.json.
-          NOTES=$(awk -v ver="## [$TAG]" '
-            index($0, ver) == 1 { capture=1; next }
-            capture && /^## \[/ { exit }
-            capture { print }
-          ' CHANGELOG.md | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}')
-          if [ -z "$NOTES" ]; then
-            echo "::error::The CHANGELOG section for $TAG is empty"
-            exit 1
-          fi
+          notes=$(dart run tool/release/check_release.dart "$TAG")
           delimiter="NOTES_$(openssl rand -hex 16)"
           {
+            echo "version=${TAG#v}"
             echo "notes<<$delimiter"
-            printf '%s\n' "$NOTES"
+            printf '%s\n' "$notes"
             echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
-
 
   ci:
     name: CI
@@ -153,35 +99,52 @@ jobs:
     environment: release
     permissions:
       contents: write
+    env:
+      VERSION: ${{ needs.validate-versions.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: false
+      - name: Build the macOS app
+        run: flutter build macos --release
+      - name: Package the DMG and updater archive
+        run: tool/release/package_macos.sh "$VERSION"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
-        with:
-          target: aarch64-apple-darwin
-          cache: false
-      - run: npm ci
-      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+      - name: Sign the updater archive with the Tauri updater key
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          releaseBody: ${{ needs.validate-versions.outputs.release_notes }}
-          args: --target aarch64-apple-darwin
-      - name: Upload macOS artifacts (for SLSA attestations)
+        run: npx --yes @tauri-apps/cli@2.12.1 signer sign "build/release/Swiftie Quiz.app.tar.gz"
+      - name: Stage the files under the names GitHub gives release assets
+        run: |
+          set -euo pipefail
+          mkdir -p build/upload
+          for file in build/release/*; do
+            name=$(basename "$file")
+            cp "$file" "build/upload/${name// /.}"
+          done
+          ls -l build/upload
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" build/upload/* --clobber
+      - name: Upload macOS artifacts (for the manifest and SLSA attestations)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-bundles
           path: |
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
-            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            build/upload/*.app.tar.gz
+            build/upload/*.app.tar.gz.sig
+            build/upload/*.dmg
           if-no-files-found: error
 
   build-windows:
@@ -192,39 +155,126 @@ jobs:
     environment: release
     permissions:
       contents: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.validate-versions.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: false
+      - name: Build the Windows app
+        run: flutter build windows --release
+      - name: Install NSIS when makensis is missing
+        shell: pwsh
+        run: |
+          $installed = (Get-Command makensis -CommandType Application -ErrorAction SilentlyContinue) -or
+            (Test-Path -LiteralPath (Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe')) -or
+            (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'))
+          if (-not $installed) {
+            choco install nsis -y
+          }
+      - name: Package the setup executable
+        shell: pwsh
+        run: ./tool/release/package_windows.ps1 -Version $env:VERSION
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
-        with:
-          target: x86_64-pc-windows-msvc
-          cache: false
-      - run: npm ci
-      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+      - name: Sign the setup executable with the Tauri updater key
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          releaseBody: ${{ needs.validate-versions.outputs.release_notes }}
-          args: --target x86_64-pc-windows-msvc
-      - name: Upload Windows artifacts (for SLSA attestations)
+        run: npx --yes @tauri-apps/cli@2.12.1 signer sign "build/release/Swiftie Quiz_${VERSION}_x64-setup.exe"
+      - name: Stage the files under the names GitHub gives release assets
+        run: |
+          set -euo pipefail
+          mkdir -p build/upload
+          for file in build/release/*; do
+            name=$(basename "$file")
+            cp "$file" "build/upload/${name// /.}"
+          done
+          ls -l build/upload
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" build/upload/* --clobber
+      - name: Upload Windows artifacts (for the manifest and SLSA attestations)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-bundles
           path: |
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
+            build/upload/*-setup.exe
+            build/upload/*-setup.exe.sig
           if-no-files-found: error
+
+  publish-manifest:
+    name: Publish updater manifest
+    needs: [validate-versions, create-release, build-macos, build-windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: false
+      - run: flutter pub get
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: macos-bundles
+          path: artifacts/macos
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: windows-bundles
+          path: artifacts/windows
+      - name: Write latest.json from the signatures
+        env:
+          VERSION: ${{ needs.validate-versions.outputs.version }}
+          NOTES: ${{ needs.validate-versions.outputs.release_notes }}
+          BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mac_sig=$(find artifacts/macos -name '*.app.tar.gz.sig' -print -quit)
+          win_sig=$(find artifacts/windows -name '*-setup.exe.sig' -print -quit)
+          if [ -z "$mac_sig" ] || [ -z "$win_sig" ]; then
+            echo "::error::A signature is missing from the build artifacts"
+            exit 1
+          fi
+          printf '%s\n' "$NOTES" > release-notes.md
+          dart run tool/release/make_manifest.dart \
+            --version "$VERSION" \
+            --notes-file release-notes.md \
+            --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --base-url "$BASE_URL" \
+            --mac-tar "${mac_sig%.sig}" \
+            --mac-sig "$mac_sig" \
+            --win-exe "${win_sig%.sig}" \
+            --win-sig "$win_sig" \
+            --out latest.json
+          jq . latest.json
+      - name: Upload latest.json to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" latest.json --clobber
 
   verify-manifest:
     name: Verify updater manifest
-    needs: [create-release, build-macos, build-windows]
+    needs: [create-release, build-macos, build-windows, publish-manifest]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -251,14 +301,19 @@ jobs:
             echo "::error::latest.json version is $actual, expected $expected"
             exit 1
           fi
-          asset_ids=$(gh api "repos/$GH_REPO/releases/$RELEASE_ID/assets" --paginate --jq '.[].id')
+          asset_names=$(gh api "repos/$GH_REPO/releases/$RELEASE_ID/assets" --paginate --jq '.[].name')
+          download_base="https://github.com/$GH_REPO/releases/download/$TAG"
           broken=""
           for platform in darwin-aarch64 darwin-aarch64-app windows-x86_64 windows-x86_64-nsis; do
             url=$(jq -r --arg p "$platform" '.platforms[$p].url // ""' latest.json)
             signature=$(jq -r --arg p "$platform" '.platforms[$p].signature // ""' latest.json)
+            encoded_name="${url##*/}"
+            name=$(printf '%b' "${encoded_name//%/\\x}")
             if [ -z "$url" ] || [ -z "$signature" ]; then
               broken="$broken $platform(missing url or signature)"
-            elif ! grep -qx "${url##*/}" <<< "$asset_ids"; then
+            elif [ "${url%/*}" != "$download_base" ]; then
+              broken="$broken $platform(url is not a download from this release)"
+            elif ! grep -qxF -- "$name" <<< "$asset_names"; then
               broken="$broken $platform(url points at an asset not on this release)"
             fi
           done
@@ -285,9 +340,6 @@ jobs:
         with:
           name: windows-bundles
           path: artifacts/windows
-      # actions/upload-artifact@v7 collapses paths to the least-common-ancestor
-      # of all inputs, so multi-source uploads land in subdirectories under the
-      # artifact root. Globs use ** to match recursively.
       - name: Generate SLSA build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
