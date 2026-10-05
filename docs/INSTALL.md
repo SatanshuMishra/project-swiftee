@@ -68,8 +68,8 @@ apply silently — the warning only appears for the very first install.
 Version 0.3.0 rebuilds the app in Flutter. If you already have Swiftie Quiz
 v0.2.1 or later, you do not need to reinstall: the in-app updater offers
 v0.3.0 like any other update, installs it, and the app reopens on the new
-version with your save intact. On macOS 11, do not install v0.3.0; it needs
-macOS 12 or later.
+version with your save intact. v0.3.0 needs macOS 12 or later. On macOS 11,
+v0.2.4 does not offer it; earlier versions do, so decline it there.
 
 ## Where your save data lives
 

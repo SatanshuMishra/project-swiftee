@@ -4,14 +4,25 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-05
+
+### Updating from v0.2.x
+- The in-app updater offers this version like any other update. It installs it in place and reopens the app, and your progress, achievements and settings carry over.
+- This version needs macOS 12 or later. On macOS 11, v0.2.4 does not offer it. Earlier versions do, so on macOS 11 decline it, or update to v0.2.4 first.
 
 ### Changed
-- The app is rebuilt in Flutter, with the same screens and the same save file; macOS 12 or later is now required.
-- The cat icon and the cat loader are redrawn.
-- All albums load, because the album list now follows Deezer's pagination.
-- Song previews no longer fail after about 15 minutes in a session.
-- Lyric lookups identify the app and back off when LRCLIB is busy.
+- **Rebuilt in Flutter.** The screens, rules and save file are the same. On a Mac, the app now needs macOS 12 or later.
+- **A redrawn cat.** The cat icon and the loading cat have a new design.
+
+### Fixed
+- **Every album loads.** The album list now follows Deezer's pages, so albums after the first hundred appear.
+- **Song previews keep working in long sessions.** A preview link is refreshed when it expires, instead of failing after about 15 minutes.
+- **Lyric lookups are gentler on LRCLIB.** They identify the app and wait when LRCLIB asks it to slow down.
+
+## [0.2.4] - 2026-10-05
+
+### Changed
+- **Macs on macOS 11 stay on this version.** The next version of Swiftie Quiz needs macOS 12 or later. On macOS 11 the app no longer offers that update, so it cannot install a version that would not open. Updating to macOS 12 or later brings the update back. Windows, and Macs on macOS 12 or later, update as usual.
 
 ## [0.2.3] - 2026-10-05
 
