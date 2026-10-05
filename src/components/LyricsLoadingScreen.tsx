@@ -47,6 +47,7 @@ export function LyricsLoadingScreen() {
 
   useEffect(() => {
     const abort = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const run = async () => {
       try {
@@ -82,16 +83,15 @@ export function LyricsLoadingScreen() {
         const pool = await Promise.race([
           preFetchInitial(tracks),
           new Promise<never>((_, reject) => {
-            const timer = setTimeout(
+            timeoutId = setTimeout(
               () =>
                 reject(
                   new Error("Lyrics loading timed out. Please try again."),
                 ),
               LYRICS_FETCH_TIMEOUT_MS,
             );
-            abort.signal.addEventListener("abort", () => clearTimeout(timer));
           }),
-        ]);
+        ]).finally(() => clearTimeout(timeoutId));
 
         if (abort.signal.aborted) return;
 
@@ -117,6 +117,7 @@ export function LyricsLoadingScreen() {
 
     return () => {
       abort.abort();
+      clearTimeout(timeoutId);
     };
   }, [mode, selectedAlbumIds, preFetchInitial, setPhase, setLyricsAvailableTracks]);
 
