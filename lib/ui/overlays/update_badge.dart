@@ -206,8 +206,9 @@ class _OklabColorTween extends Tween<Color> {
 }
 
 class UpdateOverlay extends StatefulWidget {
-  const UpdateOverlay({super.key, this.belowDialog});
+  const UpdateOverlay({super.key, this.screen, this.belowDialog});
 
+  final Widget? screen;
   final Widget? belowDialog;
 
   @override
@@ -224,7 +225,15 @@ class _UpdateOverlayState extends State<UpdateOverlay> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        UpdateBadge(onPressed: () => _setDialogOpen(true)),
+        Overlay.wrap(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ?widget.screen,
+              UpdateBadge(onPressed: () => _setDialogOpen(true)),
+            ],
+          ),
+        ),
         ?widget.belowDialog,
         UpdateModal(isOpen: _dialogOpen, onClose: () => _setDialogOpen(false)),
       ],

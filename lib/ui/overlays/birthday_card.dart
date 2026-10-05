@@ -9,6 +9,7 @@ import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/widgets/app_icon.dart';
 import 'package:swiftie_quiz/ui/widgets/entrance.dart';
+import 'package:swiftie_quiz/ui/widgets/above_app_chrome.dart';
 
 class BirthdayCard extends StatefulWidget {
   const BirthdayCard({super.key, required this.isOpen, required this.onClose});
@@ -181,13 +182,18 @@ class _BirthdayCardState extends State<BirthdayCard>
     if (!_present) {
       return const SizedBox.shrink();
     }
-    return AnimatedBuilder(
-      animation: _backdropOpacity,
-      builder: (context, child) => Opacity(
-        opacity: _backdropOpacity.value.clamp(0.0, 1.0),
-        child: child,
+    return AboveAppChrome(
+      child: AnimatedBuilder(
+        animation: _backdropOpacity,
+        builder: (context, child) => Opacity(
+          opacity: _backdropOpacity.value.clamp(0.0, 1.0),
+          child: child,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: _buildBackdrop(),
+        ),
       ),
-      child: Material(type: MaterialType.transparency, child: _buildBackdrop()),
     );
   }
 

@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/app/window_setup.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
@@ -34,20 +35,27 @@ final platformBrightnessProvider = Provider<Brightness Function()>(
       () => PlatformDispatcher.instance.platformBrightness,
 );
 
-final themeModeProvider = Provider<ThemeMode>((ref) {
+final themeBrightnessProvider = Provider<Brightness>((ref) {
   final setting = ref.watch(
     gameControllerProvider.select((game) => game.progress.settings.theme),
   );
-  final brightness = switch (setting) {
+  return switch (setting) {
     ThemeSetting.dark => Brightness.dark,
     ThemeSetting.light => Brightness.light,
     ThemeSetting.system => ref.watch(platformBrightnessProvider)(),
   };
-  return switch (brightness) {
+});
+
+final themeModeProvider = Provider<ThemeMode>(
+  (ref) => switch (ref.watch(themeBrightnessProvider)) {
     Brightness.dark => ThemeMode.dark,
     Brightness.light => ThemeMode.light,
-  };
-});
+  },
+);
+
+final windowChromeProvider = Provider<WindowChrome>(
+  (ref) => matchMacWindowChrome,
+);
 
 class RenderFailures extends ValueNotifier<Object?> {
   RenderFailures({this.restartApp = restartAppWidgetTree}) : super(null);
@@ -109,17 +117,34 @@ void installErrorHandlers(RenderFailures failures) {
   };
 }
 
-class SwiftieQuizApp extends ConsumerWidget {
+class SwiftieQuizApp extends ConsumerStatefulWidget {
   const SwiftieQuizApp({super.key});
 
   static const String title = 'Swiftie Quiz';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SwiftieQuizApp> createState() => _SwiftieQuizAppState();
+}
+
+class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual<Brightness>(
+      themeBrightnessProvider,
+      (_, brightness) => unawaited(
+        applyWindowChrome(ref.read(windowChromeProvider), brightness),
+      ),
+      fireImmediately: true,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final failures = ref.watch(renderFailuresProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: title,
+      title: SwiftieQuizApp.title,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ref.watch(themeModeProvider),
@@ -200,8 +225,10 @@ class _GameShellState extends ConsumerState<_GameShell> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _screenFor(screen.phase, screen.quizType),
-          const UpdateOverlay(belowDialog: AchievementToasts()),
+          UpdateOverlay(
+            screen: _screenFor(screen.phase, screen.quizType),
+            belowDialog: const AchievementToasts(),
+          ),
           const ToastHost(),
         ],
       ),

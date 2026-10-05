@@ -486,14 +486,18 @@ void main() {
           .writeAsStringSync('assets');
       final setup = File('${temp.path}/Swiftie Quiz_0.3.0_x64-setup.exe');
 
-      final result = Process.runSync(makensis, [
-        '-WX',
-        '-V2',
-        '-DSOURCE_DIR=${release.path}',
-        '-DVERSION=0.3.0',
-        '-DOUTFILE=${setup.path}',
-        scriptPath,
-      ]);
+      final result = Process.runSync(
+        makensis,
+        [
+          '-WX',
+          '-V2',
+          '-DSOURCE_DIR=${release.path}',
+          '-DVERSION=0.3.0',
+          '-DOUTFILE=${setup.path}',
+          scriptPath,
+        ],
+        environment: const {'LANG': 'en_US.UTF-8', 'LC_ALL': 'en_US.UTF-8'},
+      );
 
       expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
       expect(setup.existsSync(), isTrue);
