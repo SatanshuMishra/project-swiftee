@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:window_manager/window_manager.dart';
@@ -55,9 +56,21 @@ Future<void> applyWindowChrome(WindowChrome chrome, Brightness brightness) =>
       Brightness.light => AppTokens.light.background,
     });
 
+Future<void> keepTitleBarOnScreen() async {
+  final bounds = await windowManager.getBounds();
+  final topOfScreen = await calcWindowPosition(
+    bounds.size,
+    Alignment.topCenter,
+  );
+  if (bounds.top < topOfScreen.dy) {
+    await windowManager.setPosition(Offset(bounds.left, topOfScreen.dy));
+  }
+}
+
 Future<void> setUpWindow({WindowChrome chrome = matchMacWindowChrome}) async {
   await windowManager.ensureInitialized();
   await windowManager.waitUntilReadyToShow(windowOptions);
+  await keepTitleBarOnScreen();
   await applyWindowChrome(chrome, launchBrightness);
   await windowManager.show();
   await windowManager.focus();
