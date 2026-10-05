@@ -19,7 +19,7 @@ impl Default for LrclibClient {
 
 impl LrclibClient {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
+        let client = super::http_client_builder()
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .user_agent("SwiftieQuiz/1.0.0 (https://github.com/satanshumishra/swiftie-quiz)")
             .build()
@@ -46,13 +46,12 @@ impl LrclibClient {
 
         // Step 2: Normalized match
         let normalized = normalise_title(track_title);
-        if normalized != track_title.to_lowercase().trim() {
-            if let Some(lyrics) = self
+        if normalized != track_title.to_lowercase().trim()
+            && let Some(lyrics) = self
                 .try_exact_match(&normalized, artist_name, None, None)
                 .await?
-            {
-                return Ok(lyrics);
-            }
+        {
+            return Ok(lyrics);
         }
 
         // Step 3: Fuzzy search

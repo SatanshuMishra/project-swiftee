@@ -9,7 +9,7 @@ vi.mock("@tauri-apps/plugin-updater", () => ({
   check: vi.fn(),
 }));
 
-import { check } from "@tauri-apps/plugin-updater";
+import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 const mockCheck = vi.mocked(check);
 
 beforeEach(() => {
@@ -44,7 +44,7 @@ describe("useUpdater", () => {
       date: "2026-05-01T00:00:00Z",
       download: vi.fn(),
       install: vi.fn(),
-    } as any);
+    } as unknown as Update);
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
       await result.current.check();
@@ -70,7 +70,7 @@ describe("useUpdater", () => {
   });
 
   it("download() transitions available → downloading → ready", async () => {
-    const downloadFn = vi.fn().mockImplementation(async (onProgress: (e: any) => void) => {
+    const downloadFn = vi.fn().mockImplementation(async (onProgress: (e: DownloadEvent) => void) => {
       onProgress({ event: "Started", data: { contentLength: 1000 } });
       onProgress({ event: "Progress", data: { chunkLength: 500 } });
       onProgress({ event: "Progress", data: { chunkLength: 500 } });
@@ -84,7 +84,7 @@ describe("useUpdater", () => {
       download: downloadFn,
       install: vi.fn(),
     };
-    mockCheck.mockResolvedValueOnce(update as any);
+    mockCheck.mockResolvedValueOnce(update as unknown as Update);
 
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
@@ -106,7 +106,7 @@ describe("useUpdater", () => {
       download: downloadFn,
       install: vi.fn(),
     };
-    mockCheck.mockResolvedValueOnce(update as any);
+    mockCheck.mockResolvedValueOnce(update as unknown as Update);
 
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
@@ -131,7 +131,7 @@ describe("useUpdater", () => {
       download: downloadFn,
       install: vi.fn(),
     };
-    mockCheck.mockResolvedValueOnce(update as any);
+    mockCheck.mockResolvedValueOnce(update as unknown as Update);
 
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
@@ -167,7 +167,7 @@ describe("useUpdater", () => {
       date: "2026-05-01T00:00:00Z",
       download: vi.fn(),
       install: vi.fn(),
-    } as any);
+    } as unknown as Update);
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
       await result.current.check();
@@ -280,7 +280,7 @@ describe("useUpdater", () => {
       date: "",
       download: vi.fn(),
       install: vi.fn(),
-    } as any);
+    } as unknown as Update);
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
       await result.current.check();

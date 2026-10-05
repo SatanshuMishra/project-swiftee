@@ -42,14 +42,16 @@ const mockDecodeAudioData = vi.fn();
 
 vi.stubGlobal(
   "AudioContext",
-  vi.fn(() => ({
-    createBufferSource: mockCreateBufferSource,
-    createGain: mockCreateGain,
-    decodeAudioData: mockDecodeAudioData,
-    close: vi.fn().mockResolvedValue(undefined),
-    destination: {},
-    currentTime: 0,
-  })),
+  vi.fn(function () {
+    return {
+      createBufferSource: mockCreateBufferSource,
+      createGain: mockCreateGain,
+      decodeAudioData: mockDecodeAudioData,
+      close: vi.fn().mockResolvedValue(undefined),
+      destination: {},
+      currentTime: 0,
+    };
+  }),
 );
 
 const mockTrackInfo: TrackInfo = {

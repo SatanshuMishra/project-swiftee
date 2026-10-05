@@ -111,7 +111,7 @@ export function GameScreen() {
     return () => {
       abort.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   // Cleanup loader timeout on unmount

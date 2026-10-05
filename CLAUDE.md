@@ -1,11 +1,11 @@
 # Swiftie Quiz — Project Instructions
 
-Tauri 2 desktop trivia game (React 18 + TS strict + Rust 2021) using public Deezer
+Tauri 2 desktop trivia game (React 19 + TS strict + Rust 2024) using public Deezer
 and LRCLIB APIs. No user PII, no auth.
 
 ## Stack
-React 18 · TypeScript strict · Zustand · Tailwind v4 · Vite 6 · Motion · Vitest
-Rust 2021 · Tauri 2 · tokio · reqwest (rustls) · serde · mockito
+React 19 · TypeScript 7 (tsc; 6.0 kept for typescript-eslint) · Zustand · Tailwind v4 · Vite 8 · Motion · Vitest 5 · ESLint 10
+Rust 2024 · Tauri 2 · tokio · reqwest (rustls) · serde · mockito
 
 ## Commands
 - `npm run dev` / `npm run tauri dev` (use the latter for visual verification)

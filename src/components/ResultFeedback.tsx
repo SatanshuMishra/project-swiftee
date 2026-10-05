@@ -65,12 +65,12 @@ const LYRICS_POSITIVE_MESSAGES = [
 const NEXT_DELAY_MS = 2000;
 
 /** Module-level shuffle bag state for sound messages */
-let soundMessageQueue: string[] = [];
-let lastSoundMessage = "";
+const soundMessageQueue: string[] = [];
+const lastSoundMessage = "";
 
 /** Module-level shuffle bag state for lyrics messages */
-let lyricsMessageQueue: string[] = [];
-let lastLyricsMessage = "";
+const lyricsMessageQueue: string[] = [];
+const lastLyricsMessage = "";
 
 function drawFromBag(
   messages: readonly string[],
