@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:window_manager/window_manager.dart';
@@ -26,14 +27,27 @@ Future<void> matchMacWindowChrome(
   Brightness brightness,
   Color background,
 ) async {
-  if (!Platform.isMacOS) {
+  if (defaultTargetPlatform != TargetPlatform.macOS) {
     return;
   }
-  await windowChromeChannel.invokeMethod<void>('match', {
-    'dark': brightness == Brightness.dark,
-    'background': background.toARGB32(),
-  });
+  try {
+    await windowChromeChannel.invokeMethod<void>('match', {
+      'dark': brightness == Brightness.dark,
+      'background': background.toARGB32(),
+    });
+  } on PlatformException catch (error, stackTrace) {
+    _logChromeFailure(error, stackTrace);
+  } on MissingPluginException catch (error, stackTrace) {
+    _logChromeFailure(error, stackTrace);
+  }
 }
+
+void _logChromeFailure(Object error, StackTrace stackTrace) => developer.log(
+  'The window chrome could not follow the theme',
+  name: 'swiftie_quiz.window',
+  error: error,
+  stackTrace: stackTrace,
+);
 
 Future<void> applyWindowChrome(WindowChrome chrome, Brightness brightness) =>
     chrome(brightness, switch (brightness) {

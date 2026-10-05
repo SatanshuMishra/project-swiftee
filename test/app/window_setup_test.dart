@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/app/window_setup.dart';
@@ -94,6 +93,7 @@ void main() {
   });
 
   tearDown(() {
+    debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       ..setMockMethodCallHandler(_windowChannel, null)
       ..setMockMethodCallHandler(_screenChannel, null)
@@ -176,18 +176,53 @@ void main() {
     });
 
     test('the mac chrome reaches the runner over its channel', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+
       await matchMacWindowChrome(Brightness.light, AppTokens.light.background);
       await matchMacWindowChrome(Brightness.dark, AppTokens.dark.background);
 
-      if (Platform.isMacOS) {
-        expect(chromeCalls.map((call) => call.method), ['match', 'match']);
-        expect(chromeCalls.map((call) => call.arguments), [
-          {'dark': false, 'background': 0xFFFFFFFF},
-          {'dark': true, 'background': 0xFF0A0A0A},
-        ]);
-      } else {
-        expect(chromeCalls, isEmpty);
-      }
+      expect(chromeCalls.map((call) => call.method), ['match', 'match']);
+      expect(chromeCalls.map((call) => call.arguments), [
+        {'dark': false, 'background': 0xFFFFFFFF},
+        {'dark': true, 'background': 0xFF0A0A0A},
+      ]);
     });
+
+    test('other platforms leave the window chrome alone', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+
+      await matchMacWindowChrome(Brightness.light, AppTokens.light.background);
+
+      expect(chromeCalls, isEmpty);
+    });
+
+    test('a failing runner never stops the window from showing', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            windowChromeChannel,
+            (call) async => throw PlatformException(code: 'failed'),
+          );
+
+      await setUpWindow();
+
+      expect(window.calls.sublist(window.calls.length - 2), ['show', 'focus']);
+    });
+
+    test(
+      'a runner without the channel never stops the window from showing',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(windowChromeChannel, null);
+
+        await setUpWindow();
+
+        expect(window.calls.sublist(window.calls.length - 2), [
+          'show',
+          'focus',
+        ]);
+      },
+    );
   });
 }
