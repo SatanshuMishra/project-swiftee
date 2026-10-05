@@ -1,0 +1,2083 @@
+{
+ "environments": [
+  {
+   "name": "flutter-test-host",
+   "what": "flutter test on the macOS host Dart VM (unit and widget tests, no device)",
+   "builder_runs": true
+  },
+  {
+   "name": "macos-desktop",
+   "what": "the Flutter macOS desktop app on Apple Silicon, macOS 26",
+   "builder_runs": true
+  },
+  {
+   "name": "windows-desktop",
+   "what": "the Flutter Windows desktop app and its NSIS installer on Windows 11 x64",
+   "builder_runs": false
+  },
+  {
+   "name": "github-actions",
+   "what": "GitHub Actions runners ubuntu-24.04, macos-26 and windows-2025 running the CI and release workflows",
+   "builder_runs": false
+  }
+ ],
+ "facts": [
+  {
+   "id": "save-path",
+   "fact": "The save file is save.json inside Tauri's app data directory for the bundle identifier.",
+   "path": "src-tauri/src/commands/storage.rs",
+   "line": 16,
+   "quote": "Ok(app_data.join(\"save.json\"))"
+  },
+  {
+   "id": "bundle-id",
+   "fact": "The bundle identifier is com.swiftiequiz.desktop, which also names the app data directory.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 5,
+   "quote": "\"identifier\": \"com.swiftiequiz.desktop\","
+  },
+  {
+   "id": "window-size",
+   "fact": "The main window opens at 1024 x 800, centred.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 17,
+   "quote": "\"width\": 1024,"
+  },
+  {
+   "id": "window-min",
+   "fact": "The window cannot shrink below 686 x 571.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 19,
+   "quote": "\"minWidth\": 686,"
+  },
+  {
+   "id": "bundle-targets",
+   "fact": "Today's builds ship a .dmg and .app for macOS and an NSIS installer for Windows.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 31,
+   "quote": "\"targets\": [\"dmg\", \"app\", \"nsis\"],"
+  },
+  {
+   "id": "nsis-current-user",
+   "fact": "The Windows installer installs per user, without admin rights.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 46,
+   "quote": "\"installMode\": \"currentUser\""
+  },
+  {
+   "id": "updater-passive",
+   "fact": "The Windows updater runs the installer in passive mode.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 57,
+   "quote": "\"installMode\": \"passive\""
+  },
+  {
+   "id": "updater-endpoint",
+   "fact": "Installed copies look for updates at the latest GitHub release's latest.json.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 53,
+   "quote": "\"https://github.com/SatanshuMishra/project-swiftee/releases/latest/download/latest.json\""
+  },
+  {
+   "id": "updater-pubkey",
+   "fact": "Updates are verified against an embedded minisign public key.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 55,
+   "quote": "\"pubkey\": \"dW50cnVzdGVk"
+  },
+  {
+   "id": "macos-min",
+   "fact": "The macOS build supports macOS 11 and later.",
+   "path": "src-tauri/tauri.conf.json",
+   "line": 41,
+   "quote": "\"minimumSystemVersion\": \"11.0\","
+  },
+  {
+   "id": "save-version",
+   "fact": "The current save format is version 3.",
+   "path": "src-tauri/src/storage/migrations.rs",
+   "line": 8,
+   "quote": "pub const CURRENT_VERSION: u32 = 3;"
+  },
+  {
+   "id": "max-backups",
+   "fact": "At most three save backups are kept.",
+   "path": "src-tauri/src/storage/backup.rs",
+   "line": 10,
+   "quote": "pub const MAX_BACKUPS: usize = 3;"
+  },
+  {
+   "id": "deezer-artist",
+   "fact": "The catalog is Taylor Swift's Deezer artist id 12246.",
+   "path": "src-tauri/src/services/deezer_client.rs",
+   "line": 9,
+   "quote": "const TAYLOR_SWIFT_ID: u64 = 12246;"
+  },
+  {
+   "id": "deezer-albums",
+   "fact": "Albums come from Deezer's artist albums endpoint, up to 100.",
+   "path": "src-tauri/src/services/deezer_client.rs",
+   "line": 35,
+   "quote": "\"{}/artist/{}/albums?limit=100\","
+  },
+  {
+   "id": "rate-limit",
+   "fact": "The app allows itself at most 50 catalog requests per minute.",
+   "path": "src-tauri/src/services/rate_limiter.rs",
+   "line": 5,
+   "quote": "const MAX_TOKENS: u32 = 50;"
+  },
+  {
+   "id": "lrclib-base",
+   "fact": "Lyrics come from the LRCLIB API.",
+   "path": "src-tauri/src/services/lrclib_client.rs",
+   "line": 7,
+   "quote": "const LRCLIB_BASE_URL: &str = \"https://lrclib.net/api\";"
+  },
+  {
+   "id": "danger-timeout",
+   "fact": "Synced-lyrics lookups for clip selection give up after 2 seconds.",
+   "path": "src/lib/lrclib.ts",
+   "line": 22,
+   "quote": "const FETCH_TIMEOUT_MS = 2_000;"
+  },
+  {
+   "id": "min-duration",
+   "fact": "Tracks shorter than 60 seconds are not playable songs.",
+   "path": "src-tauri/src/services/track_filter.rs",
+   "line": 3,
+   "quote": "const MIN_DURATION_SECS: u32 = 60;"
+  },
+  {
+   "id": "update-interval",
+   "fact": "While running, the app checks for updates every 6 hours.",
+   "path": "src/App.tsx",
+   "line": 54,
+   "quote": "6 * 60 * 60 * 1000,"
+  },
+  {
+   "id": "update-first-check",
+   "fact": "The first update check runs 1.5 seconds after launch.",
+   "path": "src/App.tsx",
+   "line": 49,
+   "quote": "}, 1500);"
+  },
+  {
+   "id": "remind-later",
+   "fact": "Remind later postpones automatic checks for 24 hours.",
+   "path": "src/hooks/useUpdater.ts",
+   "line": 8,
+   "quote": "const REMIND_LATER_INTERVAL_MS = 24 * 60 * 60 * 1000;"
+  },
+  {
+   "id": "relaunch",
+   "fact": "After installing an update the app relaunches itself (PR #19).",
+   "path": "src/hooks/useUpdater.ts",
+   "line": 160,
+   "quote": "await relaunch();"
+  },
+  {
+   "id": "save-gated",
+   "fact": "Auto-save never runs until a load has succeeded.",
+   "path": "src/hooks/usePersistence.ts",
+   "line": 81,
+   "quote": "if (!loadCompletedSuccessfullyRef.current) return;"
+  },
+  {
+   "id": "manifest-platforms",
+   "fact": "latest.json must carry four platform keys.",
+   "path": ".github/workflows/release.yml",
+   "line": 256,
+   "quote": "for platform in darwin-aarch64 darwin-aarch64-app windows-x86_64 windows-x86_64-nsis; do"
+  },
+  {
+   "id": "ci-ok",
+   "fact": "The required status check is the job named CI OK.",
+   "path": ".github/workflows/ci.yml",
+   "line": 128,
+   "quote": "name: CI OK"
+  },
+  {
+   "id": "loader-sm",
+   "fact": "The audio player shows the small cat loader.",
+   "path": "src/components/AudioPlayer.tsx",
+   "line": 124,
+   "quote": "<CatLoader size=\"sm\" />"
+  },
+  {
+   "id": "cat-button",
+   "fact": "The main menu shows the cat icon button at size 64, opening the birthday card.",
+   "path": "src/components/MainMenu.tsx",
+   "line": 127,
+   "quote": "<CatIconButton onClick={() => setShowBirthdayCard(true)} size={64} />"
+  },
+  {
+   "id": "loader-footprint",
+   "fact": "The improved large loader keeps a 480 x 360 footprint.",
+   "path": "design/cat-v2/cat-loader-v2.js",
+   "line": 132,
+   "quote": "this.$box.style.width = (own || sm ? px : 480) + \"px\";"
+  },
+  {
+   "id": "loader-duration",
+   "fact": "The improved loader cycle is 2.74 seconds.",
+   "path": "design/cat-v2/cat-loader-v2.js",
+   "line": 12,
+   "quote": "const DUR = 2740;"
+  },
+  {
+   "id": "slice",
+   "fact": "A sound round plays a 10 second slice.",
+   "path": "src/hooks/useAudio.ts",
+   "line": 201,
+   "quote": "const sliceDuration = 10;"
+  },
+  {
+   "id": "quack-gain",
+   "fact": "The wrong-answer quack plays at 0.9 times the volume, capped at 1.",
+   "path": "src/engine/quackManager.ts",
+   "line": 15,
+   "quote": "gain.gain.value = Math.min(volume * 0.9, 1.0);"
+  },
+  {
+   "id": "theme-default",
+   "fact": "The default theme is dark.",
+   "path": "src/types/index.ts",
+   "line": 184,
+   "quote": "theme: \"dark\","
+  },
+  {
+   "id": "tauri-nsis-args",
+   "fact": "The installed Tauri updater launches the downloaded Windows installer with /P /UPDATE /R /ARGS via ShellExecuteW and then exits; the download must be a PE executable.",
+   "command": "grep in ~/.cargo/registry/src/*/tauri-plugin-updater-2.13.1/src/{updater.rs,config.rs}",
+   "output": "Self::Passive => &[\"/P\"]; installer_args.push(OsStr::new(\"/UPDATE\")); nsis_restart_after_install_args -> &[\"/R\"]; installer_args.push(OsStr::new(\"/ARGS\")); infer::app::is_exe(bytes); std::process::exit(0)"
+  },
+  {
+   "id": "tauri-macos-extract",
+   "fact": "The installed Tauri updater on macOS unpacks the .app.tar.gz skipping each entry's first path component, moves the running .app aside, and moves the unpacked bundle into its place.",
+   "command": "sed -n 1390,1470p tauri-plugin-updater-2.13.1/src/updater.rs",
+   "output": "entry.path()?.iter().skip(1).collect(); std::fs::rename(&self.extract_path, tmp_backup_dir.path().join(\"current_app\"))"
+  },
+  {
+   "id": "flutter-version",
+   "fact": "This Mac has Flutter 3.47.5 stable with Dart 3.13.4 and Xcode 26.6.",
+   "command": "flutter --version; xcodebuild -version",
+   "output": "Flutter 3.47.5 channel stable; Dart 3.13.4; Xcode 26.6"
+  },
+  {
+   "id": "soloud-samples",
+   "fact": "flutter_soloud 5.1.6 reads equally spaced decoded samples from an in-memory MP3 and plays, seeks, pauses and stops voices.",
+   "command": "grep in ~/.pub-cache/hosted/pub.dev/flutter_soloud-5.1.6/lib/src/soloud.dart",
+   "output": "Future<Float32List> readSamplesFromMem(Uint8List buffer, int numSamplesNeeded, {double startTime = 0, double endTime = -1, bool average = false}); loadMem; play; seek; setPause; scheduleStop; setVolume"
+  },
+  {
+   "id": "packages-resolve",
+   "fact": "flutter_riverpod 3.4.3, flutter_soloud 5.1.6, flutter_svg 2.3.0, window_manager 0.5.2, http 1.6.0, cryptography 2.9.0, archive 4.3.0 and path 1.9.1 resolve together on this toolchain.",
+   "command": "flutter pub add flutter_riverpod flutter_soloud flutter_svg window_manager http cryptography archive path pub_semver (scratch project)",
+   "output": "flutter_riverpod: ^3.4.3 flutter_soloud: ^5.1.6 flutter_svg: ^2.3.0 window_manager: ^0.5.2 http: ^1.6.0 cryptography: ^2.9.0 archive: ^4.3.0 path: ^1.9.1"
+  },
+  {
+   "id": "pr19-merged",
+   "fact": "PR #19 (updater loop and relaunch fixes) is merged into main.",
+   "command": "git log --oneline -1 origin/main",
+   "output": "8c0130e Merge pull request #19 from SatanshuMishra/fix/updater-loop-relaunch"
+  },
+  {
+   "id": "deezer-118-albums",
+   "fact": "Taylor Swift has 118 albums on Deezer, so limit=100 returns 100 plus a next link.",
+   "url": "https://api.deezer.com/artist/12246/albums?limit=100"
+  },
+  {
+   "id": "deezer-signed-previews",
+   "fact": "Deezer preview URLs carry an hdnea exp token that expired 900 seconds after the response in two observations; without it the link returns 403.",
+   "url": "https://api.deezer.com/album/1103662682"
+  },
+  {
+   "id": "deezer-quota-200",
+   "fact": "Deezer reports quota errors as HTTP 200 with error.code 4 in the body.",
+   "url": "https://api.deezer.com/genre/0"
+  },
+  {
+   "id": "deezer-tos-noncommercial",
+   "fact": "Deezer's API terms allow non-commercial use and let Deezer restrict access without notice.",
+   "url": "https://developers.deezer.com/termsofuse"
+  },
+  {
+   "id": "deezer-new-release",
+   "fact": "Deezer listed The Life of a Showgirl: The Encore (2026-09-25) among the artist's albums.",
+   "url": "https://api.deezer.com/artist/12246/albums?limit=100"
+  },
+  {
+   "id": "spotify-bans-trivia",
+   "fact": "Spotify's developer policy says not to create a game, including trivia quizzes, and previews were removed for new apps on 2024-11-27.",
+   "url": "https://developer.spotify.com/policy"
+  },
+  {
+   "id": "itunes-preview-terms",
+   "fact": "iTunes Search API previews must sit by a store badge, be streamed only, and not be used for independent entertainment value.",
+   "url": "https://performance-partners.apple.com/search-api"
+  },
+  {
+   "id": "lrclib-keyless",
+   "fact": "LRCLIB needs no API key, asks clients to honour 429 Retry-After, and asks for an identifying User-Agent.",
+   "url": "https://lrclib.net/docs"
+  },
+  {
+   "id": "lrclib-search-fallback",
+   "fact": "For the 10-day-old Encore album, LRCLIB get alone found synced lyrics for 7 of 16 tracks and the search fallback for 16 of 16.",
+   "url": "https://lrclib.net/api/get?track_name=Opalite&artist_name=Taylor%20Swift&album_name=The%20Life%20of%20a%20Showgirl&duration=235"
+  },
+  {
+   "id": "musixmatch-paid",
+   "fact": "Musixmatch lists no free plan and charges for time-synced lyrics.",
+   "url": "https://www.musixmatch.com/pro/api/pricing"
+  },
+  {
+   "id": "flutter-macos-12",
+   "fact": "Flutter supports macOS 12 (Monterey) and later; macOS 11 is unsupported.",
+   "url": "https://docs.flutter.dev/reference/supported-platforms"
+  },
+  {
+   "id": "no-platform-branches",
+   "fact": "The React UI has no operating-system branches; the only platform switch outside src-tauri is the Vite build target.",
+   "path": "vite.config.ts",
+   "line": 32,
+   "quote": "TAURI_ENV_PLATFORM"
+  },
+  {
+   "id": "pr20-merged",
+   "fact": "PR #20 (version bump to 0.2.3, CHANGELOG and version files only) is merged into main.",
+   "command": "git log --oneline 8c0130e..origin/main; gh pr view 20 --json files",
+   "output": "b7d3e2d Merge pull request #20 from SatanshuMishra/release/v0.2.3; files CHANGELOG.md package-lock.json package.json src-tauri/Cargo.lock src-tauri/Cargo.toml src-tauri/tauri.conf.json"
+  }
+ ],
+ "criteria": [
+  {
+   "number": "7.1",
+   "title": "Platform identity",
+   "text": "WHEN the macOS and Windows runners are configured, THE SYSTEM SHALL use bundle identifier com.swiftiequiz.desktop, product name \"Swiftie Quiz\", macOS deployment target 12.0, App Sandbox off with outgoing network allowed in both macOS entitlements files, Windows executable name swiftie-quiz, and Windows file description and product name \"Swiftie Quiz\".",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/scaffold/platform_config_test.dart",
+     "name": "platform identity matches the Tauri app",
+     "asserts": "AppInfo.xcconfig, both entitlements files, the Xcode project deployment target, windows/CMakeLists.txt BINARY_NAME and Runner.rc carry the identity values",
+     "env": "flutter-test-host",
+     "step": "flutter-scaffold"
+    }
+   ]
+  },
+  {
+   "number": "7.2",
+   "title": "Bundled assets",
+   "text": "WHEN the app is built, THE SYSTEM SHALL bundle assets/cat/cat-icon.svg byte-identical to design/cat-v2/cat-icon-v2.svg, the 16 achievement cat SVGs and quack.mp3 byte-identical to their src/assets originals, and declare every asset folder in pubspec.yaml.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/scaffold/assets_test.dart",
+     "name": "bundled assets match the design and the Tauri assets",
+     "asserts": "byte equality of each asset with its source and pubspec asset declarations",
+     "env": "flutter-test-host",
+     "step": "flutter-scaffold"
+    }
+   ]
+  },
+  {
+   "number": "7.3",
+   "title": "Save format",
+   "text": "WHEN progress is written and read, THE SYSTEM SHALL produce and accept the Tauri app's save.json shape: camelCase keys, version 3, the DEFAULT_PROGRESS values (theme dark, volume 0.8, mediumTimer 30, hardTimer 20, autoCheckEnabled true, empty skippedVersions), unknown-free round trip, and defaults for fields a v1 or v2 save lacks (mediumTimer 30, hardTimer 20, lyrics counters 0, updater defaults).",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/domain/models/progress_test.dart",
+     "name": "progress json matches the Tauri save format",
+     "asserts": "toJson of the default equals the DEFAULT_PROGRESS JSON; fromJson of the Rust test fixtures; round trip equality",
+     "env": "flutter-test-host",
+     "step": "domain-models"
+    }
+   ]
+  },
+  {
+   "number": "7.4",
+   "title": "Theme tokens",
+   "text": "WHEN the theme is dark or light, THE SYSTEM SHALL resolve every token in src/styles/index.css to its sRGB colour (oklch converted with the CSS Color 4 formula, rounded to the nearest 8-bit channel), for example dark background #0A0A0A and light foreground #030213.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/theme/app_tokens_test.dart",
+     "name": "tokens match index.css",
+     "asserts": "each dark and light token's ARGB value",
+     "env": "flutter-test-host",
+     "step": "ui-foundation"
+    }
+   ]
+  },
+  {
+   "number": "7.5",
+   "title": "Icons and logo",
+   "text": "WHEN a screen asks for any of the 29 Lucide icons the React UI uses, THE SYSTEM SHALL render the bundled SVG of that icon tinted with the requested colour at the requested size, and the Swiftie logo SHALL render the #E97F6A circle with the white note at the requested size, hidden from accessibility.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/widgets/app_icon_test.dart",
+     "name": "every lucide icon the UI uses is bundled",
+     "asserts": "each glyph's asset exists, parses and renders at 16 and 24 px",
+     "env": "flutter-test-host",
+     "step": "ui-foundation"
+    },
+    {
+     "file": "test/ui/widgets/swiftie_logo_test.dart",
+     "name": "swiftie logo parity",
+     "asserts": "the cases of SwiftieLogo.test.tsx",
+     "env": "flutter-test-host",
+     "step": "ui-foundation"
+    }
+   ]
+  },
+  {
+   "number": "7.6",
+   "title": "Loader choreography",
+   "text": "WHEN the cat loader is at phase p in [0, 1), THE SYSTEM SHALL rotate the frame by spin(p) and end the body at bodyEnd(p) computed by the monotone cubic spline of design/cat-v2/cat-loader-v2.js, matching the JavaScript to within 0.01 degrees at p = 0, 0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.65, 0.8, 0.9 and 0.99, and equal to the keyframe values at keyframe times.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/cat/cat_loader_geometry_test.dart",
+     "name": "loader spline matches the design keyframes",
+     "asserts": "spin and bodyEnd against reference values computed from the JavaScript",
+     "env": "flutter-test-host",
+     "step": "cat-v2"
+    }
+   ]
+  },
+  {
+   "number": "7.7",
+   "title": "Loader widget",
+   "text": "WHEN CatLoader is shown, THE SYSTEM SHALL draw the large drawing as 300 x 300 art centred in a 480 x 360 box, the small drawing in an 80 x 80 box with the heavier outline, put the label 16 px below in 14 px weight 500 text only when the label is non-empty, run a 2.74 s cycle, and a 6.85 s cycle when the platform asks to reduce motion; and LoadingGate SHALL keep its LoadingGate.test.tsx behaviour.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/cat/cat_loader_test.dart",
+     "name": "cat loader follows the v2 design",
+     "asserts": "box sizes, label presence and style, cycle durations",
+     "env": "flutter-test-host",
+     "step": "cat-v2"
+    },
+    {
+     "file": "test/ui/cat/loading_gate_test.dart",
+     "name": "loading gate parity",
+     "asserts": "the cases of LoadingGate.test.tsx",
+     "env": "flutter-test-host",
+     "step": "cat-v2"
+    }
+   ]
+  },
+  {
+   "number": "7.8",
+   "title": "Cat icon button",
+   "text": "WHEN the cat icon button is shown at size s, THE SYSTEM SHALL draw assets/cat/cat-icon.svg at s/2 wide and s tall inside a hit area of at least 44 x 44, labelled \"Open birthday card\" for accessibility, and call its callback on tap.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/cat/cat_icon_button_test.dart",
+     "name": "cat icon button uses the v2 icon",
+     "asserts": "asset, size, hit area, semantics label and tap; the cases of CatIconButton.test.tsx",
+     "env": "flutter-test-host",
+     "step": "cat-v2"
+    }
+   ]
+  },
+  {
+   "number": "7.9",
+   "title": "Quiz engine parity",
+   "text": "WHEN the ported quiz rules run on the inputs of the TypeScript suites, THE SYSTEM SHALL return the same outputs: track pools and draws, answer options, answer matching with close-match tolerance, achievement definitions and evaluation, the relisten schedule (10, 10, 15, 15, 20, 20 s then the full preview, extension notice from the third relisten), Levenshtein distance, shuffling and the birthday window.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/domain/engine/game_engine_test.dart",
+     "name": "game engine parity",
+     "asserts": "every case of src/engine/gameEngine.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    },
+    {
+     "file": "test/domain/engine/option_generator_test.dart",
+     "name": "option generator parity",
+     "asserts": "every case of src/engine/optionGenerator.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    },
+    {
+     "file": "test/domain/engine/answer_matcher_test.dart",
+     "name": "answer matcher parity",
+     "asserts": "every case of src/engine/answerMatcher.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    },
+    {
+     "file": "test/domain/engine/achievements_test.dart",
+     "name": "achievements parity",
+     "asserts": "every case of src/engine/achievements.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    },
+    {
+     "file": "test/domain/engine/relisten_schedule_test.dart",
+     "name": "relisten schedule parity",
+     "asserts": "every case of src/engine/relistenSchedule.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    },
+    {
+     "file": "test/domain/util/levenshtein_test.dart",
+     "name": "levenshtein parity",
+     "asserts": "every case of src/lib/levenshtein.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    },
+    {
+     "file": "test/domain/util/shuffle_test.dart",
+     "name": "shuffle parity",
+     "asserts": "every case of src/lib/shuffle.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    },
+    {
+     "file": "test/domain/util/birthday_test.dart",
+     "name": "birthday parity",
+     "asserts": "every case of src/lib/birthday.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-quiz"
+    }
+   ]
+  },
+  {
+   "number": "7.10",
+   "title": "Clip and lyric engine parity",
+   "text": "WHEN clip selection and lyric processing run on the inputs of the TypeScript suites, THE SYSTEM SHALL return the same outputs: the 250 ms RMS profile, energy score, centre bias, danger-zone penalty and chosen start with random fallback; chorus detection, snippet extraction, sanitising and the decoy-or-real choice with era groups.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/domain/engine/clip_selector_test.dart",
+     "name": "clip selector parity",
+     "asserts": "every case of src/engine/clipSelector.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-lyrics-clips"
+    },
+    {
+     "file": "test/domain/engine/lyric_processor_test.dart",
+     "name": "lyric processor parity",
+     "asserts": "every case of src/engine/lyricProcessor.test.ts",
+     "env": "flutter-test-host",
+     "step": "engine-lyrics-clips"
+    }
+   ]
+  },
+  {
+   "number": "7.11",
+   "title": "All albums load",
+   "text": "WHEN Deezer answers the artist albums request with a next link, THE SYSTEM SHALL follow every next link and return all albums in order; for example a first page of 100 and a second page of 18 yield 118 albums.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/catalog/deezer_client_test.dart",
+     "name": "albums follow the next link",
+     "asserts": "two-page fixture returns 118 albums and two requests",
+     "env": "flutter-test-host",
+     "step": "data-catalog"
+    }
+   ]
+  },
+  {
+   "number": "7.12",
+   "title": "Deezer errors",
+   "text": "WHEN Deezer answers with a body containing an error object, including quota error code 4 with HTTP 200, THE SYSTEM SHALL fail the call with the rate-limit message \"Taking a breather \u2014 try again in a moment.\" for code 4 and \"API error: <message>\" otherwise, and cache nothing.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/catalog/deezer_client_test.dart",
+     "name": "deezer error bodies are failures",
+     "asserts": "quota and other error bodies raise the mapped errors and a retry hits the network",
+     "env": "flutter-test-host",
+     "step": "data-catalog"
+    }
+   ]
+  },
+  {
+   "number": "7.13",
+   "title": "Preview links stay fresh",
+   "text": "WHEN cached album or top tracks hold preview links whose hdnea exp time is less than 60 seconds away, THE SYSTEM SHALL fetch them again instead of serving the cache; and refreshTrack(id) SHALL return the track from /track/{id} with its new preview link.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/catalog/deezer_client_test.dart",
+     "name": "cached tracks expire with their preview token",
+     "asserts": "fake clock before and after exp minus 60 s; refreshTrack request path",
+     "env": "flutter-test-host",
+     "step": "data-catalog"
+    }
+   ]
+  },
+  {
+   "number": "7.14",
+   "title": "Track filter and rate limit parity",
+   "text": "WHEN tracks are filtered and requests are counted, THE SYSTEM SHALL keep exactly the songs track_filter.rs keeps (60 s minimum, remix and non-song patterns, case-insensitive) and allow 50 requests per 60 s window as rate_limiter.rs does.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/catalog/track_filter_test.dart",
+     "name": "track filter parity",
+     "asserts": "every case of track_filter.rs tests",
+     "env": "flutter-test-host",
+     "step": "data-catalog"
+    },
+    {
+     "file": "test/data/catalog/rate_limiter_test.dart",
+     "name": "rate limiter parity",
+     "asserts": "every case of rate_limiter.rs tests plus refill after 60 s",
+     "env": "flutter-test-host",
+     "step": "data-catalog"
+    }
+   ]
+  },
+  {
+   "number": "7.15",
+   "title": "Lyrics fetch",
+   "text": "WHEN lyrics are requested, THE SYSTEM SHALL try LRCLIB /get with track, artist, album and duration, then /search with the normalised title choosing the closest duration, process plain lyrics as lrclib_client.rs does, fetch batches five at a time, send the SwiftieQuiz User-Agent, and on HTTP 429 wait Retry-After seconds (at most 10) and retry once.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/lyrics/lrclib_client_test.dart",
+     "name": "lrclib client parity",
+     "asserts": "every case of lrclib_client.rs and commands/lyrics.rs tests",
+     "env": "flutter-test-host",
+     "step": "data-lyrics"
+    },
+    {
+     "file": "test/data/lyrics/lrclib_client_test.dart",
+     "name": "lrclib 429 honours retry-after",
+     "asserts": "a 429 with Retry-After 2 waits 2 s on a fake clock and retries once",
+     "env": "flutter-test-host",
+     "step": "data-lyrics"
+    }
+   ]
+  },
+  {
+   "number": "7.16",
+   "title": "Danger zones",
+   "text": "WHEN synced lyrics are looked up for clip selection, THE SYSTEM SHALL return the same danger zones as src/lib/lrclib.ts: LRC parsing, preview offset estimate, title-word matching with stop words, 1.5 s padding, merged zones, a 100-entry cache and an empty list after 2 s or on any failure.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/lyrics/danger_zones_test.dart",
+     "name": "danger zones parity",
+     "asserts": "every case of src/lib/lrclib.test.ts",
+     "env": "flutter-test-host",
+     "step": "data-lyrics"
+    }
+   ]
+  },
+  {
+   "number": "7.17",
+   "title": "Save location",
+   "text": "WHEN the app runs on macOS with HOME=/Users/a, THE SYSTEM SHALL read and write /Users/a/Library/Application Support/com.swiftiequiz.desktop/save.json; on Windows with APPDATA=C:\\Users\\a\\AppData\\Roaming it SHALL use C:\\Users\\a\\AppData\\Roaming\\com.swiftiequiz.desktop\\save.json.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/save/save_location_test.dart",
+     "name": "save path matches the Tauri app data directory",
+     "asserts": "path for injected macOS and Windows environments",
+     "env": "flutter-test-host",
+     "step": "save-store"
+    }
+   ]
+  },
+  {
+   "number": "7.18",
+   "title": "Save load, migration and backups",
+   "text": "WHEN the save is loaded, written, migrated, backed up, listed or restored, THE SYSTEM SHALL behave as the Rust storage module: fresh when missing, loaded when current, migrated with a backup first and persisted when older, an error naming the version when newer, atomic writes through save.json.tmp, pretty-printed JSON, at most three backups named save.backup.<unix seconds>.json listed newest first, restore by timestamp.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/data/save/save_store_test.dart",
+     "name": "save store parity",
+     "asserts": "every case of load.rs, save.rs and backup.rs tests",
+     "env": "flutter-test-host",
+     "step": "save-store"
+    },
+    {
+     "file": "test/data/save/migrations_test.dart",
+     "name": "migrations parity",
+     "asserts": "every case of migrations.rs tests",
+     "env": "flutter-test-host",
+     "step": "save-store"
+    }
+   ]
+  },
+  {
+   "number": "7.19",
+   "title": "Update manifest",
+   "text": "WHEN latest.json is fetched, THE SYSTEM SHALL read version, notes, pub_date and platforms, pick darwin-aarch64 on macOS and windows-x86_64 on Windows, and offer the update only when its semantic version is strictly greater than the running version (0.2.0 rejects 0.2.0 and 0.1.5, accepts 0.2.1, 0.3.0 and 1.0.0).",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/services/updater/update_manifest_client_test.dart",
+     "name": "manifest selection and version gate",
+     "asserts": "platform choice, field parsing and the lib.rs version cases",
+     "env": "flutter-test-host",
+     "step": "updater-protocol"
+    }
+   ]
+  },
+  {
+   "number": "7.20",
+   "title": "Signature check",
+   "text": "WHEN an update file is downloaded, THE SYSTEM SHALL accept it only if its minisign signature (Tauri format, Ed25519 over the BLAKE2b-512 prehash, with a valid trusted-comment global signature) verifies with the embedded public key, and SHALL reject tampered bytes, a different key id and a malformed signature.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/services/updater/minisign_test.dart",
+     "name": "minisign verification",
+     "asserts": "fixture signed by the Tauri CLI signer verifies; three negative cases fail",
+     "env": "flutter-test-host",
+     "step": "updater-protocol"
+    }
+   ]
+  },
+  {
+   "number": "7.21",
+   "title": "Installers mirror Tauri",
+   "text": "WHEN an update installs on macOS, THE SYSTEM SHALL unpack the .app.tar.gz skipping each entry's first path component, move the running bundle aside, move the new bundle into its place and restore the old one if that fails; on Windows it SHALL write the setup .exe to a temporary file and start it detached with the arguments /P /UPDATE /R /ARGS, then exit.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/services/updater/update_installer_test.dart",
+     "name": "installers mirror the Tauri updater",
+     "asserts": "bundle swap and rollback on temporary directories; Windows command line built by a pure function",
+     "env": "flutter-test-host",
+     "step": "updater-protocol"
+    }
+   ]
+  },
+  {
+   "number": "7.22",
+   "title": "Game controller parity",
+   "text": "WHEN game actions run, THE SYSTEM SHALL produce the state changes of src/stores/gameStore.ts, including streak and quack counters, per-album guessed tracks, session counters kept across resetGame, lyrics pool cycling and immutable updates.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/state/game_controller_test.dart",
+     "name": "game controller parity",
+     "asserts": "every case of src/stores/gameStore.test.ts",
+     "env": "flutter-test-host",
+     "step": "game-state"
+    }
+   ]
+  },
+  {
+   "number": "7.23",
+   "title": "Persistence parity",
+   "text": "WHEN the app starts and progress changes, THE SYSTEM SHALL load once, never save before a successful load, save at most once per second of quiet with identical progress skipped, show \"Welcome back! Your progress has been preserved. (Migrated from save format v<n>.)\" after a migration, and \"Couldn't load your save. Open Settings \u2192 Backups to restore from a backup.\" when loading fails.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/state/persistence_controller_test.dart",
+     "name": "persistence parity",
+     "asserts": "every case of src/hooks/usePersistence.test.ts",
+     "env": "flutter-test-host",
+     "step": "game-state"
+    }
+   ]
+  },
+  {
+   "number": "7.24",
+   "title": "Achievements, lyrics and catalog controllers",
+   "text": "WHEN rounds are answered and pools are prepared, THE SYSTEM SHALL unlock and toast achievements as useAchievements does, prepare and extend the lyrics pool as useLyrics does (top tracks or selected albums, at least five songs, decoy pool), and load albums and tracks as useDeezer does.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/state/achievements_controller_test.dart",
+     "name": "achievements controller parity",
+     "asserts": "unlock conditions, unlockedAt, toast ids, no duplicate unlocks",
+     "env": "flutter-test-host",
+     "step": "game-state"
+    },
+    {
+     "file": "test/state/lyrics_controller_test.dart",
+     "name": "lyrics controller parity",
+     "asserts": "pool building, decoys, progress, more-fetching",
+     "env": "flutter-test-host",
+     "step": "game-state"
+    },
+    {
+     "file": "test/state/catalog_controller_test.dart",
+     "name": "catalog controller parity",
+     "asserts": "album cache use, track pool for random and album modes",
+     "env": "flutter-test-host",
+     "step": "game-state"
+    }
+   ]
+  },
+  {
+   "number": "7.25",
+   "title": "Audio controller parity",
+   "text": "WHEN a round plays, THE SYSTEM SHALL behave as src/hooks/useAudio.ts: download and decode the preview, choose a 10 s slice with smart clip selection and danger zones, report loading, progress and clip duration, pause and resume from the same point, play the relisten schedule, ignore results of a superseded play, play the quack at min(volume x 0.9, 1); and when the preview download answers 403 it SHALL refresh the track once and retry with the new link.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/state/audio_controller_test.dart",
+     "name": "audio controller parity",
+     "asserts": "every case of src/hooks/useAudio.test.ts with a fake engine",
+     "env": "flutter-test-host",
+     "step": "audio-engine"
+    },
+    {
+     "file": "test/state/audio_controller_test.dart",
+     "name": "expired preview is refreshed once",
+     "asserts": "403 then refreshTrack then success; a second 403 surfaces an error",
+     "env": "flutter-test-host",
+     "step": "audio-engine"
+    }
+   ]
+  },
+  {
+   "number": "7.26",
+   "title": "Updater state machine",
+   "text": "WHEN update checks, downloads, installs, skips, reminders and cancels happen, THE SYSTEM SHALL follow src/hooks/useUpdater.ts as fixed by PR #19: auto checks honour autoCheckEnabled and remindLaterUntil, manual checks bypass them, skipped versions are never offered, a check never disturbs a downloading, ready, installing or installed update, lastCheckedAt is written from the latest progress, cancel abandons the download for good, retry after a failed check checks again, and after install the app relaunches or shows the installed state when relaunch fails.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/state/updater_controller_test.dart",
+     "name": "updater controller parity",
+     "asserts": "every case of src/hooks/useUpdater.test.ts on main at 8c0130e",
+     "env": "flutter-test-host",
+     "step": "updater-controller"
+    }
+   ]
+  },
+  {
+   "number": "7.27",
+   "title": "Menu and selection screens",
+   "text": "WHEN the player uses the main menu and the selection screens, THE SYSTEM SHALL navigate exactly as today: Random Mode to quiz type, Pick Albums to album select, Cat Gallery, Settings, sound to difficulty, lyrics to lyrics mode, every back link to its React target, and the difficulty cards listing the same features for each quiz type and timer setting.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/screens/navigation_screens_test.dart",
+     "name": "menu and selection navigation",
+     "asserts": "taps on each card and back link land on the expected phase; difficulty feature text",
+     "env": "flutter-test-host",
+     "step": "screens-navigation"
+    }
+   ]
+  },
+  {
+   "number": "7.28",
+   "title": "Settings",
+   "text": "WHEN the Settings screen is used, THE SYSTEM SHALL offer Dark, Light and System themes, volume 0 to 1 in steps of 0.01, medium and hard timers 10 to 40 s in steps of 5, a two-step reset, the version from the build, last-checked time, Check now and the auto-check switch, and the backups list with Restore, with today's texts.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/screens/settings_screen_test.dart",
+     "name": "settings parity",
+     "asserts": "each control changes the matching progress field; reset needs two steps; backups restore calls the store",
+     "env": "flutter-test-host",
+     "step": "screens-navigation"
+    }
+   ]
+  },
+  {
+   "number": "7.29",
+   "title": "Gallery, albums and birthday card",
+   "text": "WHEN the gallery, album grid or birthday card is shown, THE SYSTEM SHALL show \"N of 15 achievements unlocked\" with locked and unlocked tiles, album tiles that toggle selection with the Start Quiz footer, and the birthday card behaviour of BirthdayCard.test.tsx with readable body text in light theme.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/overlays/birthday_card_test.dart",
+     "name": "birthday card parity",
+     "asserts": "every case of BirthdayCard.test.tsx and the light-theme text colour",
+     "env": "flutter-test-host",
+     "step": "screens-navigation"
+    },
+    {
+     "file": "test/ui/screens/cat_gallery_test.dart",
+     "name": "cat gallery parity",
+     "asserts": "counts, locked and unlocked tiles",
+     "env": "flutter-test-host",
+     "step": "screens-navigation"
+    },
+    {
+     "file": "test/ui/screens/album_grid_test.dart",
+     "name": "album grid parity",
+     "asserts": "selection toggling, footer label and Clear all",
+     "env": "flutter-test-host",
+     "step": "screens-navigation"
+    }
+   ]
+  },
+  {
+   "number": "7.30",
+   "title": "Sound round",
+   "text": "WHEN a sound round runs, THE SYSTEM SHALL show the small cat loader while the clip loads, options on easy and medium and a text box on hard, the album hint only on easy, the timer only on medium and hard, add one to the streak on a right answer and reset it with a quack on a wrong answer or timeout, and show \"Loading next track...\" with the large loader between rounds for 400 ms to 8 s.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/screens/game_screen_test.dart",
+     "name": "sound round flow",
+     "asserts": "fake audio and catalog drive easy, medium and hard rounds",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    }
+   ]
+  },
+  {
+   "number": "7.31",
+   "title": "Lyrics rounds",
+   "text": "WHEN lyrics rounds run, THE SYSTEM SHALL show the lyrics loading screen with the ten rotating messages every 3 s and the large loader, start once five songs are ready, and run Name That Song and Lyrics or Lie with the line counts per difficulty of LyricsGameScreen.tsx.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/screens/lyrics_game_screen_test.dart",
+     "name": "lyrics round flow",
+     "asserts": "both modes, line counts per difficulty, answers update streak and stats",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    },
+    {
+     "file": "test/ui/screens/lyrics_loading_screen_test.dart",
+     "name": "lyrics loading screen",
+     "asserts": "message rotation, auto start at five songs, error state",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    }
+   ]
+  },
+  {
+   "number": "7.32",
+   "title": "Gameplay widgets",
+   "text": "WHEN gameplay widgets render, THE SYSTEM SHALL match their React tests and props: result feedback messages and the 2 s disabled Next, the streak badge, quiz options and the hard-mode input with Enter to submit, the timer bar turning destructive at 30 percent left, and the audio player button states and progress text.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/game/result_feedback_test.dart",
+     "name": "result feedback parity",
+     "asserts": "every case of ResultFeedback.test.tsx",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    },
+    {
+     "file": "test/ui/game/streak_badge_test.dart",
+     "name": "streak badge parity",
+     "asserts": "every case of StreakBadge.test.tsx",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    },
+    {
+     "file": "test/ui/game/quiz_card_test.dart",
+     "name": "quiz card parity",
+     "asserts": "options, disabled state, hard input autofocus and Enter",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    },
+    {
+     "file": "test/ui/game/timer_bar_test.dart",
+     "name": "timer bar parity",
+     "asserts": "100 ms ticks, expiry callback, colour switch at 30 percent",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    },
+    {
+     "file": "test/ui/game/audio_player_test.dart",
+     "name": "audio player parity",
+     "asserts": "play, pause, resume, relisten actions, extension notice, small loader while loading",
+     "env": "flutter-test-host",
+     "step": "screens-gameplay"
+    }
+   ]
+  },
+  {
+   "number": "7.33",
+   "title": "Update badge and dialog",
+   "text": "WHEN the updater is available, downloading, ready or in error, THE SYSTEM SHALL show the corner badge with today's label and colour, open the update dialog on click with the per-state content of UpdateModal.tsx, and close the dialog on Escape.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/overlays/update_badge_test.dart",
+     "name": "update badge parity",
+     "asserts": "every case of UpdateBadge.test.tsx",
+     "env": "flutter-test-host",
+     "step": "overlays"
+    },
+    {
+     "file": "test/ui/overlays/update_modal_test.dart",
+     "name": "update modal parity",
+     "asserts": "every case of UpdateModal.test.tsx",
+     "env": "flutter-test-host",
+     "step": "overlays"
+    }
+   ]
+  },
+  {
+   "number": "7.34",
+   "title": "Toasts",
+   "text": "WHEN an achievement unlocks or the app shows a message, THE SYSTEM SHALL stack achievement toasts top right, each dismissing after 4 s or on its close button, and show the message toast at the bottom centre for 5 s.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/ui/overlays/achievement_toasts_test.dart",
+     "name": "achievement toasts",
+     "asserts": "stacking, 4 s auto dismiss per toast independent of new toasts, close button",
+     "env": "flutter-test-host",
+     "step": "overlays"
+    },
+    {
+     "file": "test/ui/overlays/toast_host_test.dart",
+     "name": "toast host",
+     "asserts": "message shown then gone after 5 s",
+     "env": "flutter-test-host",
+     "step": "overlays"
+    }
+   ]
+  },
+  {
+   "number": "7.35",
+   "title": "Phase routing",
+   "text": "WHEN the game phase changes, THE SYSTEM SHALL show the matching screen for each of the nine phases, LyricsGameScreen for playing with the lyrics quiz type and GameScreen otherwise, with the toasts, update badge and update dialog layered over every screen, and the theme following the saved setting.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/app/app_test.dart",
+     "name": "phase routing",
+     "asserts": "each phase renders its screen; overlays present; dark, light and system themes",
+     "env": "flutter-test-host",
+     "step": "app-shell"
+    }
+   ]
+  },
+  {
+   "number": "7.36",
+   "title": "Update schedule",
+   "text": "WHEN the app runs, THE SYSTEM SHALL check for updates 1.5 s after launch and then every 6 hours, and never more often, even as progress changes (the PR #19 loop regression).",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/app/app_test.dart",
+     "name": "update checks run once at launch and every six hours",
+     "asserts": "fake async: one check at 1.5 s, none after 30 s of progress changes, one more at 6 h",
+     "env": "flutter-test-host",
+     "step": "app-shell"
+    }
+   ]
+  },
+  {
+   "number": "7.37",
+   "title": "Window",
+   "text": "WHEN the app starts, THE SYSTEM SHALL open a window titled \"Swiftie Quiz\" sized 1024 x 800, centred, with a minimum size of 686 x 571.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/app/window_setup_test.dart",
+     "name": "window matches the Tauri window",
+     "asserts": "the window options passed to window_manager",
+     "env": "flutter-test-host",
+     "step": "app-shell"
+    }
+   ]
+  },
+  {
+   "number": "7.38",
+   "title": "Windows installer script",
+   "text": "WHEN the NSIS script is compiled, THE SYSTEM SHALL install per user into $LOCALAPPDATA\\Swiftie Quiz with swiftie-quiz.exe, write the uninstall key Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Swiftie Quiz, create the Start menu and desktop shortcuts Tauri's template creates, remove the Tauri-era files the Flutter build no longer ships, and honour /P, /S, /UPDATE, /R and /ARGS as Tauri's template does.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/installer/nsis_script_test.dart",
+     "name": "installer is compatible with Tauri installs and updater flags",
+     "asserts": "required directives, paths, registry keys and option handling are present in the script",
+     "env": "flutter-test-host",
+     "step": "windows-installer"
+    }
+   ]
+  },
+  {
+   "number": "7.39",
+   "title": "Windows install on a real machine",
+   "text": "WHEN the built setup .exe runs on Windows 11 over an existing Tauri v0.2.x install, THE SYSTEM SHALL replace it in place, keep the save, and start the Flutter app.",
+   "where": [
+    "windows-desktop"
+   ],
+   "tests": [],
+   "unproven": "Workers run on macOS and cannot run Windows; checked after the run on the CI Windows build and the VMLab Windows 11 image."
+  },
+  {
+   "number": "7.40",
+   "title": "latest.json generation",
+   "text": "WHEN the release tool builds latest.json from a version, notes, a publish date and the four signed artifacts, THE SYSTEM SHALL write version, notes, pub_date and platforms darwin-aarch64, darwin-aarch64-app, windows-x86_64 and windows-x86_64-nsis, each with the signature file's text and the release asset download URL.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/tool/make_manifest_test.dart",
+     "name": "latest.json carries every platform",
+     "asserts": "the JSON written for a fixture set of artifacts",
+     "env": "flutter-test-host",
+     "step": "release-pipeline"
+    }
+   ]
+  },
+  {
+   "number": "7.41",
+   "title": "Release checks",
+   "text": "WHEN a tag v<x> is released, THE SYSTEM SHALL refuse unless pubspec.yaml's version (before any +build) equals x, CHANGELOG.md has a \"## [x]\" section with text, and the embedded updater public key is present, valid base64 and not the development key 2A43CC33F3FB57BB; and SHALL print that section as the release notes.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/tool/check_release_test.dart",
+     "name": "release checks",
+     "asserts": "each refusal and the notes extraction on fixtures",
+     "env": "flutter-test-host",
+     "step": "release-pipeline"
+    }
+   ]
+  },
+  {
+   "number": "7.42",
+   "title": "Workflows",
+   "text": "WHEN the workflows run, THE SYSTEM SHALL keep a job named \"CI OK\" that needs every other CI job, pin every third-party action by a 40-character commit SHA, pin Flutter 3.47.5, run format, analyze and tests, build and package on macos-26 and windows-2025, and in the release workflow keep the draft release, manifest verification and SLSA attestation jobs.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/tool/workflows_test.dart",
+     "name": "ci and release workflows",
+     "asserts": "parsed YAML job names, needs, action pins, commands",
+     "env": "flutter-test-host",
+     "step": "release-pipeline"
+    }
+   ]
+  },
+  {
+   "number": "7.43",
+   "title": "Old stack retired",
+   "text": "WHEN the rewrite lands, THE SYSTEM SHALL contain no src/, src-tauri/, package.json, package-lock.json, index.html, public/, vite, vitest, eslint, tsconfig or rust-toolchain files, no project automation that builds or tests with npm, cargo or the Tauri CLI (the release workflow's use of the Tauri CLI signer to sign artifacts with the existing key is the one exception), and CLAUDE.md, AGENTS.md, README.md and docs/INSTALL.md SHALL give the Flutter commands.",
+   "where": [
+    "flutter-test-host"
+   ],
+   "tests": [
+    {
+     "file": "test/repo/repo_layout_test.dart",
+     "name": "tauri stack is gone and docs describe flutter",
+     "asserts": "paths absent; no npm, cargo or tauri commands in docs and .claude; flutter commands present",
+     "env": "flutter-test-host",
+     "step": "retire-tauri-stack"
+    }
+   ]
+  },
+  {
+   "number": "7.44",
+   "title": "Existing installs update to the Flutter app",
+   "text": "WHEN v0.3.0 is published and an installed Tauri copy (v0.2.1 or later) checks for updates, THE SYSTEM SHALL offer, download, verify and install the Flutter build through that copy's own updater, and the Flutter app SHALL open with the player's save.",
+   "where": [
+    "macos-desktop",
+    "windows-desktop"
+   ],
+   "tests": [],
+   "unproven": "It needs a published GitHub release; checked by a dry run against a locally served latest.json before the release is published."
+  },
+  {
+   "number": "7.45",
+   "title": "Looks the same",
+   "text": "WHEN each screen of the Flutter app is put beside the same screen of the Tauri app at 1024 x 800 in both themes, THE SYSTEM SHALL show the same layout, text, colours and sizes, except the cat icon and cat loader.",
+   "where": [
+    "macos-desktop",
+    "windows-desktop"
+   ],
+   "tests": [],
+   "unproven": "Side-by-side comparison is a visual judgement; done after the run by building both apps and comparing screenshots."
+  }
+ ],
+ "steps": [
+  {
+   "name": "flutter-scaffold",
+   "files": [
+    "pubspec.yaml",
+    "pubspec.lock",
+    "analysis_options.yaml",
+    ".metadata",
+    ".gitignore",
+    "macos/.gitignore",
+    "macos/Flutter/Flutter-Debug.xcconfig",
+    "macos/Flutter/Flutter-Release.xcconfig",
+    "macos/Flutter/GeneratedPluginRegistrant.swift",
+    "macos/Runner.xcodeproj/project.pbxproj",
+    "macos/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+    "macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme",
+    "macos/Runner.xcworkspace/contents.xcworkspacedata",
+    "macos/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+    "macos/Runner/AppDelegate.swift",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png",
+    "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png",
+    "macos/Runner/Base.lproj/MainMenu.xib",
+    "macos/Runner/Configs/AppInfo.xcconfig",
+    "macos/Runner/Configs/Debug.xcconfig",
+    "macos/Runner/Configs/Release.xcconfig",
+    "macos/Runner/Configs/Warnings.xcconfig",
+    "macos/Runner/DebugProfile.entitlements",
+    "macos/Runner/Info.plist",
+    "macos/Runner/MainFlutterWindow.swift",
+    "macos/Runner/Release.entitlements",
+    "macos/RunnerTests/RunnerTests.swift",
+    "windows/.gitignore",
+    "windows/CMakeLists.txt",
+    "windows/flutter/CMakeLists.txt",
+    "windows/flutter/generated_plugin_registrant.cc",
+    "windows/flutter/generated_plugin_registrant.h",
+    "windows/flutter/generated_plugins.cmake",
+    "windows/runner/CMakeLists.txt",
+    "windows/runner/Runner.rc",
+    "windows/runner/flutter_window.cpp",
+    "windows/runner/flutter_window.h",
+    "windows/runner/main.cpp",
+    "windows/runner/resource.h",
+    "windows/runner/resources/app_icon.ico",
+    "windows/runner/runner.exe.manifest",
+    "windows/runner/utils.cpp",
+    "windows/runner/utils.h",
+    "windows/runner/win32_window.cpp",
+    "windows/runner/win32_window.h",
+    "assets/cat/cat-icon.svg",
+    "assets/cats/album_completionist.svg",
+    "assets/cats/album_explorer.svg",
+    "assets/cats/all_ears.svg",
+    "assets/cats/dual_threat.svg",
+    "assets/cats/first_meow.svg",
+    "assets/cats/getting_warmed_up.svg",
+    "assets/cats/hard_mode_hero.svg",
+    "assets/cats/lie_detector.svg",
+    "assets/cats/lyric_lover.svg",
+    "assets/cats/lyric_streak.svg",
+    "assets/cats/persistent_listener.svg",
+    "assets/cats/poet_laureate.svg",
+    "assets/cats/purrfect_streak.svg",
+    "assets/cats/quack_collector.svg",
+    "assets/cats/silhouette.svg",
+    "assets/cats/speed_demon.svg",
+    "assets/sounds/quack.mp3",
+    "assets/icons/.gitkeep",
+    "test/scaffold/platform_config_test.dart",
+    "test/scaffold/assets_test.dart"
+   ],
+   "criteria": [
+    "7.1",
+    "7.2"
+   ],
+   "task": "Create the Flutter project skeleton for Swiftie Quiz at the repository root, for macOS and Windows only, next to the existing src/ and src-tauri/ (which stay untouched).\n\n1. Run `flutter create --platforms=macos,windows --org com.swiftiequiz --project-name swiftie_quiz <a new temporary directory outside the repo>`. Copy into the repo only: macos/, windows/, .metadata and analysis_options.yaml. Never copy its lib/main.dart, test/widget_test.dart, README.md or .gitignore; there is no lib/main.dart until a later Step.\n2. pubspec.yaml: name swiftie_quiz, description \"A Taylor Swift trivia game\", publish_to none, version 0.3.0+1, environment sdk ^3.13.0 and flutter >=3.47.5. Dependencies (latest versions that resolve with Flutter 3.47.5; these resolved on 2026-10-05: flutter_riverpod ^3.4.3, flutter_soloud ^5.1.6, flutter_svg ^2.3.0, window_manager ^0.5.2, http ^1.6.0, cryptography ^2.9.0, archive ^4.3.0, path ^1.9.1): flutter, flutter_riverpod, flutter_soloud, flutter_svg, window_manager, http, cryptography, archive, path, pub_semver, package_info_plus, intl, collection. dev_dependencies: flutter_test, flutter_lints, fake_async, yaml. flutter: uses-material-design true; assets: assets/cat/, assets/cats/, assets/icons/, assets/sounds/. Run `flutter pub get` and commit the resulting pubspec.lock. Nothing else in the project may edit pubspec.yaml later, so every package listed here must be present.\n3. analysis_options.yaml: include package:flutter_lints/flutter.yaml; analyzer language strict-casts, strict-inference and strict-raw-types true; exclude build/**; linter rules adding prefer_final_fields, prefer_final_locals, prefer_const_constructors, prefer_const_declarations, avoid_print, unawaited_futures, always_declare_return_types, require_trailing_commas.\n4. macOS identity: macos/Runner/Configs/AppInfo.xcconfig PRODUCT_NAME = Swiftie Quiz, PRODUCT_BUNDLE_IDENTIFIER = com.swiftiequiz.desktop, PRODUCT_COPYRIGHT = Copyright \u00a9 2026 Satanshu Mishra. Set MACOSX_DEPLOYMENT_TARGET = 12.0 in every build configuration of macos/Runner.xcodeproj/project.pbxproj . In both macos/Runner/DebugProfile.entitlements and macos/Runner/Release.entitlements set com.apple.security.app-sandbox to false and add com.apple.security.network.client true (keep DebugProfile's com.apple.security.cs.allow-jit and network.server). Info.plist keeps $(PRODUCT_NAME) and adds LSMinimumSystemVersion $(MACOSX_DEPLOYMENT_TARGET) if flutter create did not. App icon: generate every size of macos/Runner/Assets.xcassets/AppIcon.appiconset from src-tauri/icons/icon.icns (`iconutil -c iconset` then copy each size to the existing app_icon_<n>.png names).\n5. Windows identity: windows/CMakeLists.txt BINARY_NAME swiftie-quiz and project(swiftie_quiz). windows/runner/Runner.rc: CompanyName swiftiequiz, FileDescription Swiftie Quiz, InternalName swiftie-quiz, OriginalFilename swiftie-quiz.exe, ProductName Swiftie Quiz, LegalCopyright Copyright (C) 2026 Satanshu Mishra. windows/runner/main.cpp: window title \"Swiftie Quiz\", initial size 1024 x 800. Replace windows/runner/resources/app_icon.ico with src-tauri/icons/icon.ico.\n6. Assets: copy design/cat-v2/cat-icon-v2.svg to assets/cat/cat-icon.svg unchanged; copy each src/assets/cats/<name>.svg to assets/cats/<name>.svg and src/assets/sounds/quack.mp3 to assets/sounds/quack.mp3 unchanged; create assets/icons/.gitkeep (empty). Do not move or delete anything under src/.\n7. .gitignore: keep every existing line and append Flutter's standard ignores (.dart_tool/, .flutter-plugins-dependencies, /build/, /coverage/, *.iml, .idea/, macos/Flutter/ephemeral/, windows/flutter/ephemeral/, app.*.symbols, app.*.map.json).\n8. Tests. test/scaffold/platform_config_test.dart, in group \"platform identity matches the Tauri app\": read the files above with dart:io from the repo root and assert the values in points 4 and 5 (bundle id, product name, deployment target 12.0 everywhere it is set, sandbox false and network client true in both entitlements, BINARY_NAME swiftie-quiz, ProductName and FileDescription). test/scaffold/assets_test.dart, in group \"bundled assets match the design and the Tauri assets\": compute the SHA-256 of design/cat-v2/cat-icon-v2.svg, each src/assets/cats/*.svg and src/assets/sounds/quack.mp3 now (`shasum -a 256`), write those hex digests into the test as literals, and assert each bundled file under assets/ hashes to its literal (a later Step deletes src/, so the test must not read it); also assert pubspec.yaml (parsed with package:yaml) declares the four asset folders.\n9. Check: `flutter pub get`, `flutter test test/scaffold` and `flutter analyze --fatal-infos` succeed. Then prove the native project builds with every plugin: write a temporary lib/main.dart that imports package:flutter_soloud/flutter_soloud.dart, package:window_manager/window_manager.dart and package:package_info_plus/package_info_plus.dart and runs an empty app, run `flutter build macos --debug`, then delete lib/main.dart and the build/ folder output is ignored. If that build changed any file under macos/ or windows/ (plugin wiring), keep those changes; they are in your list. Leave no lib/main.dart behind; a later Step writes the real one.",
+   "complexity": "complex",
+   "msp": "foundation"
+  },
+  {
+   "name": "domain-models",
+   "files": [
+    "lib/domain/models/track.dart",
+    "lib/domain/models/progress.dart",
+    "lib/domain/models/game_types.dart",
+    "lib/domain/models/lyrics.dart",
+    "lib/domain/models/updater.dart",
+    "lib/domain/models/round_result.dart",
+    "lib/domain/models/achievement_def.dart",
+    "lib/domain/models/load_result.dart",
+    "lib/domain/models/backup_entry.dart",
+    "lib/data/http_identity.dart",
+    "test/domain/models/progress_test.dart"
+   ],
+   "criteria": [
+    "7.3"
+   ],
+   "task": "Also create lib/data/http_identity.dart with `String appUserAgent(String version) => 'SwiftieQuiz/$version (+https://github.com/SatanshuMishra/project-swiftee)';`, the User-Agent every network client sends (clients take the finished string in their constructor; the app builds it from package_info_plus).\n\nPort the data types of src/types/index.ts and the Rust models in src-tauri/src/models/ to pure Dart under lib/domain/models/ (no Flutter, dart:io or dart:ui imports). Every class is immutable: final fields, const constructors, copyWith, value equality (== and hashCode, using package:collection for lists and maps), and unmodifiable collections.\n\nFiles and contents:\n- track.dart: Artist(id, name), Album(id, title, coverMedium nullable), Track(id, title, titleShort, duration seconds, preview url, artist, album), AlbumTracks(tracks, totalTracks).\n- game_types.dart: enums GamePhase (menu, albumSelect, quizTypeSelect, lyricsModeSelect, difficultySelect, lyricsLoading, playing, catGallery, settings), GameMode (random, album), QuizType (sound, lyrics), LyricsMode (nameThatSong, lyricsOrLie), Difficulty (easy, medium, hard), ThemeSetting (dark, light, system). Each enum has a `wireName` matching the TypeScript string (\"album-select\", \"name-that-song\", \"lyrics-or-lie\", \"dark\", ...) and a `fromWireName` that returns null for unknown strings.\n- progress.dart: AchievementState(unlocked, unlockedAt nullable ISO string), GameStats(totalCorrect, albumsPlayed list of strings, tracksGuessedPerAlbum map of string to list of strings, totalLyricsCorrect, nameThaSongCorrect, lyricsOrLieCorrect), GameSettings(theme ThemeSetting, volume double, mediumTimer int, hardTimer int), UpdaterState(autoCheckEnabled, lastCheckedAt nullable, skippedVersions, remindLaterUntil nullable), GameProgress(version, achievements map, stats, settings, updater), and `const defaultProgress` equal to DEFAULT_PROGRESS (version 3, empty achievements, zero stats, theme dark, volume 0.8, mediumTimer 30, hardTimer 20, autoCheckEnabled true, lastCheckedAt null, skippedVersions empty, remindLaterUntil null). fromJson/toJson use the exact camelCase keys of save.json, including the historical misspelling nameThaSongCorrect. fromJson applies the serde defaults of src-tauri/src/models/progress.rs: missing totalLyricsCorrect, nameThaSongCorrect and lyricsOrLieCorrect become 0; missing mediumTimer 30 and hardTimer 20; missing updater becomes the default updater state; an unknown theme string becomes dark. toJson writes every field (nulls included) in the key order of the Rust structs so a pretty-printed file matches Tauri's output.\n- lyrics.dart: TrackLyrics(lrclibId, lines, lineCount, sourceTrack, sourceAlbum), TrackWithLyrics(track, lyrics), LyricSnippet(lines, sourceLineIndices), DecoyResult(lines, isReal, sourceSong nullable), LrcLine(timeSeconds, text), DangerZone(start, end) as in src/lib/lrclib.ts.\n- updater.dart: UpdateManifest(version, notes, pubDate) and a sealed class UpdaterMachineState with subclasses UpdaterIdle, UpdaterChecking, UpdaterUpToDate, UpdaterAvailable(manifest), UpdaterDownloading(manifest, progress int 0-100), UpdaterReady(manifest), UpdaterInstalling, UpdaterInstalled(manifest), UpdaterError(subtype: enum UpdaterErrorSubtype check, download, signature, install; message).\n- round_result.dart: RoundResult(correct, correctTrack, answeredTrackId nullable, answeredText nullable, timeElapsed, usedFullClip).\n- achievement_def.dart: AchievementDef(id, name, description, catFile).\n- load_result.dart: sealed LoadResult with LoadFresh, LoadLoaded(progress), LoadMigrated(progress, fromVersion nullable int).\n- backup_entry.dart: BackupEntry(timestamp int seconds, path, sizeBytes).\n\nTest test/domain/models/progress_test.dart, group \"progress json matches the Tauri save format\": defaultProgress.toJson() deep-equals the JSON of DEFAULT_PROGRESS written out literally in the test; fromJson of the v1 save literal used in src-tauri/src/storage/load.rs tests (version 1, stats with only totalCorrect 7, settings theme dark volume 0.8) gives the defaults listed above for the missing fields; fromJson(toJson(x)) == x for a populated progress with achievements, albums, tracks, skipped versions and timestamps; port every case of the progress.rs #[cfg(test)] module; and enum wireName/fromWireName round trips for every value.",
+   "complexity": "complex",
+   "after": [
+    "flutter-scaffold"
+   ],
+   "msp": "foundation"
+  },
+  {
+   "name": "ui-foundation",
+   "files": [
+    "lib/ui/theme/app_tokens.dart",
+    "lib/ui/theme/app_theme.dart",
+    "lib/ui/theme/app_motion.dart",
+    "lib/ui/widgets/screen_background.dart",
+    "lib/ui/widgets/back_link.dart",
+    "lib/ui/widgets/selection_card.dart",
+    "lib/ui/widgets/app_icon.dart",
+    "lib/ui/widgets/swiftie_logo.dart",
+    "lib/ui/widgets/primary_button.dart",
+    "lib/ui/widgets/entrance.dart",
+    "assets/icons/music.svg",
+    "assets/icons/album.svg",
+    "assets/icons/award.svg",
+    "assets/icons/settings.svg",
+    "assets/icons/arrow-left.svg",
+    "assets/icons/volume-2.svg",
+    "assets/icons/book-open.svg",
+    "assets/icons/eye.svg",
+    "assets/icons/zap.svg",
+    "assets/icons/flame.svg",
+    "assets/icons/skull.svg",
+    "assets/icons/play.svg",
+    "assets/icons/pause.svg",
+    "assets/icons/check.svg",
+    "assets/icons/x.svg",
+    "assets/icons/lock.svg",
+    "assets/icons/moon.svg",
+    "assets/icons/sun.svg",
+    "assets/icons/monitor.svg",
+    "assets/icons/clock.svg",
+    "assets/icons/trash-2.svg",
+    "assets/icons/bell.svg",
+    "assets/icons/archive.svg",
+    "assets/icons/cake.svg",
+    "assets/icons/sparkles.svg",
+    "assets/icons/download.svg",
+    "assets/icons/loader-circle.svg",
+    "assets/icons/circle-alert.svg",
+    "assets/icons/refresh-ccw.svg",
+    "test/ui/theme/app_tokens_test.dart",
+    "test/ui/widgets/app_icon_test.dart",
+    "test/ui/widgets/swiftie_logo_test.dart",
+    "test/ui/widgets/selection_card_test.dart"
+   ],
+   "criteria": [
+    "7.4",
+    "7.5"
+   ],
+   "task": "Build the shared visual system every screen uses, ported exactly from the React app's Tailwind v4 styling (src/styles/index.css, the components in src/components/ and Tailwind 4.3.3 defaults).\n\n- lib/ui/theme/app_tokens.dart: a ThemeExtension<AppTokens> with background, foreground, card, muted, mutedForeground, border, primary, primaryForeground, destructive, correct, incorrect, and `static const dark` and `static const light` instances. Values: convert each oklch(...) in index.css with the CSS Color 4 OKLCH to sRGB formula and round each channel to the nearest integer (dark: background oklch(0.145 0 0) -> #0A0A0A, foreground oklch(0.985 0 0) -> #FAFAFA, card oklch(0.18 0 0), muted oklch(0.269 0 0), muted-foreground oklch(0.708 0 0), border oklch(0.269 0 0), primary oklch(0.985 0 0), primary-foreground oklch(0.205 0 0), destructive #ef4444, correct #22c55e, incorrect #ef4444; light: background #ffffff, foreground #030213, card #ffffff, muted #ececf0, muted-foreground #717182, border rgba(0,0,0,0.1), primary #030213, primary-foreground #ffffff, destructive #dc2626, correct #16a34a, incorrect #dc2626). Add `withOpacity`-free helpers for Tailwind's `/20` style modifiers (mix in oklab as Tailwind v4 does with color-mix, or alpha when the token is opaque). Also the fixed palette used across components: brand #E97F6A; the 135 degree gradient pairs violet #8b5cf6 to #6366f1, pink #ec4899 to #f43f5e, orange #f97316 to #eab308, cyan #06b6d4 to #3b82f6, green #22c55e to #16a34a; difficulty easy #22c55e to #16a34a, medium #f97316 to #ea580c, hard #ef4444 to #dc2626; purple-500 to pink-500 for play and progress; Tailwind colours used directly (red, green, orange, purple, violet, blue, emerald, yellow at the shades the components use).\n- lib/ui/theme/app_theme.dart: ThemeData builders for dark and light carrying AppTokens, the platform system font (no fontFamily override), and a text scale matching Tailwind (xs 12/16, sm 14/20, base 16/24, lg 18/28, xl 20/28, 2xl 24/32, 3xl 30/36, 4xl 36/40, 5xl 48/48) with the heading weights of index.css. Radii constants md 6, lg 8, xl 12, 2xl 16; shadow lists sm, lg, xl, 2xl with Tailwind's values. Slider and checkbox themes follow Chromium's default form controls as WebView2 draws them (accent #0075FF, white thumb border, light grey track), because the Windows look wins where the web engine drew the control.\n- lib/ui/theme/app_motion.dart: the spring used everywhere (stiffness 300, damping 30, mass 1) as a SpringDescription, Motion's defaults for elements without their own transition (x, y and rotate: stiffness 500, damping 25; scale: stiffness 550, damping 30; opacity: 300 ms cubic-bezier(0.25, 0.1, 0.35, 1)), duration-only tweens with ease-in-out cubic-bezier(0.42, 0, 0.58, 1), CSS transition defaults (150 ms cubic-bezier(0.4, 0, 0.2, 1)) and the 300 ms card transition.\n- lib/ui/widgets/entrance.dart: a widget that animates its child in from an offset (x or y in logical pixels), opacity and scale with a spring and a delay, reproducing Motion's initial/animate entrances, and optional hover and tap scale (whileHover, whileTap) that reuse the entrance's transition and delay as Motion does.\n- lib/ui/widgets/screen_background.dart: full-size bottom-right gradient from background to muted at 20 percent, scrollable content as the React screens' min-h-screen layout.\n- lib/ui/widgets/back_link.dart: the ArrowLeft 16 px icon plus label in 14/20 muted-foreground text that turns foreground on hover, entering from x -10.\n- lib/ui/widgets/selection_card.dart: the shared selection card of MainMenu MenuCard, QuizTypeSelect TypeCard, LyricsModeSelect ModeCard (and the base of DifficultySelect cards): rounded 16, card background, 1 px border, padding 32, gap 16, icon badge rounded 12 with padding 12 and the 135 degree gradient and a white 24 px icon, title 18/28 weight 600, description 14/20 muted; on hover the gradient overlay at 10 percent opacity, border primary at 50 percent and the xl shadow over 300 ms; hover scale 1.02 and tap 0.98; optional disabled state with reason text in yellow-500.\n- lib/ui/widgets/app_icon.dart: an enum LucideGlyph with one value per asset in assets/icons/ and an AppIcon(glyph, size, color, strokeWidth 2) widget drawing it with flutter_svg, tinted to the colour.\n- assets/icons/*.svg: the 29 Lucide icons (music, album, award, settings, arrow-left, volume-2, book-open, eye, zap, flame, skull, play, pause, check, x, lock, moon, sun, monitor, clock, trash-2, bell, archive, cake, sparkles, download, loader-circle (React's Loader2), circle-alert (React's AlertCircle), refresh-ccw), taken from the lucide-static package at the version of lucide-react in package-lock.json (`npm pack lucide-static@<that version>` in a temporary directory; if that exact version does not exist, use the lucide-static release with the same icon geometry, and if neither is reachable extract the icon node arrays from lucide-react's ESM build of that version). Keep the 24 x 24 viewBox, stroke currentColor, stroke-width 2, round caps and joins, and remove comments and license headers from each file.\n- lib/ui/widgets/swiftie_logo.dart: SwiftieLogo(size default 80): the 64-unit viewBox logo of src/components/SwiftieLogo.tsx (circle #E97F6A, white note from the rect and circle elements there) drawn with a CustomPainter, excluded from semantics.\n- lib/ui/widgets/primary_button.dart: the primary button used for Start Quiz, Next, Submit and Restart (primary background, primary-foreground text, rounded 12, padding and text sizes from those components, disabled at 50 percent opacity).\n\nTests: test/ui/theme/app_tokens_test.dart group \"tokens match index.css\" asserts every dark and light token value above as ARGB. test/ui/widgets/app_icon_test.dart group \"every lucide icon the UI uses is bundled\" asserts each LucideGlyph has an asset, that it parses with flutter_svg, and that AppIcon renders at 16 and 24 px. test/ui/widgets/swiftie_logo_test.dart group \"swiftie logo parity\" ports src/components/SwiftieLogo.test.tsx. test/ui/widgets/selection_card_test.dart covers tap, hover overlay and the disabled reason.",
+   "complexity": "complex",
+   "after": [
+    "flutter-scaffold"
+   ],
+   "msp": "foundation"
+  },
+  {
+   "name": "cat-v2",
+   "files": [
+    "lib/ui/cat/cat_icon.dart",
+    "lib/ui/cat/cat_icon_button.dart",
+    "lib/ui/cat/cat_loader.dart",
+    "lib/ui/cat/cat_loader_geometry.dart",
+    "lib/ui/cat/loading_gate.dart",
+    "test/ui/cat/cat_loader_geometry_test.dart",
+    "test/ui/cat/cat_loader_test.dart",
+    "test/ui/cat/cat_icon_button_test.dart",
+    "test/ui/cat/loading_gate_test.dart"
+   ],
+   "criteria": [
+    "7.6",
+    "7.7",
+    "7.8"
+   ],
+   "task": "Build the improved cat in Flutter from the Claude Design review saved in design/cat-v2/: the static icon (cat-icon-v2.svg, already bundled as assets/cat/cat-icon.svg) and the animated loader (cat-loader-v2.js). This replaces src/components/CatIconButton.tsx's inline SVG and src/components/CatLoader.tsx with CatLoader.css. Do not depend on lib/ui/theme or lib/ui/widgets (another Step builds them at the same time); take colours and text styles as parameters with the defaults below.\n\n- lib/ui/cat/cat_icon.dart: CatIcon(height) draws assets/cat/cat-icon.svg with flutter_svg at width height/2 and the given height, excluded from semantics.\n- lib/ui/cat/cat_icon_button.dart: CatIconButton(onTap, size default 44): a button with a hit area of at least 44 x 44 containing CatIcon(height: size), semantics label \"Open birthday card\", mouse cursor click. Hover and tap animations are the caller's (the main menu wraps it), so the button itself does not scale.\n- lib/ui/cat/cat_loader_geometry.dart: a pure port of the math in cat-loader-v2.js: constants (palette dark #3B2F2F, cream #F5E5D4, belly #FBF0E6, eye #6FA8DC, pink #D4A0A0, line #EBE9E9; DUR 2740 ms; RC 90; HALF 24; K 0.8; TH_EAR -72; EAR_DIP 4.6), the SPIN and BODY keyframe tables, the monotone cubic Hermite `spline` exactly as written (padding with wrapped neighbours, the tangent limiting with tau = 3 / sqrt(s) when s > 9), `spin(p)` and `bodyEnd(p)`, `pol`, `angY`, `backA`, the 25-point front edge, the silhouette path for a body-end angle, the tummy arc, back-paw placement, tail arc and tip, and tail line, all in the JS's 240 x 240 coordinate space with viewBox -30 -30 300 300. Return dart:ui Path objects and transforms, or plain records, so the painter only draws.\n- lib/ui/cat/cat_loader.dart: CatLoader(size: CatLoaderSize.lg or sm, label nullable, labelStyle default 14 px, height 20/14, weight 500, colour #A1A1A1, px override nullable, phase override nullable for tests). A CustomPainter draws exactly the elements of `markup` in the JS for the lg and sm variants (outline 10 vs 16, the lg face with fanned whiskers and mouth circles vs the sm face with thick whiskers and bigger eyes, toes and tail line only on lg), painting the silhouette stroke behind its fill as paint-order stroke does, with miter joins. An AnimationController loops every 2740 ms and every 6850 ms when MediaQuery.disableAnimationsOf(context) is true; it stops when disposed. Layout: lg puts 300 x 300 art centred in a 480 x 360 box; sm is an 80 x 80 box; px overrides both to px x px; the label sits 16 px below the box only when it is non-empty.\n- lib/ui/cat/loading_gate.dart: port src/components/LoadingGate.tsx: while loading show CatLoader(size, label) fading in over 300 ms; when loading ends, fade it out with scale 0.95 over 300 ms, then show the child and call onReady once after the exit finishes.\n\nTests:\n- test/ui/cat/cat_loader_geometry_test.dart, group \"loader spline matches the design keyframes\": spin and bodyEnd equal the keyframe values at keyframe times, and match reference values at p = 0, 0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.65, 0.8, 0.9, 0.99 within 0.01. Produce the reference values by running the JS spline with node (copy the spline function and tables from design/cat-v2/cat-loader-v2.js into a throwaway script outside the repo) and write the numbers into the test as literals.\n- test/ui/cat/cat_loader_test.dart, group \"cat loader follows the v2 design\": box sizes for lg (480 x 360 with 300 x 300 art), sm (80 x 80) and px; the label present only when non-empty, 16 px below, 14 px weight 500; the controller duration 2740 ms and 6850 ms under disableAnimations; the painter paints without exceptions at the phases above for both sizes.\n- test/ui/cat/cat_icon_button_test.dart, group \"cat icon button uses the v2 icon\": it shows an SvgPicture of assets/cat/cat-icon.svg sized size/2 x size, hit area at least 44 x 44, semantics label, tap callback; port the cases of src/components/CatIconButton.test.tsx that still apply.\n- test/ui/cat/loading_gate_test.dart, group \"loading gate parity\": every case of src/components/LoadingGate.test.tsx.",
+   "complexity": "complex",
+   "after": [
+    "flutter-scaffold"
+   ],
+   "msp": "foundation"
+  },
+  {
+   "name": "engine-quiz",
+   "files": [
+    "lib/domain/engine/game_engine.dart",
+    "lib/domain/engine/option_generator.dart",
+    "lib/domain/engine/answer_matcher.dart",
+    "lib/domain/engine/achievements.dart",
+    "lib/domain/engine/relisten_schedule.dart",
+    "lib/domain/util/levenshtein.dart",
+    "lib/domain/util/shuffle.dart",
+    "lib/domain/util/birthday.dart",
+    "test/domain/engine/game_engine_test.dart",
+    "test/domain/engine/option_generator_test.dart",
+    "test/domain/engine/answer_matcher_test.dart",
+    "test/domain/engine/achievements_test.dart",
+    "test/domain/engine/relisten_schedule_test.dart",
+    "test/domain/util/levenshtein_test.dart",
+    "test/domain/util/shuffle_test.dart",
+    "test/domain/util/birthday_test.dart"
+   ],
+   "criteria": [
+    "7.9"
+   ],
+   "task": "Port the quiz rules to pure Dart (no Flutter, dart:io or dart:ui imports), one file per TypeScript module, keeping every constant, threshold and string exactly:\n- src/engine/gameEngine.ts -> lib/domain/engine/game_engine.dart (createTrackPool, drawNextTrack)\n- src/engine/optionGenerator.ts -> lib/domain/engine/option_generator.dart (generateOptions)\n- src/engine/answerMatcher.ts -> lib/domain/engine/answer_matcher.dart (normalizeTitle, checkAnswer)\n- src/engine/achievements.ts -> lib/domain/engine/achievements.dart (achievementDefs as a const list of AchievementDef and every evaluation helper the file exports)\n- src/engine/relistenSchedule.ts -> lib/domain/engine/relisten_schedule.dart (schedule 10, 10, 15, 15, 20, 20 seconds, fullClipThreshold 7, firstEscalationRelisten 3, getRelistenSlice)\n- src/lib/levenshtein.ts -> lib/domain/util/levenshtein.dart; src/lib/shuffle.ts -> lib/domain/util/shuffle.dart; src/lib/birthday.ts -> lib/domain/util/birthday.dart.\nUse the models in lib/domain/models/ (Track, Album, AchievementDef, Difficulty and the rest). Wherever the TypeScript calls Math.random or Date, take a `Random` and a `DateTime now` parameter (defaulting to `Random()` and the caller's clock) so tests are deterministic. birthday.ts keeps its \"shown this session\" flag in sessionStorage: port it as pure functions isBirthdayPeriod(now), shouldAutoShowBirthdayCard(now, shownThisSession) with the same cutoff (2026-02-19 23:59:59.999 local time); the flag itself is state owned by the app, not this file.\nTests: port every case of each TypeScript test file into the matching Dart test file, each inside a group named exactly as listed: test/domain/engine/game_engine_test.dart \"game engine parity\" (src/engine/gameEngine.test.ts), option_generator_test.dart \"option generator parity\", answer_matcher_test.dart \"answer matcher parity\", achievements_test.dart \"achievements parity\", relisten_schedule_test.dart \"relisten schedule parity\", test/domain/util/levenshtein_test.dart \"levenshtein parity\", shuffle_test.dart \"shuffle parity\", birthday_test.dart \"birthday parity\".",
+   "complexity": "complex",
+   "after": [
+    "domain-models"
+   ],
+   "msp": "logic-and-data"
+  },
+  {
+   "name": "engine-lyrics-clips",
+   "files": [
+    "lib/domain/engine/clip_selector.dart",
+    "lib/domain/engine/lyric_processor.dart",
+    "test/domain/engine/clip_selector_test.dart",
+    "test/domain/engine/lyric_processor_test.dart"
+   ],
+   "criteria": [
+    "7.10"
+   ],
+   "task": "Port src/engine/clipSelector.ts to lib/domain/engine/clip_selector.dart and src/engine/lyricProcessor.ts to lib/domain/engine/lyric_processor.dart as pure Dart (no Flutter, dart:io or dart:ui imports), keeping every constant, weight and string exactly (FRAME_SIZE_SEC 0.25, STEP_SIZE_SEC 0.5, DEFAULT_SLICE_DURATION 10, the Gaussian centre bias, the danger-zone penalty, ERA_GROUPS, chorus detection, snippet extraction, sanitising, contiguous block picking, decoy-or-real selection).\nclip_selector.dart takes decoded audio as `ClipAudio(Float32List samples, int sampleRate, double durationSeconds)` instead of a Web Audio AudioBuffer; computeRmsProfile reads `samples` exactly as the TypeScript reads channel 0. selectClipStart and selectClipStartWithFallback take the ClipAudio, the List<DangerZone> from lib/domain/models/lyrics.dart and a Random (for the fallback), and return the start in seconds; the fallback returns random * max(0, duration - 10) when selection throws. lyric_processor.dart uses TrackLyrics, LyricSnippet and DecoyResult from lib/domain/models/lyrics.dart and takes a Random wherever the TypeScript calls Math.random.\nTests: port every case of src/engine/clipSelector.test.ts into test/domain/engine/clip_selector_test.dart inside group \"clip selector parity\" (build Float32List inputs where the TypeScript builds AudioBuffer mocks), and every case of src/engine/lyricProcessor.test.ts into test/domain/engine/lyric_processor_test.dart inside group \"lyric processor parity\".",
+   "complexity": "complex",
+   "after": [
+    "domain-models"
+   ],
+   "msp": "logic-and-data"
+  },
+  {
+   "name": "data-catalog",
+   "files": [
+    "lib/data/catalog/deezer_client.dart",
+    "lib/data/catalog/deezer_json.dart",
+    "lib/data/catalog/track_filter.dart",
+    "lib/data/catalog/response_cache.dart",
+    "lib/data/catalog/rate_limiter.dart",
+    "lib/data/catalog/catalog_error.dart",
+    "test/data/catalog/deezer_client_test.dart",
+    "test/data/catalog/track_filter_test.dart",
+    "test/data/catalog/rate_limiter_test.dart",
+    "test/fixtures/deezer/artist_albums_page1.json",
+    "test/fixtures/deezer/artist_albums_page2.json",
+    "test/fixtures/deezer/album.json",
+    "test/fixtures/deezer/artist_top.json",
+    "test/fixtures/deezer/track.json",
+    "test/fixtures/deezer/quota_error.json"
+   ],
+   "criteria": [
+    "7.11",
+    "7.12",
+    "7.13",
+    "7.14"
+   ],
+   "task": "Port the Deezer catalog client (src-tauri/src/services/deezer_client.rs, track_filter.rs, rate_limiter.rs, cache.rs, src-tauri/src/commands/deezer.rs and the Track/Album serde mapping in src-tauri/src/models/track.rs) to Dart under lib/data/catalog/, keeping Deezer as the provider, and fix the four reliability defects research found on 2026-10-05.\n\n- lib/data/catalog/catalog_error.dart: a sealed CatalogError with the user-facing messages of src-tauri/src/models/error.rs: RateLimited \"Taking a breather \u2014 try again in a moment.\", NetworkError \"Network error: <detail>\", ApiError \"API error: <detail>\", ParseError \"Parse error: <detail>\".\n- lib/data/catalog/deezer_json.dart: parse Deezer JSON into the models of lib/domain/models/track.dart exactly as models/track.rs does (title_short, cover_medium, nested artist and album, missing cover -> null).\n- lib/data/catalog/track_filter.dart: isPlayableSong(track) as track_filter.rs (MIN_DURATION_SECS 60, REMIX_PATTERNS, NON_SONG_PATTERNS, title_version handling, case-insensitive).\n- lib/data/catalog/rate_limiter.dart: 50 tokens refilled every 60 s, using an injected clock; acquiring with no token throws RateLimited.\n- lib/data/catalog/response_cache.dart: in-memory cache keyed by string whose entries carry an optional expiry; a lookup past expiry misses.\n- lib/data/catalog/deezer_client.dart: DeezerClient({http.Client client, String userAgent, DateTime Function() now}) with base https://api.deezer.com, artist id 12246, a 10 s timeout and the userAgent (built with appUserAgent from lib/data/http_identity.dart) as the User-Agent header on every request. fetchAlbums(): GET /artist/12246/albums?limit=100, then follow every `next` URL (only https://api.deezer.com URLs) and concatenate pages in order; cached under \"albums\" with no expiry. fetchAlbumTracks(albumId): albumId 0 -> ApiError \"Invalid album ID\"; GET /album/{id}; inject the album (id, title, cover_medium) into each track; keep playable songs; totalTracks = number kept; cache under \"album_tracks:<id>\". fetchTopTracks(): GET /artist/12246/top?limit=100, keep playable songs, cache under \"top_tracks\". refreshTrack(trackId): GET /track/{id}, never cached, returns the Track with its current preview link. Every request first takes a rate-limiter token. Every response body is checked: a JSON object with an `error` key is a failure (code 4 -> RateLimited, otherwise ApiError with error.message) and is never cached, even with HTTP 200. Preview expiry: a preview URL's `hdnea` query value contains `exp=<unix seconds>`; a cached track list expires at the earliest exp among its tracks minus 60 s (no exp -> 10 minutes after caching).\n- Fixtures under test/fixtures/deezer/: page 1 with 100 albums and a next link, page 2 with 18 albums and no next link, an album with tracks including non-songs and remixes, top tracks, one track, and a quota error body {\"error\":{\"type\":\"Exception\",\"message\":\"Quota limit exceeded\",\"code\":4}}. Preview URLs in fixtures use https://cdnt-preview.dzcdn.net/api/1/1/x/y/z/0/abc.mp3?hdnea=exp=<n>~acl=/api/1/1/x/y/z/0/abc.mp3*~data=user_id=0,application_id=42~hmac=00.\nTests with package:http/testing.dart MockClient and a fake clock: test/data/catalog/deezer_client_test.dart groups \"albums follow the next link\" (118 albums, two requests, order kept), \"deezer error bodies are failures\" (quota with HTTP 200 -> RateLimited message, other error -> ApiError, nothing cached so a retry requests again), \"cached tracks expire with their preview token\" (served from cache before exp - 60 s, refetched after; refreshTrack requests /track/{id}); plus the parity cases of deezer_client.rs and commands/deezer.rs. test/data/catalog/track_filter_test.dart group \"track filter parity\" ports every track_filter.rs test. test/data/catalog/rate_limiter_test.dart group \"rate limiter parity\" ports rate_limiter.rs tests and adds refill after 60 s.",
+   "complexity": "complex",
+   "after": [
+    "domain-models"
+   ],
+   "msp": "logic-and-data"
+  },
+  {
+   "name": "data-lyrics",
+   "files": [
+    "lib/data/lyrics/lrclib_client.dart",
+    "lib/data/lyrics/lyrics_error.dart",
+    "lib/data/lyrics/danger_zones.dart",
+    "test/data/lyrics/lrclib_client_test.dart",
+    "test/data/lyrics/danger_zones_test.dart"
+   ],
+   "criteria": [
+    "7.15",
+    "7.16"
+   ],
+   "task": "Port the LRCLIB lyrics code to Dart under lib/data/lyrics/, keeping LRCLIB as the provider. Every client takes its User-Agent string in its constructor; the string is built with appUserAgent from lib/data/http_identity.dart.\n\n- lib/data/lyrics/lyrics_error.dart: sealed LyricsError with the messages of src-tauri/src/models/error.rs: LyricsNotFound \"Lyrics not found for this track.\", LyricsUnavailable \"Lyrics service unavailable \u2014 try again later.\", LyricsMalformed \"Lyrics response malformed.\".\n- lib/data/lyrics/lrclib_client.dart: LrclibClient({http.Client client, String userAgent, Future<void> Function(Duration) delay, DateTime Function() now}) porting src-tauri/src/services/lrclib_client.rs and src-tauri/src/commands/lyrics.rs: fetchLyrics(track) tries GET https://lrclib.net/api/get with track_name, artist_name, album_name and duration, then GET /api/search with the normalised title (normalise_title) and artist and picks the result whose rounded duration is closest; processPlainLyrics as process_plain_lyrics; returns TrackLyrics from lib/domain/models/lyrics.dart; 10 s timeout; maps failures to LyricsError as the Rust code does. fetchLyricsBatch(tracks) fetches five at a time concurrently and returns a map from track id to TrackLyrics or null, as fetch_lyrics_batch. Every request sends the User-Agent. On HTTP 429 it waits the Retry-After header's seconds (default 1, at most 10) through the injected delay and retries that request once; it never parses a 429 body.\n- lib/data/lyrics/danger_zones.dart: port src/lib/lrclib.ts entirely: parseLrc, estimatePreviewOffset, the title-word extraction with STOP_WORDS, lineContainsTitle, mergeZones, findTitleDangerZones (DANGER_ZONE_PADDING_S 1.5), the 100-entry cache, buildCacheKey, fetchDangerZones(title, artistName, titleShort, songDurationSeconds) with a 2 s timeout that returns an empty list on any failure, and clearDangerZoneCache. Use LrcLine and DangerZone from lib/domain/models/lyrics.dart. Make the cache an instance field of a DangerZoneService class constructed with the http.Client and the userAgent, so tests are isolated.\nTests with MockClient and fake delay/clock: test/data/lyrics/lrclib_client_test.dart group \"lrclib client parity\" ports every test in lrclib_client.rs and commands/lyrics.rs plus exact-then-search order, closest-duration choice and five-at-a-time batching; group \"lrclib 429 honours retry-after\" asserts a 429 with Retry-After 2 waits 2 s then retries once and a second 429 fails with LyricsUnavailable. test/data/lyrics/danger_zones_test.dart group \"danger zones parity\" ports every case of src/lib/lrclib.test.ts.",
+   "complexity": "complex",
+   "after": [
+    "domain-models"
+   ],
+   "msp": "logic-and-data"
+  },
+  {
+   "name": "save-store",
+   "files": [
+    "lib/data/save/save_location.dart",
+    "lib/data/save/save_store.dart",
+    "lib/data/save/migrations.dart",
+    "lib/data/save/save_error.dart",
+    "test/data/save/save_location_test.dart",
+    "test/data/save/save_store_test.dart",
+    "test/data/save/migrations_test.dart"
+   ],
+   "criteria": [
+    "7.17",
+    "7.18"
+   ],
+   "task": "Port the save file storage of src-tauri/src/storage/ (load.rs, save.rs, backup.rs, migrations.rs) and src-tauri/src/commands/storage.rs to Dart under lib/data/save/, writing the same file in the same place so existing players keep their progress.\n\n- save_location.dart: saveFilePath({required bool isMacOS, required Map<String, String> environment}) returns `<HOME>/Library/Application Support/com.swiftiequiz.desktop/save.json` on macOS and `<APPDATA>\\com.swiftiequiz.desktop\\save.json` on Windows (these are Tauri's app_data_dir for identifier com.swiftiequiz.desktop); a missing variable throws SaveError. A `defaultSaveFilePath()` passes Platform.isMacOS and Platform.environment.\n- save_error.dart: SaveError with the messages of src-tauri/src/models/error.rs: \"File error: <detail>\", \"Parse error: <detail>\", \"Missing migration step from version <n>\", \"Save file is from a newer version (v<n>) than this app supports\".\n- migrations.dart: currentSaveVersion 3 and the v1 -> v2 and v2 -> v3 steps on decoded JSON maps exactly as migrations.rs (missing version counts as 1; v2 -> v3 does not overwrite an existing updater object).\n- save_store.dart: SaveStore(File saveFile, DateTime Function() now). load() returns the LoadResult types of lib/domain/models/load_result.dart as load_and_migrate does: LoadFresh when the file is missing; LoadLoaded when version equals 3; when older, copy the file to a backup first, migrate, write it back and return LoadMigrated with fromVersion (null when the version field was missing or not a number); when newer, throw the newer-version SaveError. save(progress) writes pretty-printed JSON (two-space indent, GameProgress.toJson from lib/domain/models/progress.dart) to save.json.tmp and renames it over save.json, creating the folder if needed. Backups: save.backup.<unix seconds>.json beside the save, at most 3 kept (oldest deleted, a failed delete ignored), listBackups() newest first as BackupEntry, restoreBackup(timestamp) copies the backup to save.json.tmp and renames it over save.json, and fails when the backup is missing.\nTests on temporary directories: test/data/save/save_location_test.dart group \"save path matches the Tauri app data directory\" (HOME=/Users/a gives /Users/a/Library/Application Support/com.swiftiequiz.desktop/save.json; APPDATA=C:\\Users\\a\\AppData\\Roaming gives C:\\Users\\a\\AppData\\Roaming\\com.swiftiequiz.desktop\\save.json; missing variable throws). test/data/save/save_store_test.dart group \"save store parity\" ports every test of load.rs, save.rs and backup.rs. test/data/save/migrations_test.dart group \"migrations parity\" ports every test of migrations.rs.",
+   "complexity": "complex",
+   "after": [
+    "domain-models"
+   ],
+   "msp": "logic-and-data"
+  },
+  {
+   "name": "updater-protocol",
+   "files": [
+    "lib/services/updater/update_config.dart",
+    "lib/services/updater/update_manifest_client.dart",
+    "lib/services/updater/minisign.dart",
+    "lib/services/updater/update_downloader.dart",
+    "lib/services/updater/update_installer.dart",
+    "test/services/updater/update_manifest_client_test.dart",
+    "test/services/updater/minisign_test.dart",
+    "test/services/updater/update_installer_test.dart",
+    "test/fixtures/updater/latest.json",
+    "test/fixtures/updater/artifact.bin",
+    "test/fixtures/updater/artifact.bin.sig",
+    "test/fixtures/updater/test_key.pub"
+   ],
+   "criteria": [
+    "7.19",
+    "7.20",
+    "7.21"
+   ],
+   "task": "Re-implement in Dart the parts of the Tauri updater (tauri-plugin-updater 2.13) that the app uses, so the Flutter app reads the same update channel, trusts the same key and installs the same artifact types. Pure parts go in lib/services/updater/ with injected collaborators.\n\n- update_config.dart: the endpoint `https://github.com/SatanshuMishra/project-swiftee/releases/latest/download/latest.json`; the public key as exactly one line `const updaterPublicKey = '<the base64 string copied exactly from src-tauri/tauri.conf.json plugins.updater.pubkey>';` (the release workflow reads this declaration with a regular expression, so keep that exact shape, single quotes, one line); the platform keys darwin-aarch64 (macOS) and windows-x86_64 (Windows), and the running version from package_info_plus passed in by callers.\n- update_manifest_client.dart: fetch latest.json with the injected http.Client (10 s timeout, the userAgent string passed to its constructor), parse version, notes, pub_date and platforms.<key>.{url, signature}; pick the platform for the running OS (injected); return an AvailableUpdate (UpdateManifest from lib/domain/models/updater.dart plus url and signature) only when pub_semver says the remote version is strictly greater than the running version, else null. Port the version cases of src-tauri/src/lib.rs (0.2.0 rejects 0.2.0 and 0.1.5, accepts 0.2.1, 0.3.0, 1.0.0).\n- minisign.dart: verify(bytes, signatureText, publicKeyText). The Tauri formats are base64 of the minisign text files. Public key: decode, take the second line, base64-decode to 42 bytes: \"Ed\" + 8-byte key id + 32-byte Ed25519 key. Signature: decode, line 2 base64 -> 74 bytes: algorithm \"ED\" (prehashed, BLAKE2b-512 of the file) or \"Ed\" (raw) + key id + 64-byte signature; line 3 \"trusted comment: ...\"; line 4 global signature over (signature bytes + trusted comment text). Accept only when the key ids match, the file signature verifies and the global signature verifies. Use package:cryptography (Ed25519, Blake2b).\n- update_downloader.dart: stream the artifact with progress callbacks (Started with content length, Progress with chunk length, Finished), verify it with minisign before returning the bytes, and raise a signature error the controller can tell apart from a download error.\n- update_installer.dart: an UpdateInstaller interface with install(bytes) and relaunch(). MacUpdateInstaller(bundlePath, temp dir provider, process runner): unpack the .app.tar.gz with package:archive into a temporary folder skipping each entry's first path component (as tauri-plugin-updater does), rename the running bundle into a temporary backup folder, move the unpacked bundle to the bundle path, restore the backup if the move fails; when the rename fails with permission denied, run `osascript -e 'do shell script \"rm -rf <bundle> && mv -f <new> <bundle>\" with administrator privileges'` as Tauri does. relaunch() runs `open -n <bundle>` then exits the process. The bundle path is found from Platform.resolvedExecutable (\u2026/Swiftie Quiz.app/Contents/MacOS/<exe> -> \u2026/Swiftie Quiz.app). WindowsUpdateInstaller(temp dir, process starter, exit): write the bytes to `<temp>/Swiftie Quiz-<version>-installer.exe`, start it detached with arguments [\"/P\", \"/UPDATE\", \"/R\", \"/ARGS\"] (the order Tauri's updater uses in passive mode with restart), then exit(0); relaunch() is not needed on Windows because the installer relaunches the app. Expose the Windows argument list through a pure function so it can be tested on macOS.\n- Fixtures: generate a throwaway key pair and signature with the Tauri CLI signer in a temporary directory: `npx --yes @tauri-apps/cli@2.12.1 signer generate --ci -w <tmp>/key` (empty password) and `npx --yes @tauri-apps/cli@2.12.1 signer sign -f <tmp>/key -p \"\" test/fixtures/updater/artifact.bin`; store the .pub text as test/fixtures/updater/test_key.pub and the .sig as artifact.bin.sig. artifact.bin is a few hundred arbitrary bytes. latest.json mirrors a real Tauri manifest with all four platform keys.\nTests: test/services/updater/update_manifest_client_test.dart group \"manifest selection and version gate\"; test/services/updater/minisign_test.dart group \"minisign verification\" (the fixture verifies; flipped byte, a different key id and a malformed signature are rejected); test/services/updater/update_installer_test.dart group \"installers mirror the Tauri updater\" (on temporary folders: a tar.gz containing \"Swiftie Quiz.app/Contents/...\" replaces a fake bundle; a failed move restores the old bundle; the Windows argument list equals [\"/P\",\"/UPDATE\",\"/R\",\"/ARGS\"]).",
+   "complexity": "complex",
+   "after": [
+    "domain-models"
+   ],
+   "msp": "logic-and-data"
+  },
+  {
+   "name": "game-state",
+   "files": [
+    "lib/state/game_state.dart",
+    "lib/state/game_controller.dart",
+    "lib/state/providers.dart",
+    "lib/state/persistence_controller.dart",
+    "lib/state/catalog_controller.dart",
+    "lib/state/lyrics_controller.dart",
+    "lib/state/achievements_controller.dart",
+    "lib/state/toast_controller.dart",
+    "test/state/game_controller_test.dart",
+    "test/state/persistence_controller_test.dart",
+    "test/state/achievements_controller_test.dart",
+    "test/state/lyrics_controller_test.dart",
+    "test/state/catalog_controller_test.dart"
+   ],
+   "criteria": [
+    "7.22",
+    "7.23",
+    "7.24"
+   ],
+   "task": "Port the app state and its orchestration hooks to Riverpod 3 (flutter_riverpod) under lib/state/, using immutable state and the clients built on this branch (lib/data/catalog/deezer_client.dart, lib/data/lyrics/lrclib_client.dart and danger_zones.dart, lib/data/save/save_store.dart, the engine in lib/domain/).\n\n- game_state.dart: GameState, an immutable class with every field of the store in src/stores/gameStore.ts (phase, mode, difficulty, quizType, lyricsMode, selectedAlbumIds, currentTrack, trackPool, options, streak, quackCount, relistenCount, roundStartTime, lyricsPool, lyricsPoolIndex, decoyPool, lyricsFetchProgress, lyricsAvailableTracks, sessionSoundCorrect, sessionLyricsCorrect, albums, progress, updaterState, pendingToasts) with the same initial values and copyWith.\n- game_controller.dart: GameController extends Notifier<GameState> with every action of gameStore.ts, each returning a new state exactly as the TypeScript does (answerCorrect's per-album bookkeeping, resetGame keeping the session counters, nextLyricsTrack's index handling, incrementLyricsStat, the settings setters). Expose `gameControllerProvider`.\n- providers.dart: providers for the app version (package_info_plus, overridable), the userAgent built with appUserAgent from lib/data/http_identity.dart, http.Client (closed on dispose), DeezerClient, LrclibClient, DangerZoneService, SaveStore at defaultSaveFilePath(), a clock (`DateTime Function()`), and Random, so tests override them.\n- toast_controller.dart: the message toast of src/lib/toast.ts as state: show(message) replaces the current message, which clears itself after 5 s.\n- persistence_controller.dart: port src/hooks/usePersistence.ts: load once at start; apply the loaded progress merged over default settings; LoadMigrated shows \"Welcome back! Your progress has been preserved. (Migrated from save format v<n>.)\" or, with no version, \"Welcome back! Your progress has been preserved.\"; a load failure shows \"Couldn't load your save. Open Settings \u2192 Backups to restore from a backup.\" and saving stays disabled; after a successful load, save 1 s after the last progress change, skipping a progress whose JSON equals the last saved one. Also expose listBackups() and restoreBackup(timestamp) followed by a reload, for Settings.\n- catalog_controller.dart: port src/hooks/useDeezer.ts and the data loading in src/components/AlbumGrid.tsx and GameScreen.tsx: load albums only when the album cache in state is empty; build the track pool for random mode from top tracks and for album mode from the selected albums' tracks; record per-album totals for the album completionist achievement.\n- lyrics_controller.dart: port src/hooks/useLyrics.ts (preFetchInitial and preFetchMore): pick source tracks by mode, fetch lyrics in batches, fill the lyrics pool and the decoy pool, report fetch progress, set lyricsAvailableTracks.\n- achievements_controller.dart: port src/hooks/useAchievements.ts: evaluate the achievements of lib/domain/engine/achievements.dart after each answer, write unlocked achievements with unlockedAt ISO time into progress, and push their ids to pendingToasts, never unlocking one twice.\nTests with ProviderContainer overrides, MockClient-backed clients or fakes, a temporary save directory and fake_async: test/state/game_controller_test.dart group \"game controller parity\" ports every case of src/stores/gameStore.test.ts; test/state/persistence_controller_test.dart group \"persistence parity\" ports every case of src/hooks/usePersistence.test.ts; test/state/achievements_controller_test.dart group \"achievements controller parity\"; test/state/lyrics_controller_test.dart group \"lyrics controller parity\"; test/state/catalog_controller_test.dart group \"catalog controller parity\".",
+   "complexity": "complex",
+   "after": [
+    "engine-quiz",
+    "engine-lyrics-clips",
+    "data-catalog",
+    "data-lyrics",
+    "save-store",
+    "updater-protocol"
+   ],
+   "msp": "state-and-services"
+  },
+  {
+   "name": "audio-engine",
+   "files": [
+    "lib/services/audio/audio_engine.dart",
+    "lib/services/audio/soloud_audio_engine.dart",
+    "lib/services/audio/preview_downloader.dart",
+    "lib/state/audio_controller.dart",
+    "test/state/audio_controller_test.dart"
+   ],
+   "criteria": [
+    "7.25"
+   ],
+   "task": "Port src/hooks/useAudio.ts and src/engine/quackManager.ts to Flutter on top of flutter_soloud.\n\n- lib/services/audio/audio_engine.dart: an AudioEngine interface: init(); loadClip(Uint8List mp3Bytes) returning a LoadedClip with durationSeconds and a method readSamples() returning ClipAudio (lib/domain/engine/clip_selector.dart); playSlice(clip, offsetSeconds, durationSeconds, volume) returning a voice; pause(voice), resume(voice), stop(voice), positionOf(voice), setVolume(voice, volume); playQuack(volume), where the engine alone applies min(volume * 0.9, 1.0); dispose().\n- lib/services/audio/preview_downloader.dart: PreviewDownloader(http.Client client, String userAgent) with download(Uri previewUrl) returning the bytes, sending the User-Agent, 10 s timeout, throwing PreviewForbidden on HTTP 403 and PreviewDownloadFailed with the status otherwise.\n- lib/services/audio/soloud_audio_engine.dart: the flutter_soloud implementation: SoLoud.instance.init once; loadMem for the clip; readSamplesFromMem(bytes, ceil(duration * 8000), average: false) gives samples treated as 8000 Hz for the RMS profile; play paused, seek to the offset, set volume, unpause and scheduleStop after the duration; quack loaded once from assets/sounds/quack.mp3 and played at min(volume * 0.9, 1.0); dispose frees sources.\n- lib/state/audio_controller.dart: a Riverpod controller with the state of useAudio (playing, paused, loading, progress, clipDuration, relistenStage) and its actions play(track), relisten(), pause(), resume(), stop(), reset(), and playQuack(), which reads progress.settings.volume and calls engine.playQuack(volume) (the screens call it on a wrong answer or timeout, as GameScreen.tsx and LyricsGameScreen.tsx call quackManager). play downloads the preview bytes through PreviewDownloader (built from the http.Client and userAgent providers); on PreviewForbidden it calls DeezerClient.refreshTrack(track.id) once and downloads the new preview link; a second failure surfaces as an error state. In parallel it asks DangerZoneService for danger zones; then decodes, chooses the start with selectClipStartWithFallback and plays a 10 s slice. Use a play-version counter exactly like playVersionRef so the results of a superseded play are dropped. Progress polls every 50 ms. pause keeps progress; resume plays the remaining part from the paused point. relisten increments relistenCount in the game controller and plays getRelistenSlice(stage, start, duration). Volume comes from progress.settings.volume. Dispose stops playback.\nTests with a fake AudioEngine and MockClient: test/state/audio_controller_test.dart group \"audio controller parity\" ports every case of src/hooks/useAudio.test.ts and adds playQuack passing the raw volume (0.8) to the engine; group \"expired preview is refreshed once\" asserts 403 then refreshTrack then playback, and 403 twice gives the error state without a third request.",
+   "complexity": "complex",
+   "after": [
+    "game-state"
+   ],
+   "msp": "state-and-services"
+  },
+  {
+   "name": "updater-controller",
+   "files": [
+    "lib/state/updater_controller.dart",
+    "test/state/updater_controller_test.dart"
+   ],
+   "criteria": [
+    "7.26"
+   ],
+   "task": "Port src/hooks/useUpdater.ts as it is on main after PR #19 (commit 8c0130e) to lib/state/updater_controller.dart, on top of lib/services/updater/ and the game controller's progress and updaterState.\n\nBehaviour, case for case with the TypeScript: check({manual}) returns at once when an update is in hand (downloading, ready, installing or installed); auto checks return when progress.updater.autoCheckEnabled is false or remindLaterUntil is in the future, manual checks skip both gates; it sets checking, fetches the manifest, then writes lastCheckedAt (ISO, from the injected clock) into the latest progress read at that moment, not a copy from before the network call; if an update came into hand meanwhile it stops; no update gives up-to-date; a version in skippedVersions gives up-to-date; otherwise available with the manifest and the pending update kept outside the state. download() reports downloading with whole-number percent progress, ignores events from an abandoned download, ends ready, and maps failures to error with subtype signature for signature failures and download otherwise. install() sets installing, installs through the UpdateInstaller, then relaunches; when relaunch throws it sets installed with the manifest. cancel() drops the pending update for good and returns to idle. skipVersion(v) appends v to skippedVersions and returns to idle; remindLater() writes now + 24 h and returns to idle; dismiss() returns to idle. Retry after a failed check calls check, not install.\nTest: test/state/updater_controller_test.dart group \"updater controller parity\" ports every case of src/hooks/useUpdater.test.ts as it is at commit 8c0130e (read it with `git show 8c0130e:src/hooks/useUpdater.test.ts` if the working copy differs), with fake manifest client, downloader, installer and clock.",
+   "complexity": "complex",
+   "after": [
+    "game-state"
+   ],
+   "msp": "state-and-services"
+  },
+  {
+   "name": "screens-navigation",
+   "files": [
+    "lib/ui/screens/main_menu.dart",
+    "lib/ui/screens/album_grid.dart",
+    "lib/ui/screens/quiz_type_select.dart",
+    "lib/ui/screens/lyrics_mode_select.dart",
+    "lib/ui/screens/difficulty_select.dart",
+    "lib/ui/screens/cat_gallery.dart",
+    "lib/ui/screens/settings_screen.dart",
+    "lib/ui/overlays/birthday_card.dart",
+    "test/ui/screens/navigation_screens_test.dart",
+    "test/ui/screens/settings_screen_test.dart",
+    "test/ui/screens/cat_gallery_test.dart",
+    "test/ui/screens/album_grid_test.dart",
+    "test/ui/overlays/birthday_card_test.dart"
+   ],
+   "criteria": [
+    "7.27",
+    "7.28",
+    "7.29"
+   ],
+   "task": "Port these React screens to Flutter widgets, pixel for pixel, using lib/ui/theme, lib/ui/widgets, lib/ui/cat and the providers in lib/state: src/components/MainMenu.tsx -> lib/ui/screens/main_menu.dart; AlbumGrid.tsx -> album_grid.dart; QuizTypeSelect.tsx -> quiz_type_select.dart; LyricsModeSelect.tsx -> lyrics_mode_select.dart; DifficultySelect.tsx -> difficulty_select.dart; CatGallery.tsx -> cat_gallery.dart; Settings.tsx -> settings_screen.dart; BirthdayCard.tsx -> lib/ui/overlays/birthday_card.dart.\n\nKeep every text, icon, size, spacing, colour, gradient, radius, border, shadow, max width, entrance animation (spring stiffness 300 damping 30, delays as written), hover and tap scale, and navigation target exactly as the TSX and Tailwind classes give them. Read the Tailwind classes in each component as Tailwind 4 defaults (spacing unit 4 px). Layout at the window's sizes (686 to any width): responsive grids switch at sm 640, md 768, lg 1024 of the window width.\nSpecifics:\n- MainMenu: SwiftieLogo 80 entering from scale 0.8; \"Swiftie Quiz\" 48/48 weight 800; subtitle; the four selection cards with their gradients and delays 0.1-0.4; the CatIconButton(size 64) fixed 24 px from the top right, entering from scale 0 after 0.8 s the first time only, hover 1.1 and tap 0.95 on a stiffness 400 damping 20 spring, with the \"Birthday Card\" tooltip fading in over 150 ms on hover; the birthday card auto-opens 1 s after the menu shows when shouldAutoShowBirthdayCard(now, shownThisSession) is true, then marks it shown for the session.\n- AlbumGrid: LoadingGate with the large CatLoader and \"Loading albums...\" while albums load; tiles, selection ring, footer with Clear all and \"Start Quiz (N album[s])\".\n- Settings: Appearance segmented control (Dark, Light, System), Volume 0-1 step 0.01, Medium and Hard timers 10-40 step 5, Reset Progress two-step confirm shown as an in-app dialog, About, the Updates card (version from package_info_plus, last checked as a local short date and time, Check now calling the updater controller's manual check, auto-check switch), and the Backups card listing backups with Restore (the in-app confirm replaces window.confirm, and the result message replaces window.alert). The 32 px logo uses SwiftieLogo.\n- BirthdayCard: as BirthdayCard.tsx, except the body text uses the foreground token so it is readable in light theme.\n- CatGallery: \"N of 15 achievements unlocked\", progress bar, unlocked and locked tiles with the cat emoji, names, descriptions and unlock dates in the system locale's short date.\nTests (widget tests with ProviderScope overrides): test/ui/screens/navigation_screens_test.dart group \"menu and selection navigation\" (each card and back link sets the phase of the navigation table in the React code, and DifficultySelect lists the same features for sound, name-that-song and lyrics-or-lie and the timer values); test/ui/screens/settings_screen_test.dart group \"settings parity\"; test/ui/screens/cat_gallery_test.dart group \"cat gallery parity\"; test/ui/screens/album_grid_test.dart group \"album grid parity\"; test/ui/overlays/birthday_card_test.dart group \"birthday card parity\" (every case of src/components/BirthdayCard.test.tsx plus light-theme body text colour equal to the foreground token).",
+   "complexity": "complex",
+   "after": [
+    "game-state",
+    "updater-controller"
+   ],
+   "msp": "screens"
+  },
+  {
+   "name": "screens-gameplay",
+   "files": [
+    "lib/ui/screens/game_screen.dart",
+    "lib/ui/screens/lyrics_loading_screen.dart",
+    "lib/ui/screens/lyrics_game_screen.dart",
+    "lib/ui/game/audio_player.dart",
+    "lib/ui/game/quiz_card.dart",
+    "lib/ui/game/timer_bar.dart",
+    "lib/ui/game/streak_badge.dart",
+    "lib/ui/game/result_feedback.dart",
+    "lib/ui/game/lyric_snippet_card.dart",
+    "lib/ui/game/lyrics_or_lie_card.dart",
+    "lib/ui/game/game_header.dart",
+    "test/ui/screens/game_screen_test.dart",
+    "test/ui/screens/lyrics_game_screen_test.dart",
+    "test/ui/screens/lyrics_loading_screen_test.dart",
+    "test/ui/game/result_feedback_test.dart",
+    "test/ui/game/streak_badge_test.dart",
+    "test/ui/game/quiz_card_test.dart",
+    "test/ui/game/timer_bar_test.dart",
+    "test/ui/game/audio_player_test.dart"
+   ],
+   "criteria": [
+    "7.30",
+    "7.31",
+    "7.32"
+   ],
+   "task": "Port the gameplay screens and widgets to Flutter, pixel for pixel, using lib/ui/theme, lib/ui/widgets, lib/ui/cat and the providers in lib/state (game, catalog, lyrics, achievements and audio controllers): src/components/GameScreen.tsx -> lib/ui/screens/game_screen.dart; LyricsLoadingScreen.tsx -> lyrics_loading_screen.dart; LyricsGameScreen.tsx -> lyrics_game_screen.dart; AudioPlayer.tsx -> lib/ui/game/audio_player.dart; QuizCard.tsx -> quiz_card.dart; Timer.tsx -> timer_bar.dart; StreakBadge.tsx -> streak_badge.dart; ResultFeedback.tsx -> result_feedback.dart; LyricSnippetCard.tsx -> lyric_snippet_card.dart; LyricsOrLieCard.tsx -> lyrics_or_lie_card.dart; the shared Exit / 40 px logo / streak header of both game screens -> lib/ui/game/game_header.dart (using SwiftieLogo(size: 40)).\n\nKeep every text (including the 22 sound and 30 lyrics success messages drawn from a shuffle bag, and the incorrect-answer wording), timing (400 ms minimum and 8 s maximum between-round loader, 2 s disabled Next, 100 ms timer tick, 3 s loading message rotation over the ten messages, 30 s lyrics fetch timeout, the deferred first lyrics round), size, colour, gradient and animation (quiz and result swap with y 10 / -10 and scale 0.95, option stagger 0.05 s, result panel scale 0.9) exactly as the TSX gives them. The audio player shows CatLoader(size: sm) in its 80 x 80 slot while loading; the between-round overlay and the lyrics loading screen use CatLoader(size: lg) with \"Loading next track...\" and the rotating messages. The wrong-answer and timeout paths call the audio controller's playQuack(). The hard-mode text field autofocuses and submits on Enter.\nTests (widget tests with ProviderScope overrides, a fake AudioEngine and fake clients, fake_async): test/ui/screens/game_screen_test.dart group \"sound round flow\"; test/ui/screens/lyrics_game_screen_test.dart group \"lyrics round flow\"; test/ui/screens/lyrics_loading_screen_test.dart group \"lyrics loading screen\"; test/ui/game/result_feedback_test.dart group \"result feedback parity\" (every case of ResultFeedback.test.tsx); test/ui/game/streak_badge_test.dart group \"streak badge parity\" (every case of StreakBadge.test.tsx); test/ui/game/quiz_card_test.dart group \"quiz card parity\"; test/ui/game/timer_bar_test.dart group \"timer bar parity\"; test/ui/game/audio_player_test.dart group \"audio player parity\".",
+   "complexity": "complex",
+   "after": [
+    "game-state",
+    "audio-engine"
+   ],
+   "msp": "screens"
+  },
+  {
+   "name": "overlays",
+   "files": [
+    "lib/ui/overlays/achievement_toasts.dart",
+    "lib/ui/overlays/update_badge.dart",
+    "lib/ui/overlays/update_modal.dart",
+    "lib/ui/overlays/toast_host.dart",
+    "lib/ui/overlays/error_screen.dart",
+    "test/ui/overlays/update_badge_test.dart",
+    "test/ui/overlays/update_modal_test.dart",
+    "test/ui/overlays/achievement_toasts_test.dart",
+    "test/ui/overlays/toast_host_test.dart"
+   ],
+   "criteria": [
+    "7.33",
+    "7.34"
+   ],
+   "task": "Port the overlays to Flutter, pixel for pixel, using lib/ui/theme, lib/ui/widgets and the providers in lib/state: src/components/AchievementToast.tsx -> lib/ui/overlays/achievement_toasts.dart; UpdateBadge.tsx -> update_badge.dart; UpdateModal.tsx -> update_modal.dart; the DOM toast of src/lib/toast.ts -> toast_host.dart (emerald, bottom 24 px, centred, above everything, role status, 5 s); ErrorBoundary.tsx's fallback -> error_screen.dart (\"Something went wrong\", the error message, Restart which restarts the app widget tree).\n\nAchievement toasts stack 16 px from the top right, slide in from the right over 300 ms ease-out, each auto-dismisses 4 s after it appeared regardless of other toasts, and has a close button labelled \"Dismiss\". The update badge sits 24 px from the bottom right and shows only for available (violet-600, Download), downloading (blue-600, spinning loader-circle unless reduce-motion), ready (emerald-600, RefreshCcw) and error (yellow-600, circle-alert) with today's labels; tapping it opens the update dialog. The update dialog renders every updater state of UpdateModal.tsx with the same headings, notes area (max height 256, scrolling), progress bar, and the primary (violet-600), secondary (bordered) and tertiary (text) buttons wired to the updater controller; Escape closes it; it scales in from 0.95 unless reduce-motion and also animates out.\nTests: test/ui/overlays/update_badge_test.dart group \"update badge parity\" (every case of src/components/UpdateBadge.test.tsx); test/ui/overlays/update_modal_test.dart group \"update modal parity\" (every case of src/components/UpdateModal.test.tsx as on main at 8c0130e, including the installed fallback state); test/ui/overlays/achievement_toasts_test.dart group \"achievement toasts\"; test/ui/overlays/toast_host_test.dart group \"toast host\".",
+   "complexity": "complex",
+   "after": [
+    "game-state",
+    "updater-controller"
+   ],
+   "msp": "screens"
+  },
+  {
+   "name": "app-shell",
+   "files": [
+    "lib/main.dart",
+    "lib/app/app.dart",
+    "lib/app/window_setup.dart",
+    "test/app/app_test.dart",
+    "test/app/window_setup_test.dart"
+   ],
+   "criteria": [
+    "7.35",
+    "7.36",
+    "7.37",
+    "7.45"
+   ],
+   "task": "Assemble the app.\n\n- lib/app/window_setup.dart: `const windowOptions` for window_manager (size 1024 x 800, minimumSize 686 x 571, center true, title \"Swiftie Quiz\") and `Future<void> setUpWindow()` that ensures window_manager is initialised and shows the window with those options.\n- lib/app/app.dart: SwiftieQuizApp, a ConsumerWidget building MaterialApp (debug banner off, title \"Swiftie Quiz\", themes from lib/ui/theme/app_theme.dart, theme chosen from progress.settings.theme: dark and light directly; system resolved to dark or light from PlatformDispatcher.instance.platformBrightness at launch and whenever the setting changes, and not again while it stays system (App.tsx reads prefers-color-scheme only then; live following is a non-goal), so set themeMode to the resolved ThemeMode.dark or ThemeMode.light, never ThemeMode.system) whose home stacks: the screen for the current GamePhase (menu MainMenu, albumSelect AlbumGrid, quizTypeSelect QuizTypeSelect, lyricsModeSelect LyricsModeSelect, difficultySelect DifficultySelect, lyricsLoading LyricsLoadingScreen, playing LyricsGameScreen when quizType is lyrics else GameScreen, catGallery CatGallery, settings SettingsScreen) switched instantly with no transition, then AchievementToasts, UpdateBadge (opening UpdateModal) and the ToastHost. It starts the persistence controller's load at startup, and schedules update checks exactly as src/App.tsx on main: one check 1.5 s after start and one every 6 hours, from timers created once (never re-created when progress changes), cancelled on dispose. Errors thrown while building show ErrorScreen.\n- lib/main.dart: WidgetsFlutterBinding.ensureInitialized(), await setUpWindow(), then runApp(ProviderScope(child: SwiftieQuizApp())). Only framework build and layout errors show ErrorScreen (through ErrorWidget.builder and FlutterError.onError), as ErrorBoundary.tsx catches only render errors; PlatformDispatcher.instance.onError returns true without changing the screen.\nTests: test/app/app_test.dart group \"phase routing\" (each phase shows its screen, overlays present, dark, light and system themes) and group \"update checks run once at launch and every six hours\" (fake_async: exactly one manual=false check at 1.5 s, none more during 30 s of progress changes, one more at 6 h; ports src/App.test.tsx); test/app/window_setup_test.dart group \"window matches the Tauri window\" (windowOptions values). Finally run `flutter build macos --debug` and start the built app once without touching the real save: run `HOME=\"$(mktemp -d)\" \"build/macos/Build/Products/Debug/Swiftie Quiz.app/Contents/MacOS/Swiftie Quiz\"` in the background, confirm it is still running after 10 s (it reached the main menu without crashing), then kill it. Never launch it with `open` or the real HOME, because the save path is shared with the installed Tauri app.",
+   "complexity": "complex",
+   "after": [
+    "screens-navigation",
+    "screens-gameplay",
+    "overlays"
+   ],
+   "msp": "screens"
+  },
+  {
+   "name": "windows-installer",
+   "files": [
+    "installer/windows/swiftie-quiz.nsi",
+    "test/installer/nsis_script_test.dart"
+   ],
+   "criteria": [
+    "7.38",
+    "7.39"
+   ],
+   "task": "Write installer/windows/swiftie-quiz.nsi, an NSIS 3 script that packages the Flutter Windows release build (the folder build/windows/x64/runner/Release, passed in with /DSOURCE_DIR=<path>, /DVERSION=<x.y.z> and /DOUTFILE=<path>) as a per-user installer that installs over an existing Tauri v0.2.x install and works with the Tauri updater's flags. The reference is Tauri 2.12's own template saved at docs/reference/tauri-2.12-nsis-installer.nsi.hbs, rendered with product_name \"Swiftie Quiz\", main_binary_name \"swiftie-quiz\", manufacturer \"swiftiequiz\", bundle_id \"com.swiftiequiz.desktop\", install_mode \"currentUser\".\n\nRequired behaviour: Unicode true; RequestExecutionLevel user; InstallDir \"$LOCALAPPDATA\\Swiftie Quiz\", reusing the folder the uninstall key records; MUI2 pages (welcome, directory, install, finish with Run) skipped in passive mode; options parsed with ${GetOptions} exactly as the template: /P passive (progress only), /S silent, /UPDATE (keep shortcuts the user removed, as the template does), /R relaunch the app after install with /ARGS passing the following arguments, /NS no shortcuts; before copying, close a running swiftie-quiz.exe (as the template's process check does, without the Tauri plugin DLL: use `nsExec` with taskkill /IM swiftie-quiz.exe /F after asking in non-passive mode) and delete the files a Tauri install leaves that the Flutter build does not ship (the old swiftie-quiz.exe is overwritten; remove WebView2Loader.dll and the old resources folder if present); copy every file and folder of SOURCE_DIR recursively; write the uninstaller and the registry values the template writes under HKCU \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Swiftie Quiz\" (DisplayName, DisplayIcon, DisplayVersion, Publisher, UninstallString, QuietUninstallString, InstallLocation, NoModify, NoRepair, EstimatedSize) and under HKCU \"Software\\swiftiequiz\\Swiftie Quiz\"; create \"$SMPROGRAMS\\Swiftie Quiz.lnk\" and \"$DESKTOP\\Swiftie Quiz.lnk\" to swiftie-quiz.exe unless /NS or an update that should keep the user's choice; the uninstaller removes the files, shortcuts and keys, and never deletes the save folder %APPDATA%\\com.swiftiequiz.desktop unless the user ticks the template's delete-app-data option.\nTest: test/installer/nsis_script_test.dart group \"installer is compatible with Tauri installs and updater flags\" reads the script and asserts: RequestExecutionLevel user; the install dir; the uninstall and manufacturer registry keys; MAINBINARYNAME or the literal swiftie-quiz.exe; GetOptions handling of /P, /S, /UPDATE, /R, /ARGS and /NS; shortcut names; that no line is an NSIS comment (; or #) because the project forbids comments. If makensis is installed (`brew list makensis`), also compile the script against a dummy SOURCE_DIR in a temporary folder and assert success; otherwise skip that one test with a reason.",
+   "complexity": "complex",
+   "after": [
+    "flutter-scaffold"
+   ],
+   "msp": "packaging-and-ci"
+  },
+  {
+   "name": "release-pipeline",
+   "files": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/release.yml",
+    "tool/release/check_release.dart",
+    "tool/release/make_manifest.dart",
+    "tool/release/package_macos.sh",
+    "tool/release/package_windows.ps1",
+    "test/tool/check_release_test.dart",
+    "test/tool/make_manifest_test.dart",
+    "test/tool/workflows_test.dart"
+   ],
+   "criteria": [
+    "7.40",
+    "7.41",
+    "7.42",
+    "7.44"
+   ],
+   "task": "Replace the Node/Rust CI and the tauri-action release with Flutter equivalents that keep every guarantee of today's .github/workflows/ci.yml and release.yml (read both, and docs/decisions/2026-10-04-ci-hardening.md, first).\n\n- tool/release/check_release.dart (dart run tool/release/check_release.dart <tag>): fail unless the tag without \"v\" equals pubspec.yaml's version before any \"+build\"; fail unless CHANGELOG.md has a \"## [<version>]\" heading with non-empty text before the next \"## [\" heading; fail unless lib/services/updater/update_config.dart contains a line matching `^const updaterPublicKey = '([^']*)';$` (another Step writes that file in exactly this shape; it is not on this branch, so tests use literal file contents) whose value is present, at least 64 characters, valid base64, and its decoded text does not contain the development key id 2A43CC33F3FB57BB; on success print the CHANGELOG section (trailing blank lines removed). Put the logic in pure functions taking file contents so tests use literals.\n- tool/release/make_manifest.dart (dart run tool/release/make_manifest.dart --version x --notes-file f --pub-date iso --base-url u --mac-tar <file> --mac-sig <file> --win-exe <file> --win-sig <file> --out latest.json): write Tauri's latest.json: {\"version\", \"notes\", \"pub_date\", \"platforms\": {\"darwin-aarch64\", \"darwin-aarch64-app\" (both the .app.tar.gz), \"windows-x86_64\", \"windows-x86_64-nsis\" (both the setup .exe)}} each {\"signature\": <the .sig file's text>, \"url\": <base-url>/<url-encoded file name>}. Pure function plus thin main.\n- tool/release/package_macos.sh <version>: from build/macos/Build/Products/Release/Swiftie Quiz.app: ad-hoc codesign (`codesign --force --deep --sign -`), create \"Swiftie Quiz_<version>_aarch64.dmg\" with hdiutil (UDZO, volume name \"Swiftie Quiz\", an /Applications symlink), and \"Swiftie Quiz.app.tar.gz\" with `tar -czf ... -C <Release dir> \"Swiftie Quiz.app\"` so the bundle is the archive's top folder, into build/release/. Start it with `#!/usr/bin/env bash` and `set -euo pipefail`, and make it executable (`chmod +x`).\n- tool/release/package_windows.ps1 -Version <x>: run makensis on installer/windows/swiftie-quiz.nsi with /DSOURCE_DIR=build\\windows\\x64\\runner\\Release /DVERSION=<x> /DOUTFILE=build\\release\\Swiftie Quiz_<x>_x64-setup.exe.\n- .github/workflows/ci.yml: on push to main, pull_request and workflow_call (input skip-bundle); permissions contents read; the same concurrency rule. Jobs: \"Analyze and test\" on ubuntu-24.04 (checkout with persist-credentials false; Flutter 3.47.5 stable via subosito/flutter-action pinned to a full commit SHA with cache; `flutter pub get`; `dart format --output=none --set-exit-if-changed lib test tool`; `flutter analyze --fatal-infos`; `flutter test`); \"Build (macos-26)\" and \"Build (windows-2025)\" needing it, skipped when skip-bundle is true (job-level `if: ${{ !inputs.skip-bundle }}` as today); inside, a first step records whether lib/main.dart exists (step output) and every later step is conditioned on it, because hashFiles is not available in a job-level if and the app entry point may not exist yet on a stacked branch; the steps run `flutter build macos --release` + package_macos.sh (version from pubspec) and `flutter build windows --release` + package_windows.ps1 (install NSIS with `choco install nsis -y` if makensis is missing), uploading the .dmg, .app.tar.gz and setup .exe as artifacts for 14 days on non-fork events; and \"CI OK\" exactly as today's (needs every other job, fails on failure or cancelled). Keep the existing pinned SHAs for actions/checkout, actions/upload-artifact, actions/download-artifact and actions/attest-build-provenance; resolve subosito/flutter-action's latest release tag to its commit SHA with `gh api repos/subosito/flutter-action/git/ref/tags/<tag>`; when that object's type is \"tag\" (an annotated tag) dereference it with `gh api repos/subosito/flutter-action/git/tags/<sha>` and use object.sha; pin `@<commit sha> # <tag>` as the existing workflows do.\n- .github/workflows/release.yml: on tags v*; validate-versions and publish-manifest each set up the pinned Flutter 3.47.5 with subosito/flutter-action and run `flutter pub get` before `dart run tool/release/...` (pubspec depends on the Flutter SDK); validate-versions runs check_release.dart and outputs the notes; ci calls ci.yml with skip-bundle true; create-release as today; build-macos (macos-26, environment release) builds, packages, signs \"Swiftie Quiz.app.tar.gz\" with `npx --yes @tauri-apps/cli@2.12.1 signer sign` using secrets TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD (setup-node pinned as today), uploads the .dmg, .app.tar.gz and .sig to the draft release with `gh release upload`, and uploads them as artifacts; build-windows (windows-2025, after build-macos as today) does the same for the setup .exe; publish-manifest downloads the signatures, runs make_manifest.dart with base URL https://github.com/<repo>/releases/download/<tag>, uploads latest.json; verify-manifest needs publish-manifest (not only the build jobs), downloads latest.json from the draft release as today, checks the version, and for each of the four platform keys checks url and signature are present and that the URL-decoded last path segment of the url equals the name of an asset on the release (today's job compares against asset ids because tauri-action wrote API URLs; the new manifest uses browser download URLs, so compare names). attest stays as today (subjects: the .app.tar.gz, .dmg and setup .exe).\nTests: test/tool/make_manifest_test.dart group \"latest.json carries every platform\"; test/tool/check_release_test.dart group \"release checks\"; test/tool/workflows_test.dart group \"ci and release workflows\" parses both YAML files with package:yaml and asserts the CI OK job and its needs, every `uses:` pinned to a 40-hex SHA, flutter-version 3.47.5, the analyze, format and test commands, the build jobs' runners, and the release jobs (validate-versions, ci, create-release, build-macos, build-windows, publish-manifest, verify-manifest, attest).\n\nCriterion 7.44 (existing Tauri installs update into the Flutter app) cannot be proven here; it depends on these artifacts keeping Tauri's names, formats and signatures, which the tests above pin.",
+   "complexity": "complex",
+   "after": [
+    "windows-installer"
+   ],
+   "msp": "packaging-and-ci"
+  },
+  {
+   "name": "retire-tauri-stack",
+   "files": [
+    "src-tauri/Cargo.lock",
+    "src-tauri/Cargo.toml",
+    "src-tauri/build.rs",
+    "src-tauri/capabilities/default.json",
+    "src-tauri/icons/128x128.png",
+    "src-tauri/icons/128x128@2x.png",
+    "src-tauri/icons/32x32.png",
+    "src-tauri/icons/64x64.png",
+    "src-tauri/icons/Square107x107Logo.png",
+    "src-tauri/icons/Square142x142Logo.png",
+    "src-tauri/icons/Square150x150Logo.png",
+    "src-tauri/icons/Square284x284Logo.png",
+    "src-tauri/icons/Square30x30Logo.png",
+    "src-tauri/icons/Square310x310Logo.png",
+    "src-tauri/icons/Square44x44Logo.png",
+    "src-tauri/icons/Square71x71Logo.png",
+    "src-tauri/icons/Square89x89Logo.png",
+    "src-tauri/icons/StoreLogo.png",
+    "src-tauri/icons/android/mipmap-anydpi-v26/ic_launcher.xml",
+    "src-tauri/icons/android/mipmap-hdpi/ic_launcher.png",
+    "src-tauri/icons/android/mipmap-hdpi/ic_launcher_foreground.png",
+    "src-tauri/icons/android/mipmap-hdpi/ic_launcher_round.png",
+    "src-tauri/icons/android/mipmap-mdpi/ic_launcher.png",
+    "src-tauri/icons/android/mipmap-mdpi/ic_launcher_foreground.png",
+    "src-tauri/icons/android/mipmap-mdpi/ic_launcher_round.png",
+    "src-tauri/icons/android/mipmap-xhdpi/ic_launcher.png",
+    "src-tauri/icons/android/mipmap-xhdpi/ic_launcher_foreground.png",
+    "src-tauri/icons/android/mipmap-xhdpi/ic_launcher_round.png",
+    "src-tauri/icons/android/mipmap-xxhdpi/ic_launcher.png",
+    "src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_foreground.png",
+    "src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_round.png",
+    "src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher.png",
+    "src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+    "src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_round.png",
+    "src-tauri/icons/android/values/ic_launcher_background.xml",
+    "src-tauri/icons/icon.icns",
+    "src-tauri/icons/icon.ico",
+    "src-tauri/icons/icon.png",
+    "src-tauri/icons/ios/AppIcon-20x20@1x.png",
+    "src-tauri/icons/ios/AppIcon-20x20@2x-1.png",
+    "src-tauri/icons/ios/AppIcon-20x20@2x.png",
+    "src-tauri/icons/ios/AppIcon-20x20@3x.png",
+    "src-tauri/icons/ios/AppIcon-29x29@1x.png",
+    "src-tauri/icons/ios/AppIcon-29x29@2x-1.png",
+    "src-tauri/icons/ios/AppIcon-29x29@2x.png",
+    "src-tauri/icons/ios/AppIcon-29x29@3x.png",
+    "src-tauri/icons/ios/AppIcon-40x40@1x.png",
+    "src-tauri/icons/ios/AppIcon-40x40@2x-1.png",
+    "src-tauri/icons/ios/AppIcon-40x40@2x.png",
+    "src-tauri/icons/ios/AppIcon-40x40@3x.png",
+    "src-tauri/icons/ios/AppIcon-512@2x.png",
+    "src-tauri/icons/ios/AppIcon-60x60@2x.png",
+    "src-tauri/icons/ios/AppIcon-60x60@3x.png",
+    "src-tauri/icons/ios/AppIcon-76x76@1x.png",
+    "src-tauri/icons/ios/AppIcon-76x76@2x.png",
+    "src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png",
+    "src-tauri/src/commands/deezer.rs",
+    "src-tauri/src/commands/lyrics.rs",
+    "src-tauri/src/commands/mod.rs",
+    "src-tauri/src/commands/storage.rs",
+    "src-tauri/src/lib.rs",
+    "src-tauri/src/main.rs",
+    "src-tauri/src/models/error.rs",
+    "src-tauri/src/models/lyrics.rs",
+    "src-tauri/src/models/mod.rs",
+    "src-tauri/src/models/progress.rs",
+    "src-tauri/src/models/track.rs",
+    "src-tauri/src/services/cache.rs",
+    "src-tauri/src/services/deezer_client.rs",
+    "src-tauri/src/services/lrclib_client.rs",
+    "src-tauri/src/services/mod.rs",
+    "src-tauri/src/services/rate_limiter.rs",
+    "src-tauri/src/services/track_filter.rs",
+    "src-tauri/src/state.rs",
+    "src-tauri/src/storage/backup.rs",
+    "src-tauri/src/storage/load.rs",
+    "src-tauri/src/storage/migrations.rs",
+    "src-tauri/src/storage/mod.rs",
+    "src-tauri/src/storage/save.rs",
+    "src-tauri/tauri.conf.json",
+    "src/App.test.tsx",
+    "src/App.tsx",
+    "src/assets/cat-icon.svg",
+    "src/assets/cats/album_completionist.svg",
+    "src/assets/cats/album_explorer.svg",
+    "src/assets/cats/all_ears.svg",
+    "src/assets/cats/dual_threat.svg",
+    "src/assets/cats/first_meow.svg",
+    "src/assets/cats/getting_warmed_up.svg",
+    "src/assets/cats/hard_mode_hero.svg",
+    "src/assets/cats/lie_detector.svg",
+    "src/assets/cats/lyric_lover.svg",
+    "src/assets/cats/lyric_streak.svg",
+    "src/assets/cats/persistent_listener.svg",
+    "src/assets/cats/poet_laureate.svg",
+    "src/assets/cats/purrfect_streak.svg",
+    "src/assets/cats/quack_collector.svg",
+    "src/assets/cats/silhouette.svg",
+    "src/assets/cats/speed_demon.svg",
+    "src/assets/sounds/quack.mp3",
+    "src/components/AchievementToast.tsx",
+    "src/components/AlbumGrid.tsx",
+    "src/components/AudioPlayer.tsx",
+    "src/components/BirthdayCard.test.tsx",
+    "src/components/BirthdayCard.tsx",
+    "src/components/CatGallery.tsx",
+    "src/components/CatIconButton.test.tsx",
+    "src/components/CatIconButton.tsx",
+    "src/components/CatLoader.css",
+    "src/components/CatLoader.test.tsx",
+    "src/components/CatLoader.tsx",
+    "src/components/DifficultySelect.tsx",
+    "src/components/ErrorBoundary.tsx",
+    "src/components/GameScreen.tsx",
+    "src/components/LoadingGate.test.tsx",
+    "src/components/LoadingGate.tsx",
+    "src/components/LyricSnippetCard.tsx",
+    "src/components/LyricsGameScreen.tsx",
+    "src/components/LyricsLoadingScreen.tsx",
+    "src/components/LyricsModeSelect.tsx",
+    "src/components/LyricsOrLieCard.tsx",
+    "src/components/MainMenu.tsx",
+    "src/components/QuizCard.tsx",
+    "src/components/QuizTypeSelect.tsx",
+    "src/components/ResultFeedback.test.tsx",
+    "src/components/ResultFeedback.tsx",
+    "src/components/Settings.tsx",
+    "src/components/StreakBadge.test.tsx",
+    "src/components/StreakBadge.tsx",
+    "src/components/SwiftieLogo.test.tsx",
+    "src/components/SwiftieLogo.tsx",
+    "src/components/Timer.tsx",
+    "src/components/UpdateBadge.test.tsx",
+    "src/components/UpdateBadge.tsx",
+    "src/components/UpdateModal.test.tsx",
+    "src/components/UpdateModal.tsx",
+    "src/engine/achievements.test.ts",
+    "src/engine/achievements.ts",
+    "src/engine/answerMatcher.test.ts",
+    "src/engine/answerMatcher.ts",
+    "src/engine/clipSelector.test.ts",
+    "src/engine/clipSelector.ts",
+    "src/engine/gameEngine.test.ts",
+    "src/engine/gameEngine.ts",
+    "src/engine/lyricProcessor.test.ts",
+    "src/engine/lyricProcessor.ts",
+    "src/engine/optionGenerator.test.ts",
+    "src/engine/optionGenerator.ts",
+    "src/engine/quackManager.ts",
+    "src/engine/relistenSchedule.test.ts",
+    "src/engine/relistenSchedule.ts",
+    "src/hooks/useAchievements.ts",
+    "src/hooks/useAudio.test.ts",
+    "src/hooks/useAudio.ts",
+    "src/hooks/useDeezer.ts",
+    "src/hooks/useLyrics.ts",
+    "src/hooks/usePersistence.test.ts",
+    "src/hooks/usePersistence.ts",
+    "src/hooks/useUpdater.test.ts",
+    "src/hooks/useUpdater.ts",
+    "src/lib/birthday.test.ts",
+    "src/lib/birthday.ts",
+    "src/lib/cn.ts",
+    "src/lib/levenshtein.test.ts",
+    "src/lib/levenshtein.ts",
+    "src/lib/lrclib.test.ts",
+    "src/lib/lrclib.ts",
+    "src/lib/shuffle.test.ts",
+    "src/lib/shuffle.ts",
+    "src/lib/toast.ts",
+    "src/main.tsx",
+    "src/stores/gameStore.test.ts",
+    "src/stores/gameStore.ts",
+    "src/styles/index.css",
+    "src/test-setup.ts",
+    "src/types/index.ts",
+    "src/vite-env.d.ts",
+    "package.json",
+    "package-lock.json",
+    "index.html",
+    "public/favicon.svg",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "eslint.config.js",
+    "tsconfig.json",
+    "rust-toolchain.toml",
+    ".claude/README.md",
+    ".claude/settings.json",
+    ".claude/settings.local.json.example",
+    ".claude/agents/audio-engine-reviewer.md",
+    ".claude/agents/react-tauri-reviewer.md",
+    ".claude/agents/rust-tauri-reviewer.md",
+    ".claude/agents/schema-sync-checker.md",
+    ".claude/agents/tauri-security-reviewer.md",
+    ".claude/agents/vitest-tdd-guide.md",
+    ".claude/agents/flutter-reviewer.md",
+    ".claude/agents/flutter-tdd-guide.md",
+    ".claude/commands/new-achievement.md",
+    ".claude/commands/new-tauri-command.md",
+    ".claude/commands/release.md",
+    ".claude/commands/review-pr.md",
+    ".claude/commands/sync-schemas.md",
+    ".claude/commands/verify.md",
+    ".claude/hooks/block-csp-weakening.sh",
+    ".claude/hooks/block-secrets.sh",
+    ".claude/hooks/check-rust-after-edit.sh",
+    ".claude/hooks/stop-reminder.sh",
+    ".claude/hooks/warn-console-log.sh",
+    ".claude/hooks/warn-print.sh",
+    ".github/dependabot.yml",
+    ".github/workflows/claude-review.yml",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "README.md",
+    "docs/INSTALL.md",
+    "CHANGELOG.md",
+    "receipts.config.json",
+    "docs/decisions/2026-10-05-flutter-rewrite.md",
+    "test/repo/repo_layout_test.dart"
+   ],
+   "criteria": [
+    "7.43"
+   ],
+   "task": "Remove the Tauri, React and Rust implementation now that the Flutter app replaces it, and make the repository describe and automate the Flutter app.\n\n1. Delete with `rm -r` (never `rm -rf`, which is denied, and never `git rm`; the orchestrator stages the deletions): src/, src-tauri/, package.json, package-lock.json, index.html, public/, vite.config.ts, vitest.config.ts, eslint.config.js, tsconfig.json, rust-toolchain.toml. Keep design/, docs/reference/, docs/specs/, docs/decisions/ and docs/superpowers/ as history.\n2. CLAUDE.md: rewrite for the Flutter app in the same structure (Stack: Flutter 3.47.5, Dart 3.13, Riverpod 3, flutter_soloud, flutter_svg, window_manager, http; Commands: flutter pub get, flutter run -d macos, flutter test, flutter analyze --fatal-infos, dart format; Architecture: lib/domain pure rules and models, lib/data clients and save store, lib/services audio and updater, lib/state Riverpod controllers, lib/ui screens, lib/app shell; Project rules: save format compatibility with the Tauri-era save.json (version bump plus a migration in lib/data/save/migrations.dart), the updater protocol must stay compatible with latest.json and the minisign key, lib/domain stays free of Flutter and IO, no print in lib, visual verification with `flutter run -d macos` for UI work; Where to look table updated; Preferred skills updated to the rewritten commands). AGENTS.md likewise.\n3. README.md and docs/INSTALL.md: describe installing and building the Flutter app (macOS 12 or later on Apple Silicon, Windows 10 or 11 x64), keeping the product description, licence (Apache-2.0) and download instructions.\n4. CHANGELOG.md: add at the top, below the title, an \"## [Unreleased]\" section: \"### Changed\" with one line per bullet: the app is rebuilt in Flutter (same screens and save file; macOS 12 or later now required); the cat icon and cat loader are redrawn; all albums load (Deezer pagination); song previews no longer fail after about 15 minutes in a session; lyric lookups identify the app and back off when LRCLIB is busy. Leave existing sections unchanged.\n5. receipts.config.json: set verify.test_command to `flutter test {test}` and verify.suite_command to `flutter test`; in agent.observe rewrite every field that names the old stack for the Flutter app: surface (the Flutter main window in each GamePhase), observe_by (VMLab deep checks; logic by flutter_test under test/; `flutter run -d macos` as the shallow look), build_artifact (`flutter build` plus tool/release packaging locally or the CI build artifacts: .dmg and .app.tar.gz on macOS aarch64, setup .exe on Windows x86_64; release assets with pubspec.yaml's version), twin (the Dart models in lib/domain/models with defaultProgress; the version in pubspec.yaml and CHANGELOG.md; build steps shared by ci.yml and release.yml; sound and lyrics quiz types sharing engine code), dependent (controllers in lib/state that call lib/data and lib/services; save migrations in lib/data/save/migrations.dart; the updater protocol in lib/services/updater with latest.json and the minisign key in update_config.dart; the Deezer and LRCLIB clients in lib/data), receipt (a flutter_test test under test/ red before and green after, plus the VMLab steps for user-facing behaviour), compat_boundary (save.json version in lib/domain/models/progress.dart and lib/data/save/migrations.dart; latest.json, the minisign key and the artifact formats; Deezer and LRCLIB response shapes), reach.access (`flutter run -d macos` for quick looks; VMLab for deep checks), and special_surfaces (audio playback through flutter_soloud instead of Web Audio); keep every other key and value.\n6. .claude/: first rewrite .claude/settings.json (below) so no hook points at a script you are about to delete, then delete agents react-tauri-reviewer.md, rust-tauri-reviewer.md, schema-sync-checker.md, tauri-security-reviewer.md, vitest-tdd-guide.md; commands new-tauri-command.md and sync-schemas.md; hooks block-csp-weakening.sh, check-rust-after-edit.sh, warn-console-log.sh. Add agents/flutter-reviewer.md (reviews lib/ and test/ changes for immutability, Riverpod usage, no print, lib/domain purity, save-format and updater-protocol compatibility) and agents/flutter-tdd-guide.md (test-first with flutter_test). Rewrite agents/audio-engine-reviewer.md for lib/domain/engine/clip_selector.dart, lib/data/lyrics/danger_zones.dart, lib/services/audio/ and lib/state/audio_controller.dart. Rewrite commands verify.md (dart format check, flutter analyze --fatal-infos, flutter test, stop at first failure), new-achievement.md (lib/domain/engine/achievements.dart, assets/cats/, tests), release.md (bump pubspec.yaml version, CHANGELOG entry, /verify, release PR, never push tags) and review-pr.md (reviewers flutter-reviewer and audio-engine-reviewer). Add hooks/warn-print.sh (warn when an edited lib/ Dart file contains print( or debugPrint(), keep block-secrets.sh, update stop-reminder.sh's commands. settings.json: replace npm, cargo and src-tauri permissions with flutter and dart equivalents (Edit and Write for lib/**, test/**, tool/**, assets/**, docs/**, .claude/**; Bash for flutter test, flutter analyze, flutter build, flutter run, dart format, dart run tool/release/*), deny edits to pubspec.lock and build/**, drop the CSP and Rust hooks and point the PostToolUse hook to warn-print.sh; remove the now meaningless `Bash(npm publish:*)` and `Bash(cargo publish:*)` deny rules and keep every other deny rule. warn-print.sh and stop-reminder.sh start with `#!/usr/bin/env bash` and are executable (`chmod +x`). settings.local.json.example and README.md under .claude follow.\n7. .github/dependabot.yml: keep the github-actions entry; replace the npm, cargo and rust-toolchain entries with one `pub` entry for directory / (weekly, cooldown 7 days, commit-message prefix chore with scope, minor and patch grouped). .github/workflows/claude-review.yml: trigger paths lib/**, test/**, tool/**, installer/**, pubspec.yaml, .claude/** and .github/workflows/**; the prompt dispatches flutter-reviewer and audio-engine-reviewer instead of the three Tauri reviewers; keep everything else, including the pinned SHAs.\n8. docs/decisions/2026-10-05-flutter-rewrite.md: a short decision record: why Flutter, what stayed the same, the save path and updater compatibility, the API review result (keep Deezer and LRCLIB, with the four fixes), the macOS 12 minimum, and the bridge release plan (the first Flutter release is installed by existing Tauri copies through latest.json).\n9. Test test/repo/repo_layout_test.dart group \"tauri stack is gone and docs describe flutter\": the deleted paths do not exist; no file under .claude/, .github/, CLAUDE.md, AGENTS.md, README.md, docs/INSTALL.md or receipts.config.json contains \"npm run\", \"cargo \" or \"tauri dev\"/\"tauri build\"; CLAUDE.md and README.md contain \"flutter test\".",
+   "complexity": "complex",
+   "after": [
+    "app-shell",
+    "release-pipeline"
+   ],
+   "msp": "retire-tauri"
+  }
+ ],
+ "status": "handed-off"
+}
