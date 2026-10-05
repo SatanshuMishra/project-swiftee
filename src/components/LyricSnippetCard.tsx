@@ -7,6 +7,11 @@ interface LyricSnippetCardProps {
 }
 
 export function LyricSnippetCard({ lines, className }: LyricSnippetCardProps) {
+  const keyedLines = lines.map((line, position) => ({
+    line,
+    key: `${lines.slice(0, position).filter((earlier) => earlier === line).length}:${line}`,
+  }));
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -15,9 +20,9 @@ export function LyricSnippetCard({ lines, className }: LyricSnippetCardProps) {
       className={cn("rounded-2xl border border-border bg-card p-6", className)}
     >
       <div className="flex flex-col gap-3">
-        {lines.map((line, index) => (
+        {keyedLines.map(({ line, key }) => (
           <p
-            key={index}
+            key={key}
             className="text-center text-lg italic leading-relaxed text-foreground"
             style={{ lineHeight: 1.8 }}
           >

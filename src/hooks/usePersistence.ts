@@ -9,13 +9,13 @@ import { showToast } from "../lib/toast";
 export function usePersistence() {
   const setProgress = useGameStore((s) => s.setProgress);
   const progress = useGameStore((s) => s.progress);
-  const lastSaved = useRef<string>("");
+  const lastSavedRef = useRef<string>("");
   // Auto-save is gated on a successful load. Until load_progress returns a
   // recognized LoadResult variant (Fresh / Loaded / Migrated), we MUST NOT
   // write the in-memory DEFAULT_PROGRESS to disk — doing so would silently
   // destroy a user's existing save when the file errored on read (e.g.
   // FutureSaveVersion after a downgrade, or a corrupted JSON).
-  const loadCompletedSuccessfully = useRef(false);
+  const loadCompletedSuccessfullyRef = useRef(false);
 
   const applyProgress = useCallback(
     (p: GameProgress) =>
@@ -48,13 +48,8 @@ export function usePersistence() {
         default:
           assertNever(result);
       }
-      loadCompletedSuccessfully.current = true;
+      loadCompletedSuccessfullyRef.current = true;
     } catch {
-      // Load failed — most likely FutureSaveVersion (user downgraded) or a
-      // corrupt save.json. Surface to the user via toast so they know to
-      // restore from backup. Crucially, DO NOT overwrite the file: we leave
-      // loadCompletedSuccessfully=false so the auto-save effect skips the
-      // write.
       showToast(
         "Couldn't load your save. Open Settings → Backups to restore from a backup.",
       );
@@ -63,8 +58,8 @@ export function usePersistence() {
 
   const save = useCallback(async (progressToSave: GameProgress) => {
     const json = JSON.stringify(progressToSave);
-    if (json === lastSaved.current) return;
-    lastSaved.current = json;
+    if (json === lastSavedRef.current) return;
+    lastSavedRef.current = json;
     try {
       await invoke("save_progress", { progress: progressToSave });
     } catch (err) {
@@ -83,7 +78,7 @@ export function usePersistence() {
   // succeeded. Otherwise we'd be writing DEFAULT_PROGRESS over the user's
   // real (possibly recoverable) save.
   useEffect(() => {
-    if (!loadCompletedSuccessfully.current) return;
+    if (!loadCompletedSuccessfullyRef.current) return;
     const timer = setTimeout(() => {
       save(progress);
     }, 1000);

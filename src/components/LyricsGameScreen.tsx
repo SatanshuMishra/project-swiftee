@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { StreakBadge } from "./StreakBadge";
@@ -171,16 +171,19 @@ export function LyricsGameScreen() {
   ]);
 
   // Start first round
-  if (!hasStartedRef.current && lyricsPool.length > 0) {
-    hasStartedRef.current = true;
-    // Store all tracks for option generation and background pre-fetching
-    allTracksRef.current =
-      lyricsAvailableTracks.length > 0
-        ? lyricsAvailableTracks
-        : lyricsPool.map((tw) => tw.track);
-    // Use setTimeout to avoid state update during render
-    setTimeout(() => beginRound(), 0);
-  }
+  useEffect(() => {
+    if (hasStartedRef.current || lyricsPool.length === 0) return;
+    const startTimer = setTimeout(() => {
+      hasStartedRef.current = true;
+      // Store all tracks for option generation and background pre-fetching
+      allTracksRef.current =
+        lyricsAvailableTracks.length > 0
+          ? lyricsAvailableTracks
+          : lyricsPool.map((tw) => tw.track);
+      beginRound();
+    }, 0);
+    return () => clearTimeout(startTimer);
+  }, [lyricsPool, lyricsAvailableTracks, beginRound]);
 
   const handleAnswer = useCallback(
     (answer: number | string | boolean) => {

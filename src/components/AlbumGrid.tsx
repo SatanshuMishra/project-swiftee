@@ -13,13 +13,13 @@ export function AlbumGrid() {
   const setAlbums = useGameStore((s) => s.setAlbums);
   const clearSelectedAlbums = useGameStore((s) => s.clearSelectedAlbums);
   const setPhase = useGameStore((s) => s.setPhase);
-  const { data, loading, error, fetch } = useFetchAlbums();
+  const { data, loading, error, fetch: fetchAlbums } = useFetchAlbums();
 
   useEffect(() => {
     if (albums.length === 0) {
-      fetch();
+      fetchAlbums();
     }
-  }, [albums.length, fetch]);
+  }, [albums.length, fetchAlbums]);
 
   useEffect(() => {
     if (data) {
