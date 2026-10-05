@@ -7,7 +7,7 @@ on:
   workflow_call:
     inputs:
       skip-bundle:
-        description: Skip the platform bundle job when the caller builds its own bundles
+        description: Skip the platform bundle jobs when the caller builds its own bundles
         type: boolean
         default: false
 
@@ -19,115 +19,148 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  frontend:
-    name: Frontend (Lint + Test)
+  analyze:
+    name: Analyze and test
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          node-version: "24"
-          cache: "npm"
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
 
-      - run: npm ci
-
-      - name: TypeScript check
-        run: npx tsc --noEmit
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Run tests
-        run: npx vitest run
-
-  backend:
-    name: Rust (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-26, windows-2025]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
-        with:
-          cache-workspaces: src-tauri
-
-      - name: Install system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: flutter pub get
 
       - name: Format
-        if: runner.os == 'Linux'
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+        run: dart format --output=none --set-exit-if-changed lib test tool
 
-      - name: Clippy
-        if: runner.os == 'Linux'
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+      - name: Analyze
+        run: flutter analyze --fatal-infos
 
-      - name: Tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Test
+        run: flutter test
 
-  build:
-    name: Build (${{ matrix.platform }})
+  build-macos:
+    name: Build (macos-26)
     if: ${{ !inputs.skip-bundle }}
-    needs: [frontend, backend]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos-26
-            target: aarch64-apple-darwin
-          - platform: windows-2025
-            target: x86_64-pc-windows-msvc
-    runs-on: ${{ matrix.platform }}
+    needs: [analyze]
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Check for the app entry point
+        id: app
+        shell: bash
+        run: |
+          if [ -f lib/main.dart ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::lib/main.dart is not on this branch yet, so the macOS build is skipped"
+          fi
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        if: steps.app.outputs.present == 'true'
         with:
-          node-version: "24"
-          cache: "npm"
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
 
-      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
-        with:
-          target: ${{ matrix.target }}
-          cache-workspaces: src-tauri
+      - name: Build the macOS app
+        if: steps.app.outputs.present == 'true'
+        run: flutter build macos --release
 
-      - run: npm ci
-
-      - name: Build unsigned bundle
-        run: npx tauri build --no-sign --target ${{ matrix.target }}
+      - name: Package the DMG and updater archive
+        if: steps.app.outputs.present == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n -E 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml | head -n 1)
+          tool/release/package_macos.sh "$version"
 
       - name: Upload build artifacts
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: steps.app.outputs.present == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: swiftie-quiz-${{ matrix.target }}
+          name: swiftie-quiz-aarch64-apple-darwin
           path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+            build/release/*.dmg
+            build/release/*.app.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  build-windows:
+    name: Build (windows-2025)
+    if: ${{ !inputs.skip-bundle }}
+    needs: [analyze]
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check for the app entry point
+        id: app
+        shell: bash
+        run: |
+          if [ -f lib/main.dart ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::lib/main.dart is not on this branch yet, so the Windows build is skipped"
+          fi
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        if: steps.app.outputs.present == 'true'
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
+
+      - name: Build the Windows app
+        if: steps.app.outputs.present == 'true'
+        run: flutter build windows --release
+
+      - name: Install NSIS when makensis is missing
+        if: steps.app.outputs.present == 'true'
+        shell: pwsh
+        run: |
+          $installed = (Get-Command makensis -CommandType Application -ErrorAction SilentlyContinue) -or
+            (Test-Path -LiteralPath (Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe')) -or
+            (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'NSIS\makensis.exe'))
+          if (-not $installed) {
+            choco install nsis -y
+          }
+
+      - name: Package the setup executable
+        if: steps.app.outputs.present == 'true'
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([^+\s]+)').Matches[0].Groups[1].Value
+          ./tool/release/package_windows.ps1 -Version $version
+
+      - name: Upload build artifacts
+        if: steps.app.outputs.present == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: swiftie-quiz-x86_64-pc-windows-msvc
+          path: build/release/*-setup.exe
           if-no-files-found: error
           retention-days: 14
 
   ci-ok:
     name: CI OK
     if: always()
-    needs: [frontend, backend, build]
+    needs: [analyze, build-macos, build-windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
