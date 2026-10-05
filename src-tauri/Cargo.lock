@@ -3385,6 +3385,7 @@ version = "0.2.3"
 dependencies = [
  "futures",
  "mockito",
+ "objc2-foundation",
  "regex",
  "reqwest",
  "rustls",

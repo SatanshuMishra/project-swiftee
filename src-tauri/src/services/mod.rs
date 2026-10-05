@@ -3,6 +3,7 @@ pub mod deezer_client;
 pub mod lrclib_client;
 pub mod rate_limiter;
 pub mod track_filter;
+pub mod update_gate;
 
 pub(crate) fn http_client_builder() -> reqwest::ClientBuilder {
     let _ = rustls::crypto::ring::default_provider().install_default();
