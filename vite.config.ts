@@ -16,7 +16,7 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     host: host || false,
-    hmr: host
+    ws: host
       ? {
           protocol: "ws",
           host,
@@ -24,7 +24,11 @@ export default defineConfig({
         }
       : undefined,
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: ["**/src-tauri/**", "**/graphify-out/**"],
     },
+  },
+  build: {
+    target:
+      process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari14",
   },
 });
