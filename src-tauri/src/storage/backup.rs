@@ -43,15 +43,15 @@ pub fn list_backups(save_dir: &Path) -> Result<Vec<BackupEntry>, AppError> {
     for entry in fs::read_dir(save_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if let Some(ts) = parse_backup_timestamp(name) {
-                let metadata = entry.metadata()?;
-                entries.push(BackupEntry {
-                    timestamp: ts,
-                    path: path.to_string_lossy().into_owned(),
-                    size_bytes: metadata.len(),
-                });
-            }
+        if let Some(name) = path.file_name().and_then(|n| n.to_str())
+            && let Some(ts) = parse_backup_timestamp(name)
+        {
+            let metadata = entry.metadata()?;
+            entries.push(BackupEntry {
+                timestamp: ts,
+                path: path.to_string_lossy().into_owned(),
+                size_bytes: metadata.len(),
+            });
         }
     }
     entries.sort_by_key(|e| std::cmp::Reverse(e.timestamp)); // newest first
