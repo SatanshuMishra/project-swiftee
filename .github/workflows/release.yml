@@ -48,40 +48,25 @@ jobs:
     name: Tagged commit passed CI on main
     needs: validate-versions
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 100
     permissions:
       contents: read
-      checks: read
+      actions: read
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: false
+      - run: flutter pub get
       - name: Require the tagged commit to be on main with a successful CI OK
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          position=$(gh api "repos/$GH_REPO/compare/main...$SHA" --jq .status)
-          if [ "$position" != "identical" ] && [ "$position" != "behind" ]; then
-            echo "::error::$SHA is not on main; releases ship only from main"
-            exit 1
-          fi
-          while true; do
-            state=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs?check_name=CI%20OK" --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last | "\(.status) \(.conclusion)"')
-            case "$state" in
-              "completed success")
-                echo "CI OK passed on $SHA"
-                exit 0
-                ;;
-              completed*)
-                echo "::error::CI OK on $SHA finished as ${state#completed }; re-run CI on main, then re-run this release"
-                exit 1
-                ;;
-              *)
-                echo "Waiting for CI OK on $SHA ($state)"
-                sleep 30
-                ;;
-            esac
-          done
+        run: dart run tool/release/release_gate.dart ci-passed
 
   create-release:
     name: Create draft release
@@ -373,21 +358,22 @@ jobs:
     name: Publish the release
     needs: [validate-versions, create-release, publish-manifest, attest]
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - name: Publish the verified draft as the latest release
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: false
+      - run: flutter pub get
+      - name: Publish the verified draft
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
           VERSION: ${{ needs.validate-versions.outputs.version }}
-        run: |
-          set -euo pipefail
-          if [[ "$VERSION" == *-* ]]; then
-            gh release edit "$TAG" --draft=false --prerelease --latest=false
-          else
-            gh release edit "$TAG" --draft=false --latest
-          fi
-          gh release view "$TAG" --json isPrerelease,url --jq '"Published \(.url) (prerelease: \(.isPrerelease))"'
+        run: dart run tool/release/release_gate.dart publish

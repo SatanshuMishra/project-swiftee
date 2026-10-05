@@ -13,10 +13,11 @@ During a GitHub Actions runner outage, each extra job meant another wait for a r
 | Decision | Why |
 |---|---|
 | The macOS and Windows builds run side by side | The one-after-the-other order came from Tauri, whose build action rewrote `latest.json` from both jobs and raced. The Flutter pipeline writes `latest.json` once, in its own job after both builds, so there is no race to avoid. A release finishes about ten minutes sooner |
-| The release checks that the tagged commit is on `main` and that its `CI OK` passed, instead of running CI again | Every commit on `main` already runs the full CI, including both platform builds. That is more than the release's own CI call, which skipped the builds. The release waits while that CI is still running and refuses a commit whose `CI OK` failed or was cancelled, so a red commit still cannot ship |
+| The release checks that the tagged commit is on `main` and that `CI OK` passed in CI's own push run on `main` for that exact commit, instead of running CI again | A push to `main` runs the full CI, including both platform builds. That is more than the release's own CI call, which skipped the builds. Only that push run counts, not a pull request run, because a pull request run tests the branch merged into an older `main`, not the commit's own tree. `tool/release/release_gate.dart ci-passed` waits while that CI is still running and rides out API errors. It fails with a clear message if `CI OK` failed or was cancelled, if `main` never ran CI for the commit (for example a pull request commit was tagged instead of the merge), or if CI takes more than 90 minutes |
 | `make_manifest.dart` verifies each artifact's signature with the update key embedded in the app before it writes `latest.json` | Before, nothing in the pipeline proved that the signatures in `latest.json` verify with the key installed copies trust. A wrong key or an artifact changed after signing would have reached users as an update that every copy refuses. That check had been run by hand before each publish |
 | The asset check of `latest.json` runs in the job that uploads it | One fewer job to wait for a runner. The check is unchanged: the version, all four platform keys, URLs that point at this release's downloads, and assets that exist |
-| A release that passes every check publishes itself as the latest release | The draft step only waited for a person to press publish after the automated checks had already passed. A version with a pre-release suffix such as `-rc.1` is published as a pre-release and never becomes the latest |
+| A release that passes every check publishes itself | The draft step only waited for a person to press publish after the automated checks had already passed. `tool/release/release_gate.dart publish` makes the release the latest only when its version is above the current latest. Re-running an old release therefore cannot point the update feed back at an older version, and a release that is already published is left alone |
+| Tags must be `MAJOR.MINOR.PATCH` | The Windows installer needs a numeric version, so a pre-release tag such as `v0.4.0-rc.1` would fail halfway, after the macOS build had already uploaded. The release check now refuses it before anything is built |
 | The `workflow_call` entry point and `skip-bundle` input are removed from `ci.yml` | The release no longer calls CI |
 
 ## What still guards a release
@@ -24,7 +25,7 @@ During a GitHub Actions runner outage, each extra job meant another wait for a r
 - Only admins can push `v*` tags (the `release-tags` ruleset), so the tag push is the one human decision.
 - The signing key lives only in the `release` environment, which releases it only to runs from `v*` tags.
 - The tag must equal the `pubspec.yaml` version, and the CHANGELOG must have a dated section for it.
-- The commit must be on `main` and must have passed `CI OK`.
+- The commit must be on `main` and must have passed `CI OK` in CI's own run on `main` for that commit.
 - `latest.json` is written only from signatures that verify with the app's update key, and it is checked against the uploaded assets.
 - Build provenance is attested before publishing.
 

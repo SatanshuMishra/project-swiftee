@@ -15,6 +15,7 @@ final updaterPublicKeyLine = RegExp(
   multiLine: true,
 );
 final standardBase64 = RegExp(r'^[A-Za-z0-9+/]+={0,2}$');
+final releaseVersion = RegExp(r'^\d+\.\d+\.\d+$');
 
 final class ReleaseCheckFailure implements Exception {
   const ReleaseCheckFailure(this.message);
@@ -105,6 +106,12 @@ String checkRelease({
   required String updateConfig,
 }) {
   final version = versionFromTag(tag);
+  if (!releaseVersion.hasMatch(version)) {
+    throw ReleaseCheckFailure(
+      'Releases use MAJOR.MINOR.PATCH versions; $tag is not one, and the '
+      'Windows installer cannot be built for it',
+    );
+  }
   final declared = pubspecVersion(pubspec);
   if (version != declared) {
     throw ReleaseCheckFailure(

@@ -330,23 +330,18 @@ void main() {
     test('a release ships only a main commit whose CI OK passed, without '
         'running CI again', () {
       final gate = job(release, 'ci-passed');
-      final check = runsOf(gate).single;
+      final step = stepsOf(gate)
+          .singleWhere((s) => runsCommand(s, 'release_gate.dart'));
 
       expect(
         jobsOf(release).values.where((j) => (j as YamlMap)['uses'] != null),
         isEmpty,
       );
-      expect(gate['permissions'], {'contents': 'read', 'checks': 'read'});
-      expect(check, contains(r'compare/main...$SHA'));
-      expect(check, contains('"identical"'));
-      expect(check, contains('"behind"'));
-      expect(check, contains('check-runs?check_name=CI%20OK'));
-      expect(check, contains('"completed success")'));
-      expect(check, contains('completed*)'));
-      expect(check, contains('exit 1'));
-      expect(stepsOf(gate).single['env'], {
+      expect(gate['permissions'], {'contents': 'read', 'actions': 'read'});
+      expect(gate['timeout-minutes'], greaterThan(90));
+      expect(step['run'], 'dart run tool/release/release_gate.dart ci-passed');
+      expect(step['env'], {
         'GH_TOKEN': r'${{ github.token }}',
-        'GH_REPO': r'${{ github.repository }}',
         'SHA': r'${{ github.sha }}',
       });
     });
@@ -367,7 +362,9 @@ void main() {
         'resolved', () {
       final tools = {
         'validate-versions': 'dart run tool/release/check_release.dart',
+        'ci-passed': 'dart run tool/release/release_gate.dart ci-passed',
         'publish-manifest': 'dart run tool/release/make_manifest.dart',
+        'publish-release': 'dart run tool/release/release_gate.dart publish',
       };
       for (final entry in tools.entries) {
         final current = job(release, entry.key);
@@ -492,21 +489,23 @@ void main() {
 
     test('a verified release publishes itself with no manual step', () {
       final publish = job(release, 'publish-release');
-      final command = runsOf(publish).single;
+      final step = stepsOf(publish)
+          .singleWhere((s) => runsCommand(s, 'release_gate.dart'));
 
       expect(publish['environment'], isNull);
       expect(publish['permissions'], {'contents': 'write'});
-      expect(
-        command,
-        contains(r'gh release edit "$TAG" --draft=false --latest'),
-      );
-      expect(
-        command,
-        contains(
-          r'gh release edit "$TAG" --draft=false --prerelease --latest=false',
-        ),
-      );
-      expect(command, contains(r'[[ "$VERSION" == *-* ]]'));
+      expect(step['run'], 'dart run tool/release/release_gate.dart publish');
+      expect(step['env'], {
+        'GH_TOKEN': r'${{ github.token }}',
+        'RELEASE_ID': r'${{ needs.create-release.outputs.release_id }}',
+        'VERSION': r'${{ needs.validate-versions.outputs.version }}',
+      });
+    });
+
+    test('no release job runs after a job it needs has failed', () {
+      for (final entry in jobsOf(release).entries) {
+        expect((entry.value as YamlMap)['if'], isNull, reason: '${entry.key}');
+      }
     });
 
     test('attestations cover the archive, the DMG and the setup '

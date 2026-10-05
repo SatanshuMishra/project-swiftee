@@ -295,6 +295,25 @@ void main() {
       });
 
       test('uses the update key of the app by default', () async {
+        List<String> decodedLines(String tauriText) =>
+            utf8.decode(base64.decode(tauriText.trim())).split('\n');
+        final keyLine = base64.decode(decodedLines(updaterPublicKey)[1]);
+        final signatureLines = decodedLines(signature);
+        final signatureLine = base64.decode(signatureLines[1]);
+        final claimingAppKey = base64.encode(
+          utf8.encode(
+            [
+              signatureLines.first,
+              base64.encode([
+                ...signatureLine.sublist(0, 2),
+                ...keyLine.sublist(2, 10),
+                ...signatureLine.sublist(10),
+              ]),
+              ...signatureLines.sublist(2),
+            ].join('\n'),
+          ),
+        );
+        signature = claimingAppKey;
         final out = '${temp.path}/latest.json';
 
         final code = await runMakeManifest(
@@ -304,7 +323,12 @@ void main() {
         );
 
         expect(code, 1);
-        expect(errors.toString(), contains("the app's update key"));
+        expect(
+          errors.toString(),
+          contains('The signature verification failed'),
+        );
+        expect(errors.toString(), isNot(contains('different key')));
+        expect(File(out).existsSync(), isFalse);
       });
     });
   });
