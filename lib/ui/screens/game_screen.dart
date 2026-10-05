@@ -25,6 +25,7 @@ import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/widgets/back_link.dart';
 import 'package:swiftie_quiz/ui/widgets/screen_background.dart';
+import 'package:swiftie_quiz/ui/widgets/above_app_chrome.dart';
 
 enum SoundRoundState { idle, loading, playing, answered }
 
@@ -436,17 +437,19 @@ class _RoundLoaderOverlayState extends State<_RoundLoaderOverlay>
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    return AnimatedBuilder(
-      animation: _fade,
-      builder: (context, child) => _fade.isDismissed
-          ? const SizedBox.shrink()
-          : FadeTransition(opacity: _opacity, child: child),
-      child: ColoredBox(
-        color: tokens.background,
-        child: Center(
-          child: CatLoader(
-            label: GameScreen.loadingNextTrackLabel,
-            labelStyle: widget.labelStyle,
+    return AboveAppChrome(
+      child: AnimatedBuilder(
+        animation: _fade,
+        builder: (context, child) => _fade.isDismissed
+            ? const SizedBox.shrink()
+            : FadeTransition(opacity: _opacity, child: child),
+        child: ColoredBox(
+          color: tokens.background,
+          child: Center(
+            child: CatLoader(
+              label: GameScreen.loadingNextTrackLabel,
+              labelStyle: widget.labelStyle,
+            ),
           ),
         ),
       ),

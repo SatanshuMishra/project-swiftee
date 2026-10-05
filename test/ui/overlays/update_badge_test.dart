@@ -8,6 +8,7 @@ import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/ui/overlays/update_badge.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:swiftie_quiz/ui/widgets/above_app_chrome.dart';
 import 'package:swiftie_quiz/ui/widgets/app_icon.dart';
 
 const Size surface = Size(800, 600);
@@ -359,6 +360,58 @@ void main() {
       expect(find.text('Version 0.3.0 available'), findsNothing);
       expect(find.text('Update available (0.3.0)'), findsOneWidget);
     });
+
+    testWidgets(
+      'a screen layer floated above the app chrome covers the badge but not the toasts',
+      (tester) async {
+        var coverTaps = 0;
+        var toastTaps = 0;
+        setState(const UpdaterAvailable(manifest: manifest));
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.dark,
+              home: Stack(
+                children: [
+                  UpdateOverlay(
+                    screen: Stack(
+                      children: [
+                        AboveAppChrome(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => coverTaps++,
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    belowDialog: Align(
+                      alignment: Alignment.topLeft,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => toastTaps++,
+                        child: const SizedBox(width: 60, height: 60),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(badgeBox(), warnIfMissed: false);
+        await tester.pumpAndSettle();
+        expect(coverTaps, 1);
+        expect(find.text('Version 0.3.0 available'), findsNothing);
+
+        await tester.tapAt(const Offset(30, 30));
+        await tester.pumpAndSettle();
+        expect(toastTaps, 1);
+        expect(coverTaps, 1);
+      },
+    );
 
     testWidgets('a layer below the dialog sits above the badge', (
       tester,
