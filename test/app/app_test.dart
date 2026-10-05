@@ -279,10 +279,11 @@ final class _Harness {
               .first,
         )
         .children;
-    expect(layers, hasLength(3));
-    expect(layers.first.runtimeType, screen);
-    expect(layers[1], isA<UpdateOverlay>());
-    expect((layers[1] as UpdateOverlay).belowDialog, isA<AchievementToasts>());
+    expect(layers, hasLength(2));
+    expect(layers.first, isA<UpdateOverlay>());
+    final shell = layers.first as UpdateOverlay;
+    expect(shell.screen.runtimeType, screen);
+    expect(shell.belowDialog, isA<AchievementToasts>());
     expect(layers.last, isA<ToastHost>());
   }
 

@@ -200,8 +200,10 @@ class _GameShellState extends ConsumerState<_GameShell> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _screenFor(screen.phase, screen.quizType),
-          const UpdateOverlay(belowDialog: AchievementToasts()),
+          UpdateOverlay(
+            screen: _screenFor(screen.phase, screen.quizType),
+            belowDialog: const AchievementToasts(),
+          ),
           const ToastHost(),
         ],
       ),
