@@ -21,7 +21,12 @@ v0.2.1 shipped from a commit whose CI was red, because the release workflow neve
 | Rust pinned in `rust-toolchain.toml`, installed by `actions-rust-lang/setup-rust-toolchain` | New lints arrive as a reviewable Dependabot PR, not a surprise red `main`; that action reads the file, `dtolnay/rust-toolchain` does not |
 | Runner images pinned: `ubuntu-24.04`, `macos-26`, `windows-2025` | `ubuntu-latest` moves to 26.04 from 2026-10-19; image moves become deliberate PRs |
 | Rust tests run on Linux, macOS and Windows; fmt and clippy on Linux | The app ships only on macOS and Windows; there is no platform-specific Rust code to lint separately |
-| Every third-party action pinned to a full commit SHA with a version comment | A moved tag cannot change what runs in CI; Dependabot updates SHA pins |
+| Release calls CI through `workflow_call` before creating the draft | No release is built from a commit that fails CI; bundle job skipped there because release builds its own |
+| Draft release created once, then both builds upload by `releaseId` | Parallel tauri-action jobs can otherwise create duplicate releases for one tag (tauri-action#914) |
+| `verify-manifest` asserts `latest.json` carries the tag version and all four platform keys with url and signature | Parallel jobs read-modify-write `latest.json`; a lost platform entry would silently strand that platform's users |
+| No caches in release builds | Release artifacts build from a clean state; costs release wall-clock time |
+| Every third-party action pinned to a full commit SHA with a version comment | A moved tag cannot change what runs with the signing key; Dependabot updates SHA pins |
+| Per-job permissions in `release.yml`; workflow default `contents: read` | Only jobs that upload or attest get write scopes |
 | Every job has `timeout-minutes` | A hung job stops instead of running for the six-hour default |
 | `main` pushes get one CI group per commit; PRs cancel superseded runs | Every `main` commit gets a verdict |
 | Claude review stays advisory, skips fork and Dependabot PRs, also watches `.github/workflows/**` | Those PRs never receive the API key; workflow edits are the riskiest PRs |
@@ -47,4 +52,7 @@ v0.2.1 shipped from a commit whose CI was red, because the release workflow neve
 
 ## Known costs
 
-- `setup-rust-toolchain` sets `CARGO_BUILD_WARNINGS=deny`, so a rustc warning fails any CI build. With the pinned toolchain, new warnings only arrive through a toolchain bump PR.
+- A release now runs the full CI first, then builds without caches; expect it to take noticeably longer than the 10 minutes v0.2.1 took.
+- `setup-rust-toolchain` sets `CARGO_BUILD_WARNINGS=deny`, so a rustc warning fails any build, release included. With the pinned toolchain, new warnings only arrive through a toolchain bump PR.
+- The release flow is unproven until the next tag: nothing in it can run before a `v*` tag is pushed.
+- tauri-action v1 (adopted in #12) writes GitHub API asset URLs into `latest.json` instead of browser download URLs. Clients on v0.2.1 run tauri-plugin-updater 2.10.1, whose download sends `Accept: application/octet-stream`, which those URLs require.

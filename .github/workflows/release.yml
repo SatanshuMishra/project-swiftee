@@ -5,9 +5,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -16,11 +14,14 @@ concurrency:
 jobs:
   validate-versions:
     name: Validate version coherence + extract release notes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       release_notes: ${{ steps.extract-notes.outputs.notes }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Assert versions match across package.json, Cargo.toml, tauri.conf.json
         run: |
           set -euo pipefail
@@ -91,40 +92,84 @@ jobs:
             echo "NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
 
+
+  ci:
+    name: CI
+    needs: validate-versions
+    uses: ./.github/workflows/ci.yml
+    with:
+      skip-bundle: true
+    permissions:
+      contents: read
+
+  create-release:
+    name: Create draft release
+    needs: [validate-versions, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.release.outputs.id }}
+    steps:
+      - name: Create or reuse the draft release for this tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          NOTES: ${{ needs.validate-versions.outputs.release_notes }}
+        run: |
+          set -euo pipefail
+          existing=$(gh api "repos/$GH_REPO/releases" --paginate --jq '.[] | select(.tag_name == env.TAG) | "\(.id) \(.draft)"')
+          count=$(printf '%s' "$existing" | grep -c . || true)
+          if [ "$count" -gt 1 ]; then
+            echo "::error::Found $count releases for $TAG; delete the extras before re-running"
+            exit 1
+          fi
+          if [ "$count" -eq 1 ]; then
+            read -r id draft <<< "$existing"
+            if [ "$draft" != "true" ]; then
+              echo "::error::The release for $TAG is already published; refusing to upload over it"
+              exit 1
+            fi
+            echo "Reusing draft release $id"
+          else
+            id=$(gh api -X POST "repos/$GH_REPO/releases" -f tag_name="$TAG" -f name="Swiftie Quiz $TAG" -f body="$NOTES" -F draft=true -F prerelease=false --jq .id)
+            echo "Created draft release $id"
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
   build-macos:
     name: Build (macOS aarch64)
-    needs: validate-versions
-    runs-on: macos-14
+    needs: [validate-versions, create-release]
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-          cache: "npm"
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
-          targets: aarch64-apple-darwin
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
+          target: aarch64-apple-darwin
+          cache: false
       - run: npm ci
-      - uses: tauri-apps/tauri-action@v1
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Swiftie Quiz ${{ github.ref_name }}"
-          # tauri-action embeds releaseBody verbatim into both the GitHub Release
-          # body AND the auto-generated latest.json `notes` field, so a single
-          # source of truth (CHANGELOG.md) flows through to both surfaces.
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           releaseBody: ${{ needs.validate-versions.outputs.release_notes }}
-          releaseDraft: true
-          prerelease: false
           args: --target aarch64-apple-darwin
       - name: Upload macOS artifacts (for SLSA attestations)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-bundles
           path: |
@@ -135,35 +180,34 @@ jobs:
 
   build-windows:
     name: Build (Windows x86_64)
-    needs: validate-versions
-    runs-on: windows-latest
+    needs: [validate-versions, create-release]
+    runs-on: windows-2025
+    timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-          cache: "npm"
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
-          targets: x86_64-pc-windows-msvc
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
+          target: x86_64-pc-windows-msvc
+          cache: false
       - run: npm ci
-      - uses: tauri-apps/tauri-action@v1
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Swiftie Quiz ${{ github.ref_name }}"
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           releaseBody: ${{ needs.validate-versions.outputs.release_notes }}
-          releaseDraft: true
-          prerelease: false
           args: --target x86_64-pc-windows-msvc
       - name: Upload Windows artifacts (for SLSA attestations)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-bundles
           path: |
@@ -171,16 +215,61 @@ jobs:
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe.sig
           if-no-files-found: error
 
+  verify-manifest:
+    name: Verify updater manifest
+    needs: [create-release, build-macos, build-windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Assert latest.json carries this version and every shipped platform
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          asset_id=$(gh api "repos/$GH_REPO/releases/$RELEASE_ID/assets" --paginate --jq '.[] | select(.name == "latest.json") | .id')
+          if [ -z "$asset_id" ]; then
+            echo "::error::latest.json is missing from draft release $RELEASE_ID"
+            exit 1
+          fi
+          gh api -H "Accept: application/octet-stream" "repos/$GH_REPO/releases/assets/$asset_id" > latest.json
+          jq . latest.json
+          expected="${TAG#v}"
+          actual=$(jq -r .version latest.json)
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::latest.json version is $actual, expected $expected"
+            exit 1
+          fi
+          missing=""
+          for platform in darwin-aarch64 darwin-aarch64-app windows-x86_64 windows-x86_64-nsis; do
+            if ! jq -e --arg p "$platform" '.platforms[$p].url and .platforms[$p].signature' latest.json > /dev/null; then
+              missing="$missing $platform"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::latest.json lacks a url or signature for:$missing"
+            exit 1
+          fi
+
   attest:
     name: SLSA build provenance attestations
     needs: [build-macos, build-windows]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: macos-bundles
           path: artifacts/macos
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: windows-bundles
           path: artifacts/windows
@@ -188,7 +277,7 @@ jobs:
       # of all inputs, so multi-source uploads land in subdirectories under the
       # artifact root. Globs use ** to match recursively.
       - name: Generate SLSA build provenance
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             artifacts/macos/**/*.app.tar.gz
