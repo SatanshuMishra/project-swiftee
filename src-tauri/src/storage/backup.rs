@@ -54,7 +54,7 @@ pub fn list_backups(save_dir: &Path) -> Result<Vec<BackupEntry>, AppError> {
             }
         }
     }
-    entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp)); // newest first
+    entries.sort_by_key(|e| std::cmp::Reverse(e.timestamp)); // newest first
     Ok(entries)
 }
 
