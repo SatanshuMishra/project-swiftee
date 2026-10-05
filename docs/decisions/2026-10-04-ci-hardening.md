@@ -24,7 +24,10 @@ v0.2.1 shipped from a commit whose CI was red, because the release workflow neve
 | Every third-party action pinned to a full commit SHA with a version comment | A moved tag cannot change what runs in CI; Dependabot updates SHA pins |
 | Every job has `timeout-minutes` | A hung job stops instead of running for the six-hour default |
 | `main` pushes get one CI group per commit; PRs cancel superseded runs | Every `main` commit gets a verdict |
-| Claude review stays advisory, skips fork and Dependabot PRs, also watches `.github/workflows/**` | Those PRs never receive the API key; workflow edits are the riskiest PRs |
+| CI runs on every pull request, not only those targeting `main`; fork PRs build but upload no installers | Stacked PRs get CI and installers for VMLab; a fork cannot get an installer hosted under this repository |
+| Claude review stays advisory, skips fork and Dependabot PRs, skips with a notice until `ANTHROPIC_API_KEY` exists, and also watches `.github/workflows/**` | Those PRs never receive the API key, and a missing key should not paint every PR red; workflow edits are the riskiest PRs |
+| The review agent may read, diff and comment, and is denied edits, npm, cargo, pushes, `git diff --no-index` and merge or review commands; it updates one comment per PR | The action restores `.claude/` and `CLAUDE.md` from the base branch, but package scripts and build scripts still come from the PR head |
+| Dependabot never proposes Tauri minor or major bumps; npm and cargo updates wait seven days | The Tauri CLI refuses to build when the crate and npm package minor versions differ, so separate npm and cargo PRs could never merge alone; Tauri minors are bumped by hand in one PR. The cooldown keeps brand-new releases out of a build that later holds signing keys |
 
 ## Human steps, in order
 
