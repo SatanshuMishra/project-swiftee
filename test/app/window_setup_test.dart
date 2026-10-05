@@ -63,14 +63,26 @@ final class _FakeWindow {
   }
 }
 
-Future<Object?> _screen(MethodCall call) async => switch (call.method) {
-  'getPrimaryDisplay' => _display,
-  'getAllDisplays' => {
-    'displays': [_display],
-  },
-  'getCursorScreenPoint' => {'dx': 400.0, 'dy': 300.0},
-  _ => null,
+const Map<String, Object?> _shortLaptopDisplay = {
+  'id': '2',
+  'name': '1920 by 1080 at 150 percent',
+  'size': {'width': 1280.0, 'height': 720.0},
+  'visiblePosition': {'dx': 0.0, 'dy': 0.0},
+  'visibleSize': {'width': 1280.0, 'height': 672.0},
+  'scaleFactor': 1.5,
 };
+
+Future<Object?> Function(MethodCall) _screenWith(
+  Map<String, Object?> display,
+) =>
+    (call) async => switch (call.method) {
+      'getPrimaryDisplay' => display,
+      'getAllDisplays' => {
+        'displays': [display],
+      },
+      'getCursorScreenPoint' => {'dx': 400.0, 'dy': 300.0},
+      _ => null,
+    };
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -85,7 +97,7 @@ void main() {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger
       ..setMockMethodCallHandler(_windowChannel, window.handle)
-      ..setMockMethodCallHandler(_screenChannel, _screen)
+      ..setMockMethodCallHandler(_screenChannel, _screenWith(_display))
       ..setMockMethodCallHandler(windowChromeChannel, (call) async {
         chromeCalls = [...chromeCalls, call];
         return null;
@@ -139,6 +151,34 @@ void main() {
         lessThan(window.calls.indexOf('show')),
       );
     });
+  });
+
+  group('the title bar stays on screen like Tauri', () {
+    test('a screen shorter than the window keeps the title bar at the top of '
+        'its usable area', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            _screenChannel,
+            _screenWith(_shortLaptopDisplay),
+          );
+
+      await setUpWindow();
+
+      expect(window.bounds, const Rect.fromLTWH(128, 0, 1024, 800));
+      expect(
+        window.calls.lastIndexOf('setBounds'),
+        lessThan(window.calls.indexOf('show')),
+      );
+    });
+
+    test(
+      'a screen tall enough for the window keeps the window centred',
+      () async {
+        await setUpWindow();
+
+        expect(window.bounds.top, 177.5);
+      },
+    );
   });
 
   group('window chrome matches the Tauri title bar', () {
