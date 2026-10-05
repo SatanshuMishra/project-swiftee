@@ -249,18 +249,13 @@ mod tests {
 
     #[test]
     fn test_normalise_title_single_paren() {
-        assert_eq!(
-            normalise_title("Enchanted (Taylor's Version)"),
-            "Enchanted"
-        );
+        assert_eq!(normalise_title("Enchanted (Taylor's Version)"), "Enchanted");
     }
 
     #[test]
     fn test_normalise_title_multiple_parens() {
         assert_eq!(
-            normalise_title(
-                "All Too Well (10 Minute Version) (Taylor's Version) (From The Vault)"
-            ),
+            normalise_title("All Too Well (10 Minute Version) (Taylor's Version) (From The Vault)"),
             "All Too Well"
         );
     }

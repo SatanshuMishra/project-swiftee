@@ -41,9 +41,9 @@ pub async fn list_save_backups(
     _state: State<'_, AppState>,
 ) -> Result<Vec<BackupEntry>, AppError> {
     let path = save_path(&app)?;
-    let dir = path.parent().ok_or_else(|| {
-        AppError::FileError("save path has no parent directory".to_string())
-    })?;
+    let dir = path
+        .parent()
+        .ok_or_else(|| AppError::FileError("save path has no parent directory".to_string()))?;
     storage::list_backups(dir)
 }
 
@@ -54,9 +54,9 @@ pub async fn restore_save_backup(
     _state: State<'_, AppState>,
 ) -> Result<(), AppError> {
     let path = save_path(&app)?;
-    let dir = path.parent().ok_or_else(|| {
-        AppError::FileError("save path has no parent directory".to_string())
-    })?;
+    let dir = path
+        .parent()
+        .ok_or_else(|| AppError::FileError("save path has no parent directory".to_string()))?;
     let backup_path = dir.join(format!("save.backup.{timestamp}.json"));
     storage::restore_from_backup(&backup_path, &path)
 }

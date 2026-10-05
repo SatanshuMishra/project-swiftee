@@ -148,31 +148,19 @@ mod tests {
 
     #[test]
     fn discards_generic_remix() {
-        let track = make_track(
-            "I Knew You Were Trouble (Remix)",
-            "(Remix)",
-            219,
-        );
+        let track = make_track("I Knew You Were Trouble (Remix)", "(Remix)", 219);
         assert!(!is_playable_song(&track));
     }
 
     #[test]
     fn discards_karaoke() {
-        let track = make_track(
-            "Shake It Off (Karaoke Version)",
-            "(Karaoke Version)",
-            219,
-        );
+        let track = make_track("Shake It Off (Karaoke Version)", "(Karaoke Version)", 219);
         assert!(!is_playable_song(&track));
     }
 
     #[test]
     fn discards_instrumental() {
-        let track = make_track(
-            "Anti-Hero (Instrumental)",
-            "(Instrumental)",
-            200,
-        );
+        let track = make_track("Anti-Hero (Instrumental)", "(Instrumental)", 200);
         assert!(!is_playable_song(&track));
     }
 
@@ -247,11 +235,7 @@ mod tests {
 
     #[test]
     fn remix_detection_is_case_insensitive() {
-        let track = make_track(
-            "Bad Blood (REMIX)",
-            "(REMIX)",
-            211,
-        );
+        let track = make_track("Bad Blood (REMIX)", "(REMIX)", 211);
         assert!(!is_playable_song(&track));
     }
 

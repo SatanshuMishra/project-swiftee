@@ -23,7 +23,11 @@ pub struct Track {
     /// Parenthetical version suffix from Deezer (e.g. "(The Chainsmokers Remix)").
     /// Empty for standard recordings and Taylor's Version re-recordings.
     /// Used only for backend filtering; never serialised to the frontend.
-    #[serde(default, deserialize_with = "deserialize_null_string", skip_serializing)]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_null_string",
+        skip_serializing
+    )]
     pub title_version: String,
     pub duration: u32,
     #[serde(default, deserialize_with = "deserialize_null_string")]
@@ -89,7 +93,10 @@ mod tests {
         assert_eq!(track.id, 1234);
         assert_eq!(track.title_short, "Enchanted");
         assert_eq!(track.artist.name, "Taylor Swift");
-        assert_eq!(track.album.cover_medium.as_deref(), Some("https://example.com/cover.jpg"));
+        assert_eq!(
+            track.album.cover_medium.as_deref(),
+            Some("https://example.com/cover.jpg")
+        );
     }
 
     #[test]
@@ -101,8 +108,15 @@ mod tests {
             title_version: String::new(),
             duration: 30,
             preview: "https://example.com".to_string(),
-            artist: Artist { id: 1, name: "Artist".to_string() },
-            album: Album { id: 1, title: "Album".to_string(), cover_medium: None },
+            artist: Artist {
+                id: 1,
+                name: "Artist".to_string(),
+            },
+            album: Album {
+                id: 1,
+                title: "Album".to_string(),
+                cover_medium: None,
+            },
         };
 
         let json = serde_json::to_value(&track).unwrap();
@@ -119,7 +133,8 @@ mod tests {
 
     #[test]
     fn test_deezer_response_deserializes() {
-        let json = r#"{"data": [{"id": 1, "title": "Album One"}, {"id": 2, "title": "Album Two"}]}"#;
+        let json =
+            r#"{"data": [{"id": 1, "title": "Album One"}, {"id": 2, "title": "Album Two"}]}"#;
         let response: DeezerResponse<Album> = serde_json::from_str(json).unwrap();
         assert_eq!(response.data.len(), 2);
         assert_eq!(response.data[0].title, "Album One");
@@ -200,7 +215,10 @@ mod tests {
 
         // Verify it serializes correctly for the frontend
         let serialized = serde_json::to_value(&track).unwrap();
-        assert_eq!(serialized["album"]["coverMedium"], "https://example.com/cover.jpg");
+        assert_eq!(
+            serialized["album"]["coverMedium"],
+            "https://example.com/cover.jpg"
+        );
     }
 
     /// Deezer returns `"preview": null` for geo-restricted tracks.
@@ -231,8 +249,15 @@ mod tests {
             title_version: "(The Chainsmokers Remix)".to_string(),
             duration: 200,
             preview: "https://example.com".to_string(),
-            artist: Artist { id: 1, name: "Artist".to_string() },
-            album: Album { id: 1, title: "Album".to_string(), cover_medium: None },
+            artist: Artist {
+                id: 1,
+                name: "Artist".to_string(),
+            },
+            album: Album {
+                id: 1,
+                title: "Album".to_string(),
+                cover_medium: None,
+            },
         };
         let json = serde_json::to_value(&track).unwrap();
         assert!(json.get("titleVersion").is_none());

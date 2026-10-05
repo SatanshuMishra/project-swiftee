@@ -39,6 +39,7 @@ Rust 2024 · Tauri 2 · tokio · reqwest (rustls) · serde · mockito
 | Add a game phase/screen         | types/index.ts:30 union + App.tsx:40 switch + new component |
 | Change save format              | bump version in progress.rs:44 + migration in storage.rs:56 |
 | Fix smart-clip behaviour        | engine/clipSelector.ts + lib/lrclib.ts |
+| Change CI or the release flow   | .github/workflows/ + docs/decisions/2026-10-04-ci-hardening.md; required check is the `CI OK` job name |
 
 ## Preferred skills (project-scoped)
 - `/verify`         — full check suite before claiming done
