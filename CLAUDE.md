@@ -1,54 +1,63 @@
 # Swiftie Quiz — Project Instructions
 
-Tauri 2 desktop trivia game (React 19 + TS strict + Rust 2024) using public Deezer
+Flutter desktop trivia game for macOS and Windows (Dart, Riverpod) using public Deezer
 and LRCLIB APIs. No user PII, no auth.
 
 ## Stack
-React 19 · TypeScript 7 (tsc; 6.0 kept for typescript-eslint) · Zustand · Tailwind v4 · Vite 8 · Motion · Vitest 5 · ESLint 10
-Rust 2024 · Tauri 2 · tokio · reqwest (rustls) · serde · mockito
+Flutter 3.47.5 · Dart 3.13 · Riverpod 3 · flutter_soloud · flutter_svg · window_manager · http
+flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 
 ## Commands
-- `npm run dev` / `npm run tauri dev` (use the latter for visual verification)
-- `npm test` / `npm run lint`
-- `cd src-tauri && cargo test`
-- `cd src-tauri && cargo clippy -- -D warnings`
+- `flutter pub get`
+- `flutter run -d macos` (use this for visual verification)
+- `flutter test` / `flutter test test/path/to/file_test.dart --plain-name "<name>"`
+- `flutter analyze --fatal-infos`
+- `dart format lib test tool` (CI runs `dart format --output=none --set-exit-if-changed lib test tool`)
 
 ## Architecture (one-screen tour)
-- 7 Tauri commands in src-tauri/src/commands/{deezer,lyrics,storage}.rs (registered in lib.rs:15)
-- Single Zustand store at src/stores/gameStore.ts — all state, immutable updates only
-- Pure game logic in src/engine/ — testable without React/jsdom/AudioContext
-- Side effects (audio, IPC, persistence) confined to src/hooks/
-- Rust DTOs in src-tauri/src/models/ mirror TS types in src/types/index.ts (camelCase via serde)
+- lib/domain/ — pure rules and models: engine/ (quiz, clip selection, lyrics, achievements, relisten schedule) and models/ (save format, tracks, lyrics, updater types)
+- lib/data/ — Deezer and LRCLIB clients (catalog/, lyrics/) and the save store (save/)
+- lib/services/ — audio through flutter_soloud (audio/) and the updater (updater/)
+- lib/state/ — Riverpod 3 Notifier controllers; shared collaborators in providers.dart
+- lib/ui/ — screens, gameplay widgets, overlays, cat icon and loader, theme tokens
+- lib/app/ — app shell, window setup and phase routing; entry point lib/main.dart
+- Models and state are immutable: final fields, const constructors, copyWith, unmodifiable collections
+- Side effects (network, files, audio, process launching) live only in lib/data/ and lib/services/, behind injected collaborators
+- installer/windows/ — NSIS script; tool/release/ — packaging, release checks and latest.json
 
 ## Project-specific rules (extend ~/.claude/rules globals)
-1. **DTO sync is mandatory.** Editing src/types/index.ts OR src-tauri/src/models/*.rs
-   requires updating BOTH sides AND DEFAULT_PROGRESS (TS) AND Default for GameProgress (Rust).
-   Schema drift is the #1 historical bug source. Run `/sync-schemas` after.
-2. **Tauri CSP is load-bearing.** Never weaken tauri.conf.json security.csp.
-   Hook will block such edits.
-3. **Game logic stays pure.** src/engine/* must not import React or DOM APIs.
-4. **No console.log in src/ production code.** Tests only. Hook will warn.
-5. **Visual verification required for UI work.** `npm run tauri dev` + exercise the
-   flow before claiming done. Type-check passing ≠ feature works.
+1. **Save format stays compatible with the Tauri-era save.json.** Same location
+   (com.swiftiequiz.desktop app data folder), camelCase keys, version 3. Any shape change
+   bumps the version and adds a migration in lib/data/save/migrations.dart, with a test
+   that loads the previous version. Existing players' saves must load unchanged.
+2. **The updater protocol stays compatible.** latest.json (URL, schema, platform keys),
+   the minisign public key in lib/services/updater/update_config.dart and the artifact
+   formats are what installed copies update through. Never change them without a release plan.
+3. **lib/domain stays pure.** No package:flutter, dart:io or dart:ui imports under lib/domain/.
+4. **No print or debugPrint in lib/.** Tests only. Hook will warn.
+5. **Visual verification required for UI work.** `flutter run -d macos` + exercise the
+   flow before claiming done. Analyze passing ≠ feature works.
 
 ## Where to look
 | I want to...                    | Look at... |
 |---------------------------------|------------|
-| Add a Tauri command             | src-tauri/src/commands/ + register in lib.rs:15 |
-| Add an achievement              | engine/achievements.ts + useAchievements.ts + cat SVG |
-| Add a game phase/screen         | types/index.ts:30 union + App.tsx:40 switch + new component |
-| Change save format              | bump version in progress.rs:44 + migration in storage.rs:56 |
-| Fix smart-clip behaviour        | engine/clipSelector.ts + lib/lrclib.ts |
-| Change CI or the release flow   | .github/workflows/ + docs/decisions/2026-10-04-ci-hardening.md; required check is the `CI OK` job name |
+| Add an achievement              | lib/domain/engine/achievements.dart + achievementConditionMet in lib/state/achievements_controller.dart:26 + assets/cats/ SVG |
+| Add a game phase/screen         | GamePhase in lib/domain/models/game_types.dart:3 + phase switch in lib/app/app.dart:175 + new widget in lib/ui/screens/ |
+| Change save format              | bump currentSaveVersion in lib/data/save/migrations.dart:5 and defaultProgress in lib/domain/models/progress.dart:9 + a migration step in migrations.dart |
+| Fix smart-clip behaviour        | lib/domain/engine/clip_selector.dart + lib/data/lyrics/danger_zones.dart |
+| Change a Deezer or LRCLIB call  | lib/data/catalog/deezer_client.dart or lib/data/lyrics/lrclib_client.dart + providers in lib/state/providers.dart |
+| Change the updater              | lib/services/updater/ (protocol) + lib/state/updater_controller.dart (schedule and states) |
+| Change the Windows installer    | installer/windows/swiftie-quiz.nsi + test/installer/nsis_script_test.dart |
+| Change CI or the release flow   | .github/workflows/ + tool/release/ + docs/decisions/2026-10-04-ci-hardening.md; required check is the `CI OK` job name |
 
 ## Preferred skills (project-scoped)
-- `/verify`         — full check suite before claiming done
-- `/sync-schemas`   — diffs Rust↔TS DTOs (catches rule-1 violations)
-- `/review-pr`      — santa-method dual-review on uncommitted changes
-- `/new-tauri-command <name>` — scaffolds command + handler + test + FE hook
+- `/verify`         — dart format check, flutter analyze, flutter test before claiming done
+- `/review-pr`      — santa-method dual-review (flutter-reviewer + audio-engine-reviewer) on uncommitted changes
+- `/new-achievement <id> "<description>"` — scaffolds definition + unlock condition + cat SVG + tests
+- `/release patch|minor|major` — bumps pubspec.yaml, writes the CHANGELOG entry, opens the release PR
 
 ## Skills to skip here
-- `e2e-testing` (Playwright) — premature; current Vitest coverage suffices.
+- `e2e-testing` (Playwright) — there is no web surface; flutter_test widget tests plus VMLab runs cover it.
 - `brainstorming` for trivial fixes — overkill.
 
 ## Privacy

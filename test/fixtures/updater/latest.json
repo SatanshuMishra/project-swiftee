@@ -1,0 +1,23 @@
+{
+  "version": "0.3.0",
+  "notes": "### Changed\n- Rebuilt in Flutter with the same screens and save file.\n- Redrawn cat icon and cat loader.",
+  "pub_date": "2026-10-05T12:00:00Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTZXM3NVJCd042cS9JOU94THdUUFdrQ0diMnJnb0FnT29PUmY0SXFiZWxWM2c2WnVUMlE4UEFrTStFbXpCQkprKzREYXl0eEJ3d1FhNE9NQkdnblg1L1Bxc3A0MkJTbVFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMTkwMjcwCWZpbGU6YXJ0aWZhY3QuYmluCnI0UEFiZW9NWFhNbzRNMEtDUll1aUhPd0F1ejI2eVQzWkNZTmIvaTBmZmx0RFY5aTdoOHZielNxZXdaa3pHWnlBME9SQnpld2NjSERtc0lJS096SEJBPT0K",
+      "url": "https://github.com/SatanshuMishra/project-swiftee/releases/download/v0.3.0/Swiftie%20Quiz.app.tar.gz"
+    },
+    "darwin-aarch64-app": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTZXM3NVJCd042cS9JOU94THdUUFdrQ0diMnJnb0FnT29PUmY0SXFiZWxWM2c2WnVUMlE4UEFrTStFbXpCQkprKzREYXl0eEJ3d1FhNE9NQkdnblg1L1Bxc3A0MkJTbVFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMTkwMjcwCWZpbGU6YXJ0aWZhY3QuYmluCnI0UEFiZW9NWFhNbzRNMEtDUll1aUhPd0F1ejI2eVQzWkNZTmIvaTBmZmx0RFY5aTdoOHZielNxZXdaa3pHWnlBME9SQnpld2NjSERtc0lJS096SEJBPT0K",
+      "url": "https://github.com/SatanshuMishra/project-swiftee/releases/download/v0.3.0/Swiftie%20Quiz.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTZXM3NVJCd042cThMVGc1Z0xVQnM5L1I3citZNytFRlBhV1JQTzU1UHBTVGxjL3gzVWh0amUwaDY2NTQ0WDBwc0lvQXV0UThFMTMyVndTK041YnFGZVFhNmFqM0NUVXdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMTkwNzU4CWZpbGU6U3dpZnRpZSBRdWl6XzAuMy4wX3g2NC1zZXR1cC5leGUKT0pyMzNaTW96Q1hLNyt2UnRkMm5EUWtKTWtaa3h6NGsvQWkxQjRMbUNkR2Y2bzdCMEVkMUxXdHg4V1ViSk9ZeGZrbEVibmp3cGY4bXErTnkvdEgvREE9PQo=",
+      "url": "https://github.com/SatanshuMishra/project-swiftee/releases/download/v0.3.0/Swiftie%20Quiz_0.3.0_x64-setup.exe"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTZXM3NVJCd042cThMVGc1Z0xVQnM5L1I3citZNytFRlBhV1JQTzU1UHBTVGxjL3gzVWh0amUwaDY2NTQ0WDBwc0lvQXV0UThFMTMyVndTK041YnFGZVFhNmFqM0NUVXdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMTkwNzU4CWZpbGU6U3dpZnRpZSBRdWl6XzAuMy4wX3g2NC1zZXR1cC5leGUKT0pyMzNaTW96Q1hLNyt2UnRkMm5EUWtKTWtaa3h6NGsvQWkxQjRMbUNkR2Y2bzdCMEVkMUxXdHg4V1ViSk9ZeGZrbEVibmp3cGY4bXErTnkvdEgvREE9PQo=",
+      "url": "https://github.com/SatanshuMishra/project-swiftee/releases/download/v0.3.0/Swiftie%20Quiz_0.3.0_x64-setup.exe"
+    }
+  }
+}

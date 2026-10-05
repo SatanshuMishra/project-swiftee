@@ -1,0 +1,145 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+
+const macPlatforms = ['darwin-aarch64', 'darwin-aarch64-app'];
+const windowsPlatforms = ['windows-x86_64', 'windows-x86_64-nsis'];
+const manifestOptions = {
+  'version',
+  'notes-file',
+  'pub-date',
+  'base-url',
+  'mac-tar',
+  'mac-sig',
+  'win-exe',
+  'win-sig',
+  'out',
+};
+const usage =
+    'usage: dart run tool/release/make_manifest.dart --version <x.y.z> '
+    '--notes-file <file> --pub-date <rfc3339> --base-url <url> '
+    '--mac-tar <file> --mac-sig <file> --win-exe <file> --win-sig <file> '
+    '--out <latest.json>';
+
+final rfc3339 = RegExp(
+  r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$',
+);
+
+final class SignedArtifact {
+  const SignedArtifact({required this.fileName, required this.signature});
+
+  final String fileName;
+  final String signature;
+}
+
+Map<String, String> platformEntry(String baseUrl, SignedArtifact artifact) {
+  final signature = artifact.signature.trim();
+  if (signature.isEmpty) {
+    throw FormatException('The signature for ${artifact.fileName} is empty');
+  }
+  final base = baseUrl.endsWith('/')
+      ? baseUrl.substring(0, baseUrl.length - 1)
+      : baseUrl;
+  return Map.unmodifiable({
+    'signature': signature,
+    'url': '$base/${Uri.encodeComponent(artifact.fileName)}',
+  });
+}
+
+Map<String, Object> buildManifest({
+  required String version,
+  required String notes,
+  required String pubDate,
+  required String baseUrl,
+  required SignedArtifact macArchive,
+  required SignedArtifact windowsInstaller,
+}) {
+  if (version.trim().isEmpty) {
+    throw const FormatException('The version is empty');
+  }
+  if (!rfc3339.hasMatch(pubDate)) {
+    throw FormatException('pub_date "$pubDate" is not an RFC 3339 timestamp');
+  }
+  final macEntry = platformEntry(baseUrl, macArchive);
+  final windowsEntry = platformEntry(baseUrl, windowsInstaller);
+  return Map.unmodifiable({
+    'version': version,
+    'notes': notes,
+    'pub_date': pubDate,
+    'platforms': Map<String, Map<String, String>>.unmodifiable({
+      for (final platform in macPlatforms) platform: macEntry,
+      for (final platform in windowsPlatforms) platform: windowsEntry,
+    }),
+  });
+}
+
+String encodeManifest(Map<String, Object> manifest) =>
+    '${const JsonEncoder.withIndent('  ').convert(manifest)}\n';
+
+Map<String, String> parseOptions(List<String> arguments) {
+  if (arguments.length.isOdd) {
+    throw const FormatException('Every option needs a value');
+  }
+  final pairs = [
+    for (var index = 0; index < arguments.length; index += 2)
+      MapEntry(arguments[index], arguments[index + 1]),
+  ];
+  for (final pair in pairs) {
+    if (!pair.key.startsWith('--') ||
+        !manifestOptions.contains(pair.key.substring(2))) {
+      throw FormatException('Unknown option ${pair.key}');
+    }
+  }
+  final options = Map<String, String>.unmodifiable({
+    for (final pair in pairs) pair.key.substring(2): pair.value,
+  });
+  if (options.length != pairs.length) {
+    throw const FormatException('An option was given more than once');
+  }
+  final missing = manifestOptions.difference(options.keys.toSet());
+  if (missing.isNotEmpty) {
+    throw FormatException('Missing --${missing.join(', --')}');
+  }
+  return options;
+}
+
+int runMakeManifest(
+  List<String> arguments, {
+  required StringSink output,
+  required StringSink errors,
+}) {
+  try {
+    final options = parseOptions(arguments);
+    String read(String option) => File(options[option]!).readAsStringSync();
+    final manifest = buildManifest(
+      version: options['version']!,
+      notes: read('notes-file').trimRight(),
+      pubDate: options['pub-date']!,
+      baseUrl: options['base-url']!,
+      macArchive: SignedArtifact(
+        fileName: p.basename(options['mac-tar']!),
+        signature: read('mac-sig'),
+      ),
+      windowsInstaller: SignedArtifact(
+        fileName: p.basename(options['win-exe']!),
+        signature: read('win-sig'),
+      ),
+    );
+    File(options['out']!).writeAsStringSync(encodeManifest(manifest));
+    output.writeln('Wrote ${options['out']}');
+    return 0;
+  } on FormatException catch (failure) {
+    errors
+      ..writeln('::error::${failure.message}')
+      ..writeln(usage);
+    return 64;
+  } on FileSystemException catch (failure) {
+    errors.writeln('::error::Cannot use ${failure.path}: ${failure.message}');
+    return 1;
+  }
+}
+
+void main(List<String> arguments) {
+  exitCode = runMakeManifest(arguments, output: stdout, errors: stderr);
+}

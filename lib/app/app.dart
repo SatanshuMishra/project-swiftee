@@ -1,0 +1,210 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/domain/models/game_types.dart';
+import 'package:swiftie_quiz/state/game_controller.dart';
+import 'package:swiftie_quiz/state/persistence_controller.dart';
+import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
+import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
+import 'package:swiftie_quiz/ui/overlays/toast_host.dart';
+import 'package:swiftie_quiz/ui/overlays/update_badge.dart';
+import 'package:swiftie_quiz/ui/screens/album_grid.dart';
+import 'package:swiftie_quiz/ui/screens/cat_gallery.dart';
+import 'package:swiftie_quiz/ui/screens/difficulty_select.dart';
+import 'package:swiftie_quiz/ui/screens/game_screen.dart';
+import 'package:swiftie_quiz/ui/screens/lyrics_game_screen.dart';
+import 'package:swiftie_quiz/ui/screens/lyrics_loading_screen.dart';
+import 'package:swiftie_quiz/ui/screens/lyrics_mode_select.dart';
+import 'package:swiftie_quiz/ui/screens/main_menu.dart';
+import 'package:swiftie_quiz/ui/screens/quiz_type_select.dart';
+import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
+import 'package:swiftie_quiz/ui/theme/app_theme.dart';
+import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+
+const Duration firstUpdateCheckDelay = Duration(milliseconds: 1500);
+const Duration updateCheckInterval = Duration(hours: 6);
+
+final platformBrightnessProvider = Provider<Brightness Function()>(
+  (ref) =>
+      () => PlatformDispatcher.instance.platformBrightness,
+);
+
+final themeModeProvider = Provider<ThemeMode>((ref) {
+  final setting = ref.watch(
+    gameControllerProvider.select((game) => game.progress.settings.theme),
+  );
+  final brightness = switch (setting) {
+    ThemeSetting.dark => Brightness.dark,
+    ThemeSetting.light => Brightness.light,
+    ThemeSetting.system => ref.watch(platformBrightnessProvider)(),
+  };
+  return switch (brightness) {
+    Brightness.dark => ThemeMode.dark,
+    Brightness.light => ThemeMode.light,
+  };
+});
+
+class RenderFailures extends ValueNotifier<Object?> {
+  RenderFailures({this.restartApp = restartAppWidgetTree}) : super(null);
+
+  static const Set<String> _layoutContexts = {
+    'during performLayout()',
+    'during performResize()',
+  };
+
+  final VoidCallback restartApp;
+
+  static bool isRenderFailure(FlutterErrorDetails details) => switch ((
+    details.library,
+    '${details.context}',
+  )) {
+    ('widgets library', 'building' || 'while rebuilding dirty elements') =>
+      true,
+    ('widgets library', final context) => context.startsWith('building '),
+    ('rendering library', final context) => _layoutContexts.contains(context),
+    _ => false,
+  };
+
+  void report(FlutterErrorDetails details) {
+    if (!isRenderFailure(details)) {
+      return;
+    }
+    SchedulerBinding.instance
+      ..addPostFrameCallback((_) => value ??= details.exception)
+      ..ensureVisualUpdate();
+  }
+
+  void restart() {
+    value = null;
+    restartApp();
+  }
+}
+
+final RenderFailures renderFailures = RenderFailures();
+
+final renderFailuresProvider = Provider<RenderFailures>(
+  (ref) => renderFailures,
+);
+
+void installErrorHandlers(RenderFailures failures) {
+  ErrorWidget.builder = (details) =>
+      ErrorScreen(error: details.exception, onRestart: failures.restart);
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    failures.report(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    developer.log(
+      'Unhandled error',
+      name: 'swiftie_quiz.app',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return true;
+  };
+}
+
+class SwiftieQuizApp extends ConsumerWidget {
+  const SwiftieQuizApp({super.key});
+
+  static const String title = 'Swiftie Quiz';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final failures = ref.watch(renderFailuresProvider);
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: title,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ref.watch(themeModeProvider),
+      themeAnimationDuration: Duration.zero,
+      home: ValueListenableBuilder<Object?>(
+        valueListenable: failures,
+        builder: (context, failure, shell) => failure == null
+            ? shell!
+            : ErrorScreen(error: failure, onRestart: failures.restart),
+        child: const _GameShell(),
+      ),
+    );
+  }
+}
+
+class _GameShell extends ConsumerStatefulWidget {
+  const _GameShell();
+
+  @override
+  ConsumerState<_GameShell> createState() => _GameShellState();
+}
+
+class _GameShellState extends ConsumerState<_GameShell> {
+  late final Timer _firstUpdateCheck;
+  late final Timer _periodicUpdateCheck;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(ref.read(persistenceControllerProvider.notifier).load());
+      }
+    });
+    _firstUpdateCheck = Timer(firstUpdateCheckDelay, _checkForUpdates);
+    _periodicUpdateCheck = Timer.periodic(
+      updateCheckInterval,
+      (_) => _checkForUpdates(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _firstUpdateCheck.cancel();
+    _periodicUpdateCheck.cancel();
+    super.dispose();
+  }
+
+  void _checkForUpdates() =>
+      unawaited(ref.read(updaterControllerProvider).check());
+
+  static Widget _screenFor(GamePhase phase, QuizType? quizType) =>
+      switch (phase) {
+        GamePhase.menu => const MainMenu(),
+        GamePhase.albumSelect => const AlbumGrid(),
+        GamePhase.quizTypeSelect => const QuizTypeSelect(),
+        GamePhase.lyricsModeSelect => const LyricsModeSelect(),
+        GamePhase.difficultySelect => const DifficultySelect(),
+        GamePhase.lyricsLoading => const LyricsLoadingScreen(),
+        GamePhase.playing =>
+          quizType == QuizType.lyrics
+              ? const LyricsGameScreen()
+              : const GameScreen(),
+        GamePhase.catGallery => const CatGallery(),
+        GamePhase.settings => const SettingsScreen(),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final screen = ref.watch(
+      gameControllerProvider.select(
+        (game) => (phase: game.phase, quizType: game.quizType),
+      ),
+    );
+    return Material(
+      color: AppTokens.of(context).background,
+      animationDuration: Duration.zero,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _screenFor(screen.phase, screen.quizType),
+          const UpdateOverlay(belowDialog: AchievementToasts()),
+          const ToastHost(),
+        ],
+      ),
+    );
+  }
+}

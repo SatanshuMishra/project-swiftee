@@ -4,6 +4,15 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The app is rebuilt in Flutter, with the same screens and the same save file; macOS 12 or later is now required.
+- The cat icon and the cat loader are redrawn.
+- All albums load, because the album list now follows Deezer's pagination.
+- Song previews no longer fail after about 15 minutes in a session.
+- Lyric lookups identify the app and back off when LRCLIB is busy.
+
 ## [0.2.3] - 2026-10-05
 
 ### Updating from v0.2.2 or v0.2.1
