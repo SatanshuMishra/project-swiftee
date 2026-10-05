@@ -21,7 +21,14 @@ v0.2.1 shipped from a commit whose CI was red, because the release workflow neve
 | Rust pinned in `rust-toolchain.toml`, installed by `actions-rust-lang/setup-rust-toolchain` | New lints arrive as a reviewable Dependabot PR, not a surprise red `main`; that action reads the file, `dtolnay/rust-toolchain` does not |
 | Runner images pinned: `ubuntu-24.04`, `macos-26`, `windows-2025` | `ubuntu-latest` moves to 26.04 from 2026-10-19; image moves become deliberate PRs |
 | Rust tests run on Linux, macOS and Windows; fmt and clippy on Linux | The app ships only on macOS and Windows; there is no platform-specific Rust code to lint separately |
-| Every third-party action pinned to a full commit SHA with a version comment | A moved tag cannot change what runs in CI; Dependabot updates SHA pins |
+| Release calls CI through `workflow_call` before creating the draft | No release is built from a commit that fails CI; bundle job skipped there because release builds its own |
+| Draft release created once, then the macOS build and, after it, the Windows build upload by `releaseId` | Parallel tauri-action jobs can create duplicate releases for one tag (tauri-action#914) and race on the read-modify-write of `latest.json`; running Windows after macOS costs the macOS build time, about six minutes |
+| `verify-manifest` asserts `latest.json` carries the tag version, a non-empty url and signature for all four platform keys, and that every url points at an asset still on this release | A lost or stale entry, for example after a re-run replaced an asset, would strand that platform's users on a 404 |
+| No caches in release builds | Release artifacts build from a clean state; costs release wall-clock time |
+| Every third-party action pinned to a full commit SHA with a version comment | A moved action tag cannot change what runs in the release jobs; Dependabot updates SHA pins. The release tag itself is guarded by the tag ruleset and the `release` environment below |
+| Per-job permissions in `release.yml`; workflow default `contents: read` | Only jobs that upload, attest or read the draft release get write scopes; drafts are only visible to tokens with push access |
+| Both build jobs run in a `release` environment | Once the human steps below move the signing secrets into that environment, they are released only to an approved run from a `v*` tag, instead of to any workflow in the repository |
+| Release notes are written to step outputs with a random delimiter, and an empty CHANGELOG section fails | A CHANGELOG line equal to a fixed delimiter could end the notes early and inject step outputs |
 | Every job has `timeout-minutes` | A hung job stops instead of running for the six-hour default |
 | `main` pushes get one CI group per commit; PRs cancel superseded runs | Every `main` commit gets a verdict |
 | CI runs on every pull request, not only those targeting `main`; fork PRs build but upload no installers | Stacked PRs get CI and installers for VMLab; a fork cannot get an installer hosted under this repository |
@@ -40,14 +47,29 @@ v0.2.1 shipped from a commit whose CI was red, because the release workflow neve
    `gh api -X PUT repos/SatanshuMishra/project-swiftee/automated-security-fixes`
    `gh api -X PATCH repos/SatanshuMishra/project-swiftee --input - <<< '{"security_and_analysis":{"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}}'`
 4. For the Claude review: install the Claude GitHub App on this repository (https://github.com/apps/claude), then `gh secret set ANTHROPIC_API_KEY` and paste the key at the prompt.
-5. Locally, the first cargo command after pulling installs Rust 1.99.0 through rustup because of `rust-toolchain.toml`.
+5. After the release PR merges, put the signing secrets behind the `release` environment, then protect release tags. The order matters: the environment secrets must exist before the repository-level copies are deleted.
+   `gh api -X PUT repos/SatanshuMishra/project-swiftee/environments/release --input - <<< '{"reviewers":[{"type":"User","id":63601536}],"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'`
+   `gh api -X POST repos/SatanshuMishra/project-swiftee/environments/release/deployment-branch-policies -f name='v*' -f type=tag`
+   `gh secret set TAURI_SIGNING_PRIVATE_KEY --env release` and `gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --env release`, pasting each value at the prompt
+   `gh secret delete TAURI_SIGNING_PRIVATE_KEY` and `gh secret delete TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+   `gh api -X POST repos/SatanshuMishra/project-swiftee/rulesets --input docs/decisions/2026-10-04-release-tag-ruleset.json`
+   Each release then pauses at the macOS and Windows builds until you approve them in the Actions tab.
+6. Locally, the first cargo command after pulling installs Rust 1.99.0 through rustup because of `rust-toolchain.toml`.
 
 ## Rollback
 
 - Pipeline: revert the PRs.
 - Ruleset: `gh api repos/SatanshuMishra/project-swiftee/rulesets --jq '.[] | select(.name == "main") | .id'`, then `gh api -X DELETE repos/SatanshuMishra/project-swiftee/rulesets/<id>`.
 - Security features: `gh api -X DELETE .../vulnerability-alerts`, `gh api -X DELETE .../automated-security-fixes`, and the same PATCH with `"disabled"`.
+- Release environment: recreate the repository secrets with `gh secret set`, then `gh api -X DELETE repos/SatanshuMishra/project-swiftee/environments/release`. Tag ruleset: delete it by id as for the branch ruleset, selecting `release-tags`.
 
 ## Known costs
 
-- `setup-rust-toolchain` sets `CARGO_BUILD_WARNINGS=deny`, so a rustc warning fails any CI build. With the pinned toolchain, new warnings only arrive through a toolchain bump PR.
+- A release now runs the full CI first, then builds without caches; expect it to take noticeably longer than the 10 minutes v0.2.1 took.
+- `setup-rust-toolchain` sets `CARGO_BUILD_WARNINGS=deny`, so a rustc warning fails any build, release included. With the pinned toolchain, new warnings only arrive through a toolchain bump PR.
+- The release flow is unproven until the next tag: nothing in it can run before a `v*` tag is pushed.
+- tauri-action v1 (adopted in #12) writes GitHub API asset URLs into `latest.json` instead of browser download URLs. Clients on v0.2.1 run tauri-plugin-updater 2.10.1, whose download sends `Accept: application/octet-stream`, which those URLs require.
+
+## Accepted risk
+
+The signing key is still in the environment of the step that runs the whole build, so a compromised npm package or crate build script could read it. The fix is to build unsigned, sign in a separate job that runs no project code, and publish `latest.json` from a third job. That re-creates the hand-built manifest job removed in c9141da and gives up tauri-action's manifest handling, so it is left as a follow-up decision. Until then the exposure is bounded by the `release` environment approval, the seven-day Dependabot cooldown, and lockfile-pinned installs.
