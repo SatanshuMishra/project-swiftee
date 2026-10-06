@@ -46,7 +46,23 @@ class GameController extends Notifier<GameState> {
     );
   }
 
-  void clearSelectedEras() => state = state.copyWith(selectedEraKeys: []);
+  void toggleRelease(int releaseId) {
+    final selected = state.selectedReleaseIds;
+    state = state.copyWith(
+      selectedReleaseIds: selected.contains(releaseId)
+          ? [
+              for (final id in selected)
+                if (id != releaseId) id,
+            ]
+          : [...selected, releaseId],
+    );
+  }
+
+  void clearSelection() =>
+      state = state.copyWith(selectedEraKeys: [], selectedReleaseIds: []);
+
+  void setVersions(TrackVersions versions) =>
+      state = state.copyWith(versions: versions);
 
   void beginSetup(GameMode mode) => state = state.copyWith(
     mode: mode,
@@ -151,6 +167,7 @@ class GameController extends Notifier<GameState> {
     quackCount: 0,
     relistenCount: 0,
     selectedEraKeys: [],
+    selectedReleaseIds: [],
     quizType: null,
     lyricsMode: null,
     lyricsPool: [],

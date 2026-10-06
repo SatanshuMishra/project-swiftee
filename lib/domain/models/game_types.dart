@@ -56,6 +56,19 @@ enum LyricsMode {
       values.firstWhereOrNull((value) => value.wireName == wireName);
 }
 
+enum TrackVersions {
+  every('every'),
+  taylorsVersion('taylors-version'),
+  noLive('no-live');
+
+  const TrackVersions(this.wireName);
+
+  final String wireName;
+
+  static TrackVersions? fromWireName(String wireName) =>
+      values.firstWhereOrNull((value) => value.wireName == wireName);
+}
+
 enum Difficulty {
   easy('easy'),
   medium('medium'),

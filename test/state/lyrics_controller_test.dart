@@ -342,6 +342,19 @@ void main() {
       },
     );
 
+    test('the version choice for sound games leaves lyrics alone', () async {
+      game()
+        ..setMode(GameMode.random)
+        ..setVersions(TrackVersions.noLive);
+
+      final tracks = await lyrics().loadSourceTracks();
+
+      final catalogue = container.read(catalogControllerProvider).catalogue;
+      expect(tracks.map(songKey).toSet(), {
+        for (final track in catalogue.allTracks) songKey(track),
+      });
+    });
+
     test(
       'shuffle reads one recording of every song in a random order',
       () async {

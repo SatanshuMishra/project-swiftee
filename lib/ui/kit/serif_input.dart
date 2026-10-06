@@ -18,10 +18,12 @@ class SerifInput extends StatefulWidget {
     this.enabled = true,
     this.focusNode,
     this.textAlign = TextAlign.start,
+    this.trailing,
   });
 
   static const double underlineWidth = 1;
   static const double bottomPadding = 6;
+  static const double trailingGap = 12;
 
   final TextEditingController controller;
   final String? placeholder;
@@ -34,6 +36,7 @@ class SerifInput extends StatefulWidget {
   final bool enabled;
   final FocusNode? focusNode;
   final TextAlign textAlign;
+  final Widget? trailing;
 
   @override
   State<SerifInput> createState() => _SerifInputState();
@@ -98,24 +101,35 @@ class _SerifInputState extends State<SerifInput> {
           ),
         ),
       ),
-      child: TextField(
-        controller: widget.controller,
-        focusNode: _focusNode,
-        autofocus: widget.autofocus,
-        enabled: widget.enabled,
-        onSubmitted: widget.onSubmitted,
-        onChanged: widget.onChanged,
-        textAlign: widget.textAlign,
-        style: style,
-        cursorColor: tokens.coral,
-        cursorHeight: widget.fontSize,
-        inputFormatters: [
-          if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+      child: Row(
+        spacing: SerifInput.trailingGap,
+        children: [
+          Expanded(child: _field(style, maxLength)),
+          ?widget.trailing,
         ],
-        decoration: InputDecoration.collapsed(
-          hintText: widget.placeholder,
-          hintStyle: style.copyWith(color: tokens.faint),
-        ),
+      ),
+    );
+  }
+
+  Widget _field(TextStyle style, int? maxLength) {
+    final tokens = AppTokens.of(context);
+    return TextField(
+      controller: widget.controller,
+      focusNode: _focusNode,
+      autofocus: widget.autofocus,
+      enabled: widget.enabled,
+      onSubmitted: widget.onSubmitted,
+      onChanged: widget.onChanged,
+      textAlign: widget.textAlign,
+      style: style,
+      cursorColor: tokens.coral,
+      cursorHeight: widget.fontSize,
+      inputFormatters: [
+        if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+      ],
+      decoration: InputDecoration.collapsed(
+        hintText: widget.placeholder,
+        hintStyle: style.copyWith(color: tokens.faint),
       ),
     );
   }

@@ -13,6 +13,7 @@ final class AppLayout {
     required this.gap,
     required this.sleeve,
     required this.eraColumns,
+    required this.releaseColumns,
     required this.shelfColumns,
   });
 
@@ -41,6 +42,7 @@ final class AppLayout {
     gap: 28,
     sleeve: 200,
     eraColumns: 3,
+    releaseColumns: 3,
     shelfColumns: 3,
   );
 
@@ -53,6 +55,7 @@ final class AppLayout {
     gap: 56,
     sleeve: 270,
     eraColumns: 4,
+    releaseColumns: 5,
     shelfColumns: 5,
   );
 
@@ -65,6 +68,7 @@ final class AppLayout {
     gap: 56,
     sleeve: 320,
     eraColumns: 6,
+    releaseColumns: 7,
     shelfColumns: 5,
   );
 
@@ -76,6 +80,7 @@ final class AppLayout {
   final double gap;
   final double sleeve;
   final int eraColumns;
+  final int releaseColumns;
   final int shelfColumns;
 
   bool get isNarrow => widthClass == WidthClass.narrow;
@@ -91,6 +96,7 @@ final class AppLayout {
       other.gap == gap &&
       other.sleeve == sleeve &&
       other.eraColumns == eraColumns &&
+      other.releaseColumns == releaseColumns &&
       other.shelfColumns == shelfColumns;
 
   @override
@@ -103,6 +109,7 @@ final class AppLayout {
     gap,
     sleeve,
     eraColumns,
+    releaseColumns,
     shelfColumns,
   );
 }

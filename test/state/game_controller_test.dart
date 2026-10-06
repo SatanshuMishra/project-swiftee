@@ -65,6 +65,37 @@ void main() {
       expect(read().selectedEraKeys, ['era2']);
     });
 
+    test('toggleRelease adds and removes', () {
+      controller.toggleRelease(108447472);
+      expect(read().selectedReleaseIds, [108447472]);
+      controller.toggleRelease(162683632);
+      expect(read().selectedReleaseIds, [108447472, 162683632]);
+      controller.toggleRelease(108447472);
+      expect(read().selectedReleaseIds, [162683632]);
+    });
+
+    test('clearSelection clears picked eras and releases together', () {
+      controller
+        ..toggleEra('red')
+        ..toggleRelease(108447472)
+        ..clearSelection();
+
+      expect(read().selectedEraKeys, isEmpty);
+      expect(read().selectedReleaseIds, isEmpty);
+    });
+
+    test('the version choice starts at every version and is kept', () {
+      expect(read().versions, TrackVersions.every);
+
+      controller
+        ..setVersions(TrackVersions.taylorsVersion)
+        ..toggleRelease(108447472)
+        ..resetGame();
+
+      expect(read().versions, TrackVersions.taylorsVersion);
+      expect(read().selectedReleaseIds, isEmpty);
+    });
+
     test('answerCorrect increments streak and resets quackCount', () {
       controller
         ..answerIncorrect()
@@ -604,7 +635,7 @@ void main() {
         ..setUpdaterState(const UpdaterAvailable(manifest: manifest))
         ..setProgress(progress)
         ..toggleEra('era9')
-        ..clearSelectedEras();
+        ..clearSelection();
 
       final state = read();
       expect(state.mode, GameMode.album);

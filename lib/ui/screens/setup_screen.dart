@@ -4,6 +4,9 @@ import 'dart:math' as math;
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
@@ -27,6 +30,8 @@ typedef SetupChoice<T> = ({T value, String title, String description});
 
 typedef _Cover = ({String? url, Color placeholder});
 
+typedef _Source = ({int songs, Map<TrackVersions, int> versions});
+
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
 
@@ -35,6 +40,7 @@ class SetupScreen extends ConsumerStatefulWidget {
   static const String shuffleSublineUnknown = 'Every song, every era';
   static const String listenLabel = 'Listen or read';
   static const String lyricsGameLabel = 'Which lyrics game';
+  static const String versionsLabel = 'Which versions';
   static const String difficultyLabel = 'Difficulty';
   static const String startLabel = 'Start →';
   static const String unknownSongs = '—';
@@ -65,23 +71,54 @@ class SetupScreen extends ConsumerStatefulWidget {
     ),
   ];
 
+  static const List<SetupChoice<TrackVersions>> versionChoices = [
+    (
+      value: TrackVersions.every,
+      title: 'Every version',
+      description: 'Originals, re-recordings and live',
+    ),
+    (
+      value: TrackVersions.taylorsVersion,
+      title: 'Taylor’s Version',
+      description: 'Her re-recordings replace the originals',
+    ),
+    (
+      value: TrackVersions.noLive,
+      title: 'No live takes',
+      description: 'Studio recordings only',
+    ),
+  ];
+
   static const List<SetupChoice<Difficulty>> difficulties = [
     (value: Difficulty.easy, title: 'Easy', description: 'Quick warm-up'),
     (value: Difficulty.medium, title: 'Medium', description: 'The real thing'),
     (value: Difficulty.hard, title: 'Hard', description: 'For true Swifties'),
   ];
 
-  static String sourceTitle(List<Era> eras) => switch (eras) {
-    [] => shuffleTitle,
-    [final era] => era.eraName,
-    _ => 'Your ${eras.length} eras',
+  static String sourceTitle(
+    List<Era> eras, [
+    List<CatalogueRelease> releases = const [],
+  ]) => switch ((eras, releases)) {
+    ([], []) => shuffleTitle,
+    ([final era], []) => era.eraName,
+    (_, []) => 'Your ${eras.length} eras',
+    ([], [final release]) => release.title,
+    ([], _) => 'Your ${releases.length} releases',
+    _ => 'Your picks',
   };
 
-  static String shuffleSubline(int? tracks) =>
-      tracks == null ? shuffleSublineUnknown : '$tracks tracks, every era';
+  static String shuffleSubline(int? count, {QuizType quiz = QuizType.sound}) =>
+      count == null
+      ? shuffleSublineUnknown
+      : '$count ${_unit(quiz)}, every era';
 
-  static String erasSubline(int? tracks) =>
-      '${tracks == null || tracks == 0 ? unknownSongs : tracks} tracks';
+  static String erasSubline(int? count, {QuizType quiz = QuizType.sound}) =>
+      '${count == null || count == 0 ? unknownSongs : count} ${_unit(quiz)}';
+
+  static String _unit(QuizType quiz) => switch (quiz) {
+    QuizType.sound => 'tracks',
+    QuizType.lyrics => 'songs',
+  };
 
   static List<String> features({
     required QuizType quizType,
@@ -160,6 +197,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   late QuizType _quizType;
   late LyricsMode _lyricsMode;
   late Difficulty _difficulty;
+  late TrackVersions _versions;
+  ({GameState game, Catalogue catalogue, _Source source})? _source;
 
   @override
   void initState() {
@@ -171,6 +210,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         game.quizType != null ||
         game.difficulty != GameState.initial.difficulty;
     _difficulty = remembered ? game.difficulty : Difficulty.medium;
+    _versions = game.versions;
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadSource());
   }
 
@@ -185,6 +225,44 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         ]),
       };
 
+  List<CatalogueRelease> _sourceReleases(
+    GameMode mode,
+    Catalogue catalogue,
+    List<int> selectedIds,
+  ) => mode == GameMode.album
+      ? List.unmodifiable([
+          for (final id in selectedIds)
+            ?catalogue.releases.firstWhereOrNull((release) => release.id == id),
+        ])
+      : const [];
+
+  _Source _sourceOf(Catalogue catalogue, GameState game) {
+    if (_source
+        case (game: final before, catalogue: final indexed, :final source)
+        when identical(indexed, catalogue) &&
+            sameTrackSelection(before, game)) {
+      return source;
+    }
+    final tracks = tracksForGame(catalogue, game, ref.read(clockProvider)());
+    final source = (
+      songs: {for (final track in tracks) songKey(track)}.length,
+      versions: Map<TrackVersions, int>.unmodifiable({
+        for (final versions in TrackVersions.values)
+          versions: keepVersions(tracks, versions).length,
+      }),
+    );
+    _source = (game: game, catalogue: catalogue, source: source);
+    return source;
+  }
+
+  bool _offers(_Source source, TrackVersions versions, {required bool known}) =>
+      !known || (source.versions[versions] ?? 0) > 0;
+
+  TrackVersions _versionsFor(_Source source, {required bool known}) =>
+      _offers(source, _versions, known: known)
+      ? _versions
+      : TrackVersions.every;
+
   void _loadSource() {
     if (mounted) {
       unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
@@ -198,9 +276,12 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       );
 
   void _start() {
+    final catalogue = ref.read(catalogControllerProvider).catalogue;
+    final source = _sourceOf(catalogue, ref.read(gameControllerProvider));
     final game = ref.read(gameControllerProvider.notifier)
       ..setQuizType(_quizType)
-      ..setDifficulty(_difficulty);
+      ..setDifficulty(_difficulty)
+      ..setVersions(_versionsFor(source, known: !catalogue.isEmpty));
     switch (_quizType) {
       case QuizType.sound:
         game.setPhase(GamePhase.playing);
@@ -219,6 +300,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final selectedKeys = ref.watch(
       gameControllerProvider.select((game) => game.selectedEraKeys),
     );
+    final selectedIds = ref.watch(
+      gameControllerProvider.select((game) => game.selectedReleaseIds),
+    );
     final catalogue = ref.watch(
       catalogControllerProvider.select((catalog) => catalog.catalogue),
     );
@@ -231,14 +315,18 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       ),
     );
     final eras = _sourceEras(mode, selectedKeys);
+    final releases = _sourceReleases(mode, catalogue, selectedIds);
     final known = !catalogue.isEmpty;
-    final subline = eras.isEmpty
-        ? SetupScreen.shuffleSubline(known ? catalogue.allTracks.length : null)
-        : SetupScreen.erasSubline(
-            known
-                ? catalogue.tracksFor([for (final era in eras) era.key]).length
-                : null,
-          );
+    final source = _sourceOf(catalogue, ref.read(gameControllerProvider));
+    final versions = _versionsFor(source, known: known);
+    final count = !known
+        ? null
+        : _quizType == QuizType.lyrics
+        ? source.songs
+        : source.versions[versions];
+    final subline = eras.isEmpty && releases.isEmpty
+        ? SetupScreen.shuffleSubline(count, quiz: _quizType)
+        : SetupScreen.erasSubline(count, quiz: _quizType);
     final choiceColumns = layout.isNarrow ? 1 : 2;
     return ScreenEnter(
       child: TwoPane(
@@ -260,7 +348,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 children: [
                   const SectionLabel(SetupScreen.playingLabel),
                   Text(
-                    SetupScreen.sourceTitle(eras),
+                    SetupScreen.sourceTitle(eras, releases),
                     style: AppType.display(
                       layout.h1,
                       height: 1,
@@ -279,14 +367,22 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   child: _CoverFan(
                     covers: [
                       for (final era
-                          in (eras.isEmpty ? curatedEras : eras).take(
-                            _CoverFan.maxCovers,
-                          ))
+                          in eras.isEmpty && releases.isEmpty
+                              ? curatedEras
+                              : eras)
                         (
                           url: catalogue.coverFor(era.key),
                           placeholder: Color(era.placeholderArgb),
                         ),
-                    ],
+                      for (final release in releases)
+                        (
+                          url: release.coverMedium,
+                          placeholder: Color(
+                            (eraByKey(release.eraKey) ?? singlesEra)
+                                .placeholderArgb,
+                          ),
+                        ),
+                    ].take(_CoverFan.maxCovers).toList(),
                   ),
                 ),
             ],
@@ -337,6 +433,39 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                               selected: _lyricsMode == choice.value,
                               onTap: () =>
                                   setState(() => _lyricsMode = choice.value),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              if (_quizType == QuizType.sound)
+                _Rise(
+                  key: const ValueKey(SetupScreen.versionsLabel),
+                  child: _Section(
+                    label: SetupScreen.versionsLabel,
+                    children: [
+                      _ChoiceGrid(
+                        columns: SetupScreen.versionChoices.length,
+                        children: [
+                          for (final choice in SetupScreen.versionChoices)
+                            _Available(
+                              available: _offers(
+                                source,
+                                choice.value,
+                                known: known,
+                              ),
+                              child: OptionTile(
+                                title: choice.title,
+                                description: choice.description,
+                                selected: versions == choice.value,
+                                onTap:
+                                    _offers(source, choice.value, known: known)
+                                    ? () => setState(
+                                        () => _versions = choice.value,
+                                      )
+                                    : null,
+                              ),
                             ),
                         ],
                       ),
@@ -452,6 +581,23 @@ class _Rise extends StatelessWidget {
         child: child,
       ),
     ),
+    child: child,
+  );
+}
+
+class _Available extends StatelessWidget {
+  const _Available({required this.available, required this.child});
+
+  static const double dimmed = 0.45;
+
+  final bool available;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedOpacity(
+    opacity: available ? 1 : dimmed,
+    duration: AppMotion.duration(context, AppMotion.selectionShift),
+    curve: Curves.ease,
     child: child,
   );
 }

@@ -145,6 +145,56 @@ final class CatalogueRecording {
       'CatalogueRecording(track: ${track.title}, isrc: $isrc, era: $eraKey)';
 }
 
+final class CatalogueRelease {
+  CatalogueRelease({
+    required this.id,
+    required this.title,
+    required this.kind,
+    required this.releaseDate,
+    required this.coverMedium,
+    required this.eraKey,
+    required List<Track> tracks,
+  }) : tracks = List.unmodifiable(tracks);
+
+  final int id;
+  final String title;
+  final ReleaseKind kind;
+  final String releaseDate;
+  final String? coverMedium;
+  final String eraKey;
+  final List<Track> tracks;
+
+  String get year =>
+      releaseDate.length >= 4 ? releaseDate.substring(0, 4) : releaseDate;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CatalogueRelease &&
+      other.id == id &&
+      other.title == title &&
+      other.kind == kind &&
+      other.releaseDate == releaseDate &&
+      other.coverMedium == coverMedium &&
+      other.eraKey == eraKey &&
+      const ListEquality<Track>().equals(other.tracks, tracks);
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    kind,
+    releaseDate,
+    coverMedium,
+    eraKey,
+    const ListEquality<Track>().hash(tracks),
+  );
+
+  @override
+  String toString() =>
+      'CatalogueRelease(id: $id, title: $title, kind: $kind, '
+      'era: $eraKey, tracks: ${tracks.length})';
+}
+
 final class Catalogue {
   Catalogue({
     required List<RawRelease> sources,
@@ -179,16 +229,62 @@ final class Catalogue {
     ),
   );
 
+  late final List<CatalogueRelease> releases = _releases();
+
   bool get isEmpty => recordings.isEmpty;
 
   Set<int> get releaseIds => {for (final release in sources) release.id};
 
-  List<Track> tracksFor(Iterable<String> eraKeys) {
+  List<Track> tracksFor(
+    Iterable<String> eraKeys, {
+    Iterable<int> releaseIds = const [],
+  }) {
     final keys = eraKeys.toSet();
+    final picked = releaseIds.toSet();
+    final inReleases = {
+      for (final release in releases)
+        if (picked.contains(release.id))
+          for (final track in release.tracks) track.id,
+    };
     return List.unmodifiable([
       for (final recording in recordings)
-        if (keys.contains(recording.eraKey)) recording.track,
+        if (keys.contains(recording.eraKey) ||
+            inReleases.contains(recording.track.id))
+          recording.track,
     ]);
+  }
+
+  List<CatalogueRelease> _releases() {
+    final byKey = {
+      for (final recording in recordings) recording.isrc: recording.track,
+    };
+    return List.unmodifiable([
+      for (final release in sources)
+        if (_releaseTracks(release, byKey) case final tracks
+            when tracks.isNotEmpty)
+          CatalogueRelease(
+            id: release.id,
+            title: release.title,
+            kind: release.kind,
+            releaseDate: release.releaseDate,
+            coverMedium: release.coverMedium,
+            eraKey: _releaseEras[release.id] ?? singlesEra.key,
+            tracks: tracks,
+          ),
+    ]);
+  }
+
+  static List<Track> _releaseTracks(
+    RawRelease release,
+    Map<String, Track> byKey,
+  ) {
+    final seen = <int>{};
+    return [
+      for (final track in release.tracks)
+        if (byKey[track.isrc.isEmpty ? 'deezer:${track.id}' : track.isrc]
+            case final recording? when seen.add(recording.id))
+          recording,
+    ];
   }
 
   int trackCount(String eraKey) =>
