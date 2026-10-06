@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -305,34 +306,56 @@ void main() {
       expect(unlocked, ['lyric_lover', 'dual_threat']);
     });
 
-    test(
-      'album_completionist unlocks once a loaded album is fully guessed',
-      () async {
-        container = ProviderContainer.test(
+    ProviderContainer completionistContainer(List<RawRelease> releases) =>
+        ProviderContainer.test(
           overrides: [
             appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
             clockProvider.overrideWithValue(() => _now),
-            fixtureCatalogue(
-              releases: [
-                rawRelease(10, 'Lover', '2019-08-23', [
-                  rawTrack(1, 'Song 1'),
-                  rawTrack(2, 'Song 2'),
-                ]),
-              ],
-            ),
+            fixtureCatalogue(releases: releases),
           ],
         );
+
+    test(
+      'album_completionist unlocks once an era album is fully guessed',
+      () async {
+        const lover = Album(id: 108447472, title: 'Lover', coverMedium: null);
+        container = completionistContainer([
+          rawRelease(lover.id, lover.title, '2019-08-23', [
+            rawTrack(1, 'Song 1'),
+            rawTrack(2, 'Song 2'),
+          ]),
+        ]);
         await container
             .read(catalogControllerProvider.notifier)
             .loadCatalogue();
 
-        expect(answer(correct: true), ['first_meow']);
-        expect(answer(correct: true, track: _track(2)), [
+        expect(answer(correct: true, track: _track(1, album: lover)), [
+          'first_meow',
+        ]);
+        expect(answer(correct: true, track: _track(2, album: lover)), [
           'album_completionist',
         ]);
         expect(read().pendingToasts, ['first_meow', 'album_completionist']);
       },
     );
+
+    test('a one-song single never completes an album', () async {
+      const single = Album(
+        id: 121794132,
+        title: 'Christmas Tree Farm',
+        coverMedium: null,
+      );
+      container = completionistContainer([
+        rawRelease(single.id, single.title, '2019-12-06', [
+          rawTrack(1, 'Christmas Tree Farm'),
+        ], kind: ReleaseKind.single),
+      ]);
+      await container.read(catalogControllerProvider.notifier).loadCatalogue();
+
+      expect(answer(correct: true, track: _track(1, album: single)), [
+        'first_meow',
+      ]);
+    });
 
     test('album explorer counts eras, not editions of the same era', () {
       final catalogue = buildCatalogue(fixtureReleases);

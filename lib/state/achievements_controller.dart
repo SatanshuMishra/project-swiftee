@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -66,6 +67,14 @@ int erasPlayed(Iterable<String> albumIds, Catalogue catalogue) => {
     },
 }.length;
 
+Map<int, int> eraAlbumTotals(Catalogue catalogue) {
+  final totals = catalogue.homeTotals;
+  return Map.unmodifiable({
+    for (final era in curatedEras)
+      era.deezerAlbumId: ?totals[era.deezerAlbumId],
+  });
+}
+
 bool _hasCompletedAlbum(GameStats stats, Map<int, int> albumTrackTotals) =>
     albumTrackTotals.entries.any(
       (album) =>
@@ -104,7 +113,7 @@ class AchievementsController {
       timeElapsed: timeElapsed,
       usedFullClip: usedFullClip,
       progress: game.progress,
-      albumTrackTotals: catalogue.homeTotals,
+      albumTrackTotals: eraAlbumTotals(catalogue),
       erasPlayed: erasPlayed(game.progress.stats.albumsPlayed, catalogue),
       quizType: game.quizType,
       lyricsMode: game.lyricsMode,
