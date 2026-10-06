@@ -12,6 +12,8 @@ import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/overlays/toast_host.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
+import 'package:swiftie_quiz/state/catalog_controller.dart';
 
 final Map<String, AchievementDef> _definitionsById = Map.unmodifiable({
   for (final definition in achievementDefs) definition.id: definition,
@@ -27,7 +29,11 @@ final class _ToastContent {
     this.placeholder,
   });
 
-  factory _ToastContent.of(AchievementDef definition, GameState game) {
+  factory _ToastContent.of(
+    AchievementDef definition,
+    GameState game,
+    Era? Function(int albumId) eraOf,
+  ) {
     final record = game.progress.achievements[definition.id];
     final albumId = int.tryParse(record?.albumId ?? '');
     final album = albumId == null
@@ -36,7 +42,7 @@ final class _ToastContent {
             ...game.albums,
             ?game.currentTrack?.album,
           ].firstWhereOrNull((album) => album.id == albumId);
-    final era = albumId == null ? null : eraForAlbumId(albumId);
+    final era = albumId == null ? null : eraOf(albumId);
     return _ToastContent(
       title: definition.name,
       song: record?.song,
@@ -90,7 +96,7 @@ class AchievementToasts extends ConsumerStatefulWidget {
     hole: false,
   );
 
-  static String songLine(String song) => 'on $song';
+  static String songLine(String song) => 'on ${displaySongTitle(song)}';
 
   @override
   ConsumerState<AchievementToasts> createState() => _AchievementToastsState();
@@ -175,7 +181,14 @@ class _AchievementToastsState extends ConsumerState<AchievementToasts> {
     }
     _queue = List.unmodifiable([
       ..._queue,
-      (id: id, content: _ToastContent.of(definition, game)),
+      (
+        id: id,
+        content: _ToastContent.of(
+          definition,
+          game,
+          ref.read(catalogControllerProvider).catalogue.eraOf,
+        ),
+      ),
     ]);
   }
 

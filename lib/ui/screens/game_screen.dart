@@ -37,6 +37,7 @@ import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 int roundTimerSeconds(Difficulty difficulty, int mediumTimer, int hardTimer) =>
     switch (difficulty) {
@@ -45,8 +46,9 @@ int roundTimerSeconds(Difficulty difficulty, int mediumTimer, int hardTimer) =>
       Difficulty.hard => hardTimer,
     };
 
-String songTitle(Track track) =>
-    track.titleShort.isNotEmpty ? track.titleShort : track.title;
+String songTitle(Track track) => displaySongTitle(
+  track.titleShort.isNotEmpty ? track.titleShort : track.title,
+);
 
 String difficultyLabel(Difficulty difficulty) => switch (difficulty) {
   Difficulty.easy => 'Easy',
@@ -54,19 +56,24 @@ String difficultyLabel(Difficulty difficulty) => switch (difficulty) {
   Difficulty.hard => 'Hard',
 };
 
-String eraNameOf(Album album) =>
-    eraForAlbumId(album.id)?.eraName ?? album.title;
+String eraNameOf(Track track) =>
+    eraOfTrack(track)?.eraName ?? track.album.title;
 
-Color? eraPlaceholderOf(Album? album) =>
-    switch (album == null ? null : eraForAlbumId(album.id)) {
+Color? eraPlaceholderOf(Track? track) =>
+    switch (track == null ? null : eraOfTrack(track)) {
       final era? => Color(era.placeholderArgb),
       null => null,
     };
 
-String trackCaption(Track track) => switch (track.trackPosition) {
-  final position? => '${eraNameOf(track.album)} · track $position',
-  null => eraNameOf(track.album),
-};
+String trackCaption(Track track) {
+  final position = track.trackPosition;
+  return [
+    eraNameOf(track),
+    ?versionLabel(track.title, shown: songTitle(track)),
+    if (position != null && eraOfTrack(track)?.key != singlesEra.key)
+      'track $position',
+  ].join(' · ');
+}
 
 int? answerKeyIndex(LogicalKeyboardKey key) => switch (key) {
   LogicalKeyboardKey.digit1 || LogicalKeyboardKey.numpad1 => 0,
@@ -259,6 +266,7 @@ class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({super.key});
 
   static const Duration roundLoaderMinimum = Duration(milliseconds: 450);
+  static const int maxUnavailableSkips = 3;
   static const Duration roundLoaderTimeout = Duration(seconds: 8);
   static const String modeLabel = 'Name That Song';
   static const String loadingTracksLabel = 'Loading tracks...';
@@ -295,11 +303,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
   bool _tracksReady = false;
   bool _failed = false;
   bool _redraw = false;
+  int _unavailableSkips = 0;
   String? _failure;
   List<Track> _allTracks = const [];
   SoundStage _stage = SoundStage.playing;
   RoundAnswer? _result;
-  Album? _lastAlbum;
+  Track? _lastTrack;
   bool _clockStarted = false;
   DateTime _roundStart = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _loaderShownAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -414,6 +423,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (_failed) {
       return;
     }
+    final audio = ref.read(audioControllerProvider);
+    if (audio.error == null && !audio.unavailable) {
+      _unavailableSkips = 0;
+      final next = ref.read(gameControllerProvider).trackPool.firstOrNull;
+      if (next != null) {
+        unawaited(
+          ref.read(audioControllerProvider.notifier).prefetchPreview(next),
+        );
+      }
+    }
     if (_stage == SoundStage.loading) {
       final remaining =
           GameScreen.roundLoaderMinimum - _now().difference(_loaderShownAt);
@@ -511,7 +530,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     setState(() {
       _stage = SoundStage.answered;
       _result = result;
-      _lastAlbum = track.album;
+      _lastTrack = track;
     });
     armNext();
     _focusKeys();
@@ -601,6 +620,21 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
   }
 
+  void _skipUnavailable() {
+    final current = ref.read(gameControllerProvider).currentTrack;
+    _unavailableSkips += 1;
+    if (current == null || _unavailableSkips > GameScreen.maxUnavailableSkips) {
+      _fail(null);
+      return;
+    }
+    _allTracks = List.unmodifiable([
+      for (final track in _allTracks)
+        if (track.id != current.id) track,
+    ]);
+    _redraw = true;
+    _beginRound(ref.read(gameControllerProvider).trackPool, immediate: false);
+  }
+
   void _retry() {
     _redraw = true;
     ref.read(audioControllerProvider.notifier).reset();
@@ -623,6 +657,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
     ) {
       if (error != null && _tracksReady && !_failed) {
         _fail(null);
+      }
+    });
+    ref.listen(audioControllerProvider.select((audio) => audio.unavailable), (
+      _,
+      unavailable,
+    ) {
+      if (unavailable && _tracksReady && !_failed) {
+        _skipUnavailable();
       }
     });
     final Widget body;
@@ -688,9 +730,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 answered: answered,
                 spinning: spinning,
                 coverUrl: track.album.coverMedium,
-                placeholder: eraPlaceholderOf(track.album),
-                previousCoverUrl: _lastAlbum?.coverMedium,
-                previousPlaceholder: eraPlaceholderOf(_lastAlbum),
+                placeholder: eraPlaceholderOf(track),
+                previousCoverUrl: _lastTrack?.album.coverMedium,
+                previousPlaceholder: eraPlaceholderOf(_lastTrack),
               ),
             ),
             if (!answered) _SoundTransport(onToggle: _togglePlay),

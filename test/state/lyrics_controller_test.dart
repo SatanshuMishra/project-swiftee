@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -15,9 +16,10 @@ import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
+import '../fixtures/catalogue_fixture.dart';
+
 const Artist _taylor = Artist(id: 12246, name: 'Taylor Swift');
 const Album _lover = Album(id: 10, title: 'Lover', coverMedium: null);
-const Album _folklore = Album(id: 20, title: 'folklore', coverMedium: null);
 
 final DateTime _now = DateTime.utc(2026, 10, 5, 12);
 
@@ -56,26 +58,6 @@ Map<String, Object?> _lrclibRecord(int id) => {
   'syncedLyrics': null,
 };
 
-Map<String, Object?> _deezerTrackJson(int id) => {
-  'id': id,
-  'title': 'Song $id',
-  'title_short': 'Song $id',
-  'title_version': '',
-  'duration': 200,
-  'preview': 'https://cdnt-preview.dzcdn.net/api/1/1/$id.mp3',
-  'artist': {'id': _taylor.id, 'name': _taylor.name},
-};
-
-Map<String, Object?> _albumDetailJson(Album album, List<int> trackIds) => {
-  'id': album.id,
-  'title': album.title,
-  'cover_medium': album.coverMedium,
-  'nb_tracks': trackIds.length,
-  'tracks': {
-    'data': [for (final id in trackIds) _deezerTrackJson(id)],
-  },
-};
-
 http.Response _json(Object body, [int status = 200]) => http.Response.bytes(
   utf8.encode(jsonEncode(body)),
   status,
@@ -97,6 +79,7 @@ void main() {
     late Set<String> heldCatalogPaths;
     late Set<int> heldSongs;
     late ProviderContainer container;
+    late Completer<void> catalogueReady;
 
     LyricsController lyrics() => container.read(lyricsControllerProvider);
 
@@ -130,8 +113,21 @@ void main() {
       heldReplies = Future<void>.value();
       heldCatalogPaths = {};
       heldSongs = {};
+      catalogueReady = Completer<void>()..complete();
       container = ProviderContainer.test(
         overrides: [
+          catalogueStoreProvider.overrideWithValue(
+            fixtureCatalogueStore(
+              loadBundled: () async {
+                await catalogueReady.future;
+                return encodeCatalogue(
+                  fixtureReleases,
+                  fetchedAt: '2026-10-06T00:00:00Z',
+                );
+              },
+            ),
+          ),
+
           appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
           clockProvider.overrideWithValue(() => _now),
           randomProvider.overrideWithValue(Random(3)),
@@ -281,107 +277,58 @@ void main() {
       },
     );
 
-    test('random mode takes the top tracks as the source', () async {
-      catalogResponses = {
-        '/artist/12246/top': _json({
-          'data': [
-            {
-              ..._deezerTrackJson(1),
-              'album': {'id': 10, 'title': 'Lover'},
-            },
-            {
-              ..._deezerTrackJson(2),
-              'album': {'id': 10, 'title': 'Lover'},
-            },
-          ],
-        }),
-      };
+    test(
+      'shuffle reads every recording in the catalogue in a random order',
+      () async {
+        game().setMode(GameMode.random);
 
-      final tracks = await lyrics().loadSourceTracks();
+        final tracks = await lyrics().loadSourceTracks();
 
-      expect(catalogRequests, ['/artist/12246/top']);
-      expect(tracks, [
-        _track(
-          1,
-          album: const Album(id: 10, title: 'Lover', coverMedium: null),
-        ),
-        _track(
-          2,
-          album: const Album(id: 10, title: 'Lover', coverMedium: null),
-        ),
-      ]);
-      expect(read().lyricsAvailableTracks, tracks);
-    });
+        final catalogue = container.read(catalogControllerProvider).catalogue;
+        expect(catalogRequests, isEmpty);
+        expect(tracks, unorderedEquals(catalogue.allTracks));
+        expect(tracks, isNot(orderedEquals(catalogue.allTracks)));
+        expect(read().lyricsAvailableTracks, tracks);
+      },
+    );
 
-    test('album mode gathers the selected albums and skips failures', () async {
-      catalogResponses = {
-        '/album/10': _json(_albumDetailJson(_lover, [11, 12])),
-      };
+    test('picked eras read only their own recordings', () async {
       game()
         ..setMode(GameMode.album)
-        ..toggleAlbum(10)
-        ..toggleAlbum(20);
+        ..toggleEra('showgirl')
+        ..toggleEra('lover');
 
       final tracks = await lyrics().loadSourceTracks();
 
-      expect(catalogRequests, unorderedEquals(['/album/10', '/album/20']));
-      expect(tracks, [_track(11, position: 1), _track(12, position: 2)]);
+      expect(
+        [for (final track in tracks) track.title],
+        unorderedEquals([
+          'Cruel Summer',
+          'Cruel Summer (Live from The Eras Tour)',
+          'The Life of a Showgirl',
+          'Babylon',
+        ]),
+      );
       expect(read().lyricsAvailableTracks, tracks);
-      expect(container.read(catalogControllerProvider).albumTrackTotals, {
-        10: 2,
-      });
-    });
-
-    test('album mode keeps the selection order across albums', () async {
-      catalogResponses = {
-        '/album/20': _json(_albumDetailJson(_folklore, [21])),
-        '/album/10': _json(_albumDetailJson(_lover, [11])),
-      };
-      game()
-        ..setMode(GameMode.album)
-        ..toggleAlbum(20)
-        ..toggleAlbum(10);
-
-      final tracks = await lyrics().loadSourceTracks();
-
-      expect(tracks, [
-        _track(21, album: _folklore, position: 1),
-        _track(11, position: 1),
-      ]);
     });
 
     test(
-      'a superseded load leaves the newer available tracks in place',
+      'a load whose selection changed while it waited publishes nothing',
       () async {
-        final release = Completer<void>();
-        heldReplies = release.future;
-        heldCatalogPaths = {'/album/10'};
-        catalogResponses = {
-          '/album/10': _json(_albumDetailJson(_lover, [11])),
-          '/artist/12246/top': _json({
-            'data': [
-              {
-                ..._deezerTrackJson(1),
-                'album': {'id': 10, 'title': 'Lover'},
-              },
-            ],
-          }),
-        };
+        catalogueReady = Completer<void>();
         game()
           ..setMode(GameMode.album)
-          ..toggleAlbum(10);
+          ..toggleEra('lover');
         final stale = lyrics().loadSourceTracks();
         await pumpEventQueue();
 
         game()
           ..resetGame()
           ..setMode(GameMode.random);
-        final fresh = await lyrics().loadSourceTracks();
-        release.complete();
+        catalogueReady.complete();
         await stale;
 
-        expect(read().lyricsAvailableTracks, fresh);
-        expect(read().lyricsAvailableTracks.single.id, 1);
+        expect(read().lyricsAvailableTracks, isEmpty);
       },
     );
 
@@ -406,11 +353,10 @@ void main() {
       },
     );
 
-    test('album mode fails when no selected album loads', () async {
+    test('eras with no recordings fail with a clear message', () async {
       game()
         ..setMode(GameMode.album)
-        ..toggleAlbum(10)
-        ..toggleAlbum(20);
+        ..toggleEra('folklore');
 
       await expectLater(
         lyrics().loadSourceTracks(),
@@ -418,7 +364,7 @@ void main() {
           isA<LyricsSourceError>().having(
             (error) => error.message,
             'message',
-            'Could not load tracks for the selected albums. Please try again.',
+            'Could not load tracks for the selected eras. Please try again.',
           ),
         ),
       );

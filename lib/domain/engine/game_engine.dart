@@ -6,7 +6,7 @@ import 'package:swiftie_quiz/domain/util/shuffle.dart';
 typedef TrackDraw = ({Track track, List<Track> remaining});
 
 List<Track> createTrackPool(Iterable<Track> tracks, {Random? random}) =>
-    shuffle(tracks.where((track) => track.preview.isNotEmpty), random: random);
+    shuffle(tracks, random: random);
 
 TrackDraw drawNextTrack(
   List<Track> pool,

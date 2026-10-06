@@ -15,6 +15,7 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
+import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
@@ -43,7 +44,7 @@ class RoundSummaryScreen extends ConsumerStatefulWidget {
 
   static Era roundEra(List<RoundOutcome> results, DateTime now) =>
       results
-          .map((outcome) => eraForAlbumId(outcome.track.album.id))
+          .map((outcome) => eraOfTrack(outcome.track))
           .nonNulls
           .firstOrNull ??
       tonightsEra(now);
@@ -338,7 +339,7 @@ class _KnownRecord extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final era = eraForAlbumId(track.album.id);
+    final era = eraOfTrack(track);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: titleGap,
@@ -349,7 +350,7 @@ class _KnownRecord extends StatelessWidget {
           placeholder: era == null ? null : Color(era.placeholderArgb),
         ),
         Text(
-          track.title,
+          songTitle(track),
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.ellipsis,

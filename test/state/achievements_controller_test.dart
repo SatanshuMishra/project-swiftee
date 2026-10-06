@@ -1,10 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
+import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -13,6 +13,8 @@ import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/providers.dart';
+
+import '../fixtures/catalogue_fixture.dart';
 
 final DateTime _now = DateTime.utc(2026, 10, 5, 12, 0, 0, 123, 456);
 const String _nowIso = '2026-10-05T12:00:00.123Z';
@@ -56,6 +58,7 @@ AchievementContext _context({
   bool usedFullClip = false,
   GameProgress? progress,
   Map<int, int> albumTrackTotals = const {},
+  int erasPlayed = 0,
   QuizType? quizType,
   int sessionSoundCorrect = 0,
   int sessionLyricsCorrect = 0,
@@ -69,6 +72,7 @@ AchievementContext _context({
   usedFullClip: usedFullClip,
   progress: progress ?? defaultProgress,
   albumTrackTotals: albumTrackTotals,
+  erasPlayed: erasPlayed,
   quizType: quizType,
   lyricsMode: null,
   sessionSoundCorrect: sessionSoundCorrect,
@@ -302,55 +306,63 @@ void main() {
       expect(unlocked, ['lyric_lover', 'dual_threat']);
     });
 
-    test(
-      'album_completionist unlocks once a loaded album is fully guessed',
-      () async {
-        container = ProviderContainer.test(
+    ProviderContainer completionistContainer(List<RawRelease> releases) =>
+        ProviderContainer.test(
           overrides: [
             appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
             clockProvider.overrideWithValue(() => _now),
-            httpClientProvider.overrideWithValue(
-              MockClient(
-                (request) async => http.Response.bytes(
-                  utf8.encode(
-                    jsonEncode({
-                      'id': 10,
-                      'title': 'Lover',
-                      'cover_medium': null,
-                      'nb_tracks': 2,
-                      'tracks': {
-                        'data': [
-                          for (final id in [1, 2])
-                            {
-                              'id': id,
-                              'title': 'Song $id',
-                              'title_short': 'Song $id',
-                              'duration': 200,
-                              'preview':
-                                  'https://cdnt-preview.dzcdn.net/$id.mp3',
-                              'artist': {'id': 12246, 'name': 'Taylor Swift'},
-                            },
-                        ],
-                      },
-                    }),
-                  ),
-                  200,
-                ),
-              ),
-            ),
+            fixtureCatalogue(releases: releases),
           ],
         );
+
+    test(
+      'album_completionist unlocks once an era album is fully guessed',
+      () async {
+        const lover = Album(id: 108447472, title: 'Lover', coverMedium: null);
+        container = completionistContainer([
+          rawRelease(lover.id, lover.title, '2019-08-23', [
+            rawTrack(1, 'Song 1'),
+            rawTrack(2, 'Song 2'),
+          ]),
+        ]);
         await container
             .read(catalogControllerProvider.notifier)
-            .fetchAlbumTracks(10);
+            .loadCatalogue();
 
-        expect(answer(correct: true), ['first_meow']);
-        expect(answer(correct: true, track: _track(2)), [
+        expect(answer(correct: true, track: _track(1, album: lover)), [
+          'first_meow',
+        ]);
+        expect(answer(correct: true, track: _track(2, album: lover)), [
           'album_completionist',
         ]);
         expect(read().pendingToasts, ['first_meow', 'album_completionist']);
       },
     );
+
+    test('a one-song single never completes an album', () async {
+      const single = Album(
+        id: 121794132,
+        title: 'Christmas Tree Farm',
+        coverMedium: null,
+      );
+      container = completionistContainer([
+        rawRelease(single.id, single.title, '2019-12-06', [
+          rawTrack(1, 'Christmas Tree Farm'),
+        ], kind: ReleaseKind.single),
+      ]);
+      await container.read(catalogControllerProvider.notifier).loadCatalogue();
+
+      expect(answer(correct: true, track: _track(1, album: single)), [
+        'first_meow',
+      ]);
+    });
+
+    test('album explorer counts eras, not editions of the same era', () {
+      final catalogue = buildCatalogue(fixtureReleases);
+      expect(erasPlayed(['130721292', '130716962', '272247412'], catalogue), 1);
+      expect(erasPlayed(['130721292', '272247412', '108447472'], catalogue), 2);
+      expect(erasPlayed(['130721292', '999'], catalogue), 2);
+    });
 
     test('unlock conditions match useAchievements', () {
       final cases = <(String, AchievementContext, bool)>[
@@ -372,18 +384,8 @@ void main() {
         ),
         ('purrfect_streak', _context(streak: 9), false),
         ('purrfect_streak', _context(streak: 10), true),
-        (
-          'album_explorer',
-          _context(progress: _progressWith(albumsPlayed: ['1', '2', '3', '4'])),
-          false,
-        ),
-        (
-          'album_explorer',
-          _context(
-            progress: _progressWith(albumsPlayed: ['1', '2', '3', '4', '5']),
-          ),
-          true,
-        ),
+        ('album_explorer', _context(erasPlayed: 4), false),
+        ('album_explorer', _context(erasPlayed: 5), true),
         (
           'hard_mode_hero',
           _context(

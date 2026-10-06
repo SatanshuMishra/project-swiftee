@@ -55,13 +55,13 @@ void main() {
       expect(read().phase, GamePhase.settings);
     });
 
-    test('toggleAlbum adds and removes', () {
-      controller.toggleAlbum(1);
-      expect(read().selectedAlbumIds, [1]);
-      controller.toggleAlbum(2);
-      expect(read().selectedAlbumIds, [1, 2]);
-      controller.toggleAlbum(1);
-      expect(read().selectedAlbumIds, [2]);
+    test('toggleEra adds and removes', () {
+      controller.toggleEra('era1');
+      expect(read().selectedEraKeys, ['era1']);
+      controller.toggleEra('era2');
+      expect(read().selectedEraKeys, ['era1', 'era2']);
+      controller.toggleEra('era1');
+      expect(read().selectedEraKeys, ['era2']);
     });
 
     test('answerCorrect increments streak and resets quackCount', () {
@@ -125,7 +125,7 @@ void main() {
       expect(state.difficulty, Difficulty.easy);
       expect(state.quizType, isNull);
       expect(state.lyricsMode, isNull);
-      expect(state.selectedAlbumIds, isEmpty);
+      expect(state.selectedEraKeys, isEmpty);
       expect(state.currentTrack, isNull);
       expect(state.trackPool, isEmpty);
       expect(state.options, isEmpty);
@@ -191,7 +191,7 @@ void main() {
         ..setAlbums([album])
         ..setMode(GameMode.album)
         ..setDifficulty(Difficulty.hard)
-        ..toggleAlbum(100)
+        ..toggleEra('era100')
         ..answerCorrect(makeTrack(1))
         ..setQuizType(QuizType.lyrics)
         ..setLyricsMode(LyricsMode.lyricsOrLie)
@@ -217,7 +217,7 @@ void main() {
       expect(state.streak, 0);
       expect(state.quackCount, 0);
       expect(state.relistenCount, 0);
-      expect(state.selectedAlbumIds, isEmpty);
+      expect(state.selectedEraKeys, isEmpty);
       expect(state.quizType, isNull);
       expect(state.lyricsMode, isNull);
       expect(state.lyricsPool, isEmpty);
@@ -551,8 +551,8 @@ void main() {
         ..setLyricsAvailableTracks([makeTrack(2)])
         ..setUpdaterState(const UpdaterAvailable(manifest: manifest))
         ..setProgress(progress)
-        ..toggleAlbum(9)
-        ..clearSelectedAlbums();
+        ..toggleEra('era9')
+        ..clearSelectedEras();
 
       final state = read();
       expect(state.mode, GameMode.album);
@@ -565,7 +565,7 @@ void main() {
       expect(state.lyricsAvailableTracks, [makeTrack(2)]);
       expect(state.updaterState, const UpdaterAvailable(manifest: manifest));
       expect(state.progress, same(progress));
-      expect(state.selectedAlbumIds, isEmpty);
+      expect(state.selectedEraKeys, isEmpty);
 
       controller.setLyricsFetchProgress(null);
       expect(read().lyricsFetchProgress, isNull);
@@ -605,14 +605,14 @@ void main() {
 
     test('state collections cannot be modified in place', () {
       controller
-        ..toggleAlbum(1)
+        ..toggleEra('era1')
         ..setTrackPool([makeTrack(1)])
         ..addToast('first_meow')
         ..addToDecoyPool(1, withLyrics(1).lyrics)
         ..answerCorrect(makeTrack(1));
       final state = read();
 
-      expect(() => state.selectedAlbumIds.add(2), throwsUnsupportedError);
+      expect(() => state.selectedEraKeys.add('era2'), throwsUnsupportedError);
       expect(() => state.trackPool.clear(), throwsUnsupportedError);
       expect(() => state.pendingToasts.add('x'), throwsUnsupportedError);
       expect(() => state.decoyPool.remove(1), throwsUnsupportedError);

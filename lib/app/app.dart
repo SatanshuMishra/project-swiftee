@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/app/window_setup.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
+import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
@@ -213,8 +214,18 @@ class _GameShellState extends ConsumerState<_GameShell> {
     super.dispose();
   }
 
-  void _checkForUpdates() =>
-      unawaited(ref.read(updaterControllerProvider).check());
+  void _checkForUpdates() {
+    unawaited(ref.read(updaterControllerProvider).check());
+    unawaited(_checkForNewReleases());
+  }
+
+  Future<void> _checkForNewReleases() async {
+    try {
+      await ref.read(catalogControllerProvider.notifier).checkForNewReleases();
+    } on Object {
+      return;
+    }
+  }
 
   static Widget _screenFor(GamePhase phase, QuizType? quizType) =>
       switch (phase) {

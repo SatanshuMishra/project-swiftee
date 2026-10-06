@@ -46,7 +46,7 @@ class _IdleCatalog extends CatalogController {
   CatalogState build() => CatalogState.initial;
 
   @override
-  Future<void> loadAlbums() async {
+  Future<void> loadCatalogue() async {
     loads += 1;
   }
 }

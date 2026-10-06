@@ -223,6 +223,34 @@ void main() {
         expect(foundFake, isTrue);
       });
 
+      test('never draws a fake line from the song being asked about', () {
+        TrackLyrics version(int id, String title) => makeLyrics(
+          lrclibId: id,
+          lines: [
+            'You were dancing through the lightning strikes',
+            'Sleepless in the onyx night',
+            'But now the sky is opalite',
+          ],
+          sourceTrack: title,
+          sourceAlbum: 'The Life of a Showgirl',
+        );
+        final pool = {
+          1: version(1, 'Opalite'),
+          2: version(2, 'Opalite (Acoustic Version)'),
+        };
+        final random = Random(11);
+        for (var i = 0; i < 40; i++) {
+          final result = selectDecoyOrReal(
+            currentLines,
+            pool,
+            Difficulty.medium,
+            currentTrackTitle: 'Opalite',
+            random: random,
+          );
+          expect(result.isReal, isTrue);
+        }
+      });
+
       test('falls back to real when decoy pool is empty', () {
         final result = selectDecoyOrReal(
           currentLines,

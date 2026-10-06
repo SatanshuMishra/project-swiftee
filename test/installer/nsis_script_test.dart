@@ -306,7 +306,7 @@ void main() {
         'silent install', () {
       final success = functionBody(lines, '.onInstSuccess');
 
-      expect(success.sublist(0, 2), [
+      expect(success.sublist(1, 3), [
         r'${If} $PassiveMode = 1',
         r'${OrIf} ${Silent}',
       ]);
@@ -420,6 +420,19 @@ void main() {
       expect(resources, greaterThan(close));
       expect(copy, greaterThan(webView));
       expect(copy, greaterThan(resources));
+    });
+
+    test('tells Windows the icons changed before relaunching after an '
+        'install or update', () {
+      final success = functionBody(lines, '.onInstSuccess');
+      expect(
+        success.first,
+        "System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'",
+      );
+      expect(
+        success.indexOf(success.firstWhere((line) => line.startsWith('Exec '))),
+        greaterThan(0),
+      );
     });
 
     test('creates the Start menu and desktop shortcuts unless /NS or an '

@@ -25,6 +25,7 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 int lyricsLineCount(LyricsMode? mode, Difficulty difficulty) =>
     switch ((mode, difficulty)) {
@@ -70,7 +71,7 @@ class LyricsGameScreen extends ConsumerStatefulWidget {
 
   static String fakeLine(String? source) => switch (source) {
     final source? when source.isNotEmpty =>
-      "It's a fake. That line is from $source.",
+      "It's a fake. That line is from ${displaySongTitle(source)}.",
     _ => "It's a fake.",
   };
 
@@ -92,7 +93,7 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
   RoundAnswer? _result;
   List<Track> _options = const [];
   List<Track> _allTracks = const [];
-  Album? _lastAlbum;
+  Track? _lastTrack;
   DateTime _roundStart = DateTime.fromMillisecondsSinceEpoch(0);
   bool _started = false;
   Timer? _firstRound;
@@ -255,7 +256,7 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
         );
     setState(() {
       _result = result;
-      _lastAlbum = track.album;
+      _lastTrack = track;
     });
     armNext();
     _focusKeys();
@@ -404,18 +405,18 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
               answered: answered,
               spinning: false,
               coverUrl: track.album.coverMedium,
-              placeholder: eraPlaceholderOf(track.album),
-              previousCoverUrl: _lastAlbum?.coverMedium,
-              previousPlaceholder: eraPlaceholderOf(_lastAlbum),
+              placeholder: eraPlaceholderOf(track),
+              previousCoverUrl: _lastTrack?.album.coverMedium,
+              previousPlaceholder: eraPlaceholderOf(_lastTrack),
             ),
           )
         else
           LyricPaper(
             lines: round.snippetLines,
             song: songTitle(track),
-            era: eraNameOf(track.album),
+            era: eraNameOf(track),
             coverUrl: track.album.coverMedium,
-            placeholder: eraPlaceholderOf(track.album),
+            placeholder: eraPlaceholderOf(track),
             revealed: answered,
             showHint: game.difficulty == Difficulty.easy,
           ),

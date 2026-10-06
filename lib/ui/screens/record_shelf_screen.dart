@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/models/achievement_def.dart';
-import 'package:swiftie_quiz/domain/models/era.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -24,6 +24,7 @@ import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/ui/widgets/back_link.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 class RecordShelfScreen extends ConsumerStatefulWidget {
   const RecordShelfScreen({super.key});
@@ -87,7 +88,10 @@ class RecordShelfScreen extends ConsumerStatefulWidget {
   static String detail(AchievementState record) {
     final song = record.song;
     final date = shortDate(record.unlockedAt);
-    return [if (song != null) 'on $song', ?date].join(separator);
+    return [
+      if (song != null) 'on ${displaySongTitle(song)}',
+      ?date,
+    ].join(separator);
   }
 
   @override
@@ -112,7 +116,7 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
             (record) => record.unlocked && record.albumId != null,
           );
       if (needsCovers) {
-        unawaited(ref.read(catalogControllerProvider.notifier).loadAlbums());
+        unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
       }
     });
   }
@@ -151,6 +155,7 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
     AchievementDef definition,
     AchievementState? record,
     List<Album> albums,
+    Catalogue catalogue,
   ) {
     final hint =
         RecordShelfScreen.hints[definition.id] ?? definition.description;
@@ -160,7 +165,7 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
     final albumId = int.tryParse(record.albumId ?? '');
     final placeholder = albumId == null
         ? null
-        : eraForAlbumId(albumId)?.placeholderArgb;
+        : catalogue.eraOf(albumId)?.placeholderArgb;
     return ShelfRecord(
       definition: definition,
       hint: hint,
@@ -186,6 +191,9 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
     );
     final achievements = ref.watch(
       gameControllerProvider.select((game) => game.progress.achievements),
+    );
+    final catalogue = ref.watch(
+      catalogControllerProvider.select((catalog) => catalog.catalogue),
     );
     final albums = ref.watch(
       gameControllerProvider.select((game) => game.albums),
@@ -238,7 +246,12 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
               columns: layout.shelfColumns,
               children: [
                 for (final definition in achievementDefs)
-                  _recordFor(definition, achievements[definition.id], albums),
+                  _recordFor(
+                    definition,
+                    achievements[definition.id],
+                    albums,
+                    catalogue,
+                  ),
               ],
             ),
           ],

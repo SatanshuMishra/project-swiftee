@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as p;
+import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/data/catalog/deezer_client.dart';
 import 'package:swiftie_quiz/data/http_identity.dart';
 import 'package:swiftie_quiz/data/lyrics/danger_zones.dart';
@@ -54,4 +57,14 @@ final dangerZoneServiceProvider = FutureProvider<DangerZoneService>(
 
 final saveStoreProvider = Provider<SaveStore>(
   (ref) => SaveStore(File(defaultSaveFilePath()), ref.watch(clockProvider)),
+);
+
+final catalogueStoreProvider = Provider<CatalogueStore>(
+  (ref) => CatalogueStore(
+    loadBundled: () => rootBundle.loadString(bundledCataloguePath),
+    updatesFile: File(
+      p.join(p.dirname(defaultSaveFilePath()), catalogueUpdatesFileName),
+    ),
+    now: ref.watch(clockProvider),
+  ),
 );

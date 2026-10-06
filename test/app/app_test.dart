@@ -109,10 +109,17 @@ final class _IdleCatalog extends CatalogController {
   CatalogState build() => CatalogState.initial;
 
   @override
-  Future<void> loadAlbums() async {}
+  Future<void> loadCatalogue() async {}
 
   @override
   Future<CatalogTracks> loadTrackPool() => Completer<CatalogTracks>().future;
+}
+
+final class _CountingCatalog extends _IdleCatalog {
+  int releaseChecks = 0;
+
+  @override
+  Future<void> checkForNewReleases() async => releaseChecks += 1;
 }
 
 final class _BrokenCatalog extends CatalogController {
@@ -120,7 +127,7 @@ final class _BrokenCatalog extends CatalogController {
   CatalogState build() => throw StateError('catalog unavailable');
 
   @override
-  Future<void> loadAlbums() async {}
+  Future<void> loadCatalogue() async {}
 }
 
 final class _HeldLyrics extends LyricsController {
@@ -647,6 +654,20 @@ void main() {
 
       await tester.pump(updateCheckInterval);
       expect(harness.manifest.checkedVersions, ['0.3.0', '0.3.0']);
+    });
+
+    testWidgets('every update check also looks for new releases', (
+      tester,
+    ) async {
+      final catalog = _CountingCatalog();
+      final harness = _Harness(tester, catalog: () => catalog);
+      await harness.launch();
+
+      await tester.pump(const Duration(seconds: 60));
+      expect(catalog.releaseChecks, 1);
+
+      await tester.pump(updateCheckInterval);
+      expect(catalog.releaseChecks, 2);
     });
 
     testWidgets('the timers stop when the app is disposed', (tester) async {

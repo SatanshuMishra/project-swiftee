@@ -1,7 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
-import 'package:swiftie_quiz/domain/models/era.dart';
-import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/domain/util/shuffle.dart';
@@ -14,7 +12,10 @@ const int _initialBatchSize = 8;
 const int _rollingBatchSize = 5;
 
 const String noAlbumTracksMessage =
-    'Could not load tracks for the selected albums. Please try again.';
+    'Could not load tracks for the selected eras. Please try again.';
+
+const String catalogueUnavailableMessage =
+    'Could not load the song list. Please try again.';
 
 final class LyricsSourceError implements Exception {
   const LyricsSourceError(this.message);
@@ -33,24 +34,29 @@ class LyricsController {
   LyricsController(this._ref);
 
   final Ref _ref;
-  int _sourceRequest = 0;
   int _initialRequest = 0;
 
   GameController get _game => _ref.read(gameControllerProvider.notifier);
 
   Future<List<Track>> loadSourceTracks() async {
-    final request = ++_sourceRequest;
     final game = _ref.read(gameControllerProvider);
-    final tracks = switch (game.mode) {
-      GameMode.random =>
-        await _ref.read(catalogControllerProvider.notifier).fetchTopTracks(),
-      GameMode.album => await _settledAlbumTracks(game.selectedAlbumIds),
-      GameMode.tonight => await _settledAlbumTracks([
-        tonightsEra(_ref.read(clockProvider)()).deezerAlbumId,
-      ]),
-    };
-    if (request == _sourceRequest &&
-        sameTrackSelection(game, _ref.read(gameControllerProvider))) {
+    final catalog = _ref.read(catalogControllerProvider.notifier);
+    await catalog.loadCatalogue();
+    if (_ref.read(catalogControllerProvider).error != null) {
+      throw const LyricsSourceError(catalogueUnavailableMessage);
+    }
+    final tracks = shuffle(
+      tracksForGame(
+        _ref.read(catalogControllerProvider).catalogue,
+        game,
+        _ref.read(clockProvider)(),
+      ),
+      random: _ref.read(randomProvider),
+    );
+    if (tracks.isEmpty) {
+      throw const LyricsSourceError(noAlbumTracksMessage);
+    }
+    if (sameTrackSelection(game, _ref.read(gameControllerProvider))) {
       _game.setLyricsAvailableTracks(tracks);
     }
     return tracks;
@@ -140,29 +146,6 @@ class LyricsController {
       if (results[track.id] case final lyrics?)
         TrackWithLyrics(track: track, lyrics: lyrics),
   ]);
-
-  Future<List<Track>> _settledAlbumTracks(List<int> albumIds) async {
-    final catalog = _ref.read(catalogControllerProvider.notifier);
-    final perAlbum = await Future.wait(
-      albumIds.map((albumId) => _tracksOrNone(catalog, albumId)),
-    );
-    final tracks = List<Track>.unmodifiable(perAlbum.expand((each) => each));
-    if (tracks.isEmpty) {
-      throw const LyricsSourceError(noAlbumTracksMessage);
-    }
-    return tracks;
-  }
-
-  static Future<List<Track>> _tracksOrNone(
-    CatalogController catalog,
-    int albumId,
-  ) async {
-    try {
-      return (await catalog.fetchAlbumTracks(albumId)).tracks;
-    } on Object {
-      return const [];
-    }
-  }
 
   Future<LrclibClient> _lrclib() => _ref.read(lrclibClientProvider.future);
 }

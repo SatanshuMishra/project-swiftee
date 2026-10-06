@@ -554,8 +554,7 @@ void main() {
       tester,
     ) async {
       const long =
-          'All Too Well (10 Minute Version) (Taylor\'s Version) '
-          '(From The Vault)';
+          "Back To December/Apologize/You're Not Sorry (Live/2011/Medley)";
       await pumpHost(tester);
       unlock(firstMeow, song: long, albumId: fearlessId);
       await tester.pump();

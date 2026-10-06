@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -16,6 +18,7 @@ typedef AchievementContext = ({
   bool usedFullClip,
   GameProgress progress,
   Map<int, int> albumTrackTotals,
+  int erasPlayed,
   QuizType? quizType,
   LyricsMode? lyricsMode,
   int sessionSoundCorrect,
@@ -34,7 +37,7 @@ bool achievementConditionMet(String id, AchievementContext context) {
     'first_meow' => stats.totalCorrect >= 1,
     'getting_warmed_up' => stats.totalCorrect >= 10,
     'purrfect_streak' => context.streak >= 10,
-    'album_explorer' => stats.albumsPlayed.length >= 5,
+    'album_explorer' => context.erasPlayed >= 5,
     'album_completionist' => _hasCompletedAlbum(
       stats,
       context.albumTrackTotals,
@@ -54,6 +57,22 @@ bool achievementConditionMet(String id, AchievementContext context) {
       context.quizType == QuizType.lyrics && context.streak >= 10,
     _ => false,
   };
+}
+
+int erasPlayed(Iterable<String> albumIds, Catalogue catalogue) => {
+  for (final id in albumIds)
+    switch (int.tryParse(id)) {
+      final albumId? => catalogue.eraOf(albumId)?.key ?? 'album:$id',
+      null => 'album:$id',
+    },
+}.length;
+
+Map<int, int> eraAlbumTotals(Catalogue catalogue) {
+  final totals = catalogue.homeTotals;
+  return Map.unmodifiable({
+    for (final era in curatedEras)
+      era.deezerAlbumId: ?totals[era.deezerAlbumId],
+  });
 }
 
 bool _hasCompletedAlbum(GameStats stats, Map<int, int> albumTrackTotals) =>
@@ -85,6 +104,7 @@ class AchievementsController {
     Track? track,
   }) {
     final game = _ref.read(gameControllerProvider);
+    final catalogue = _ref.read(catalogControllerProvider).catalogue;
     return checkAndUnlock((
       correct: correct,
       streak: game.streak,
@@ -93,7 +113,8 @@ class AchievementsController {
       timeElapsed: timeElapsed,
       usedFullClip: usedFullClip,
       progress: game.progress,
-      albumTrackTotals: _ref.read(catalogControllerProvider).albumTrackTotals,
+      albumTrackTotals: eraAlbumTotals(catalogue),
+      erasPlayed: erasPlayed(game.progress.stats.albumsPlayed, catalogue),
       quizType: game.quizType,
       lyricsMode: game.lyricsMode,
       sessionSoundCorrect: game.sessionSoundCorrect,

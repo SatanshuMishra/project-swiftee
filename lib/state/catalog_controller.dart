@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:swiftie_quiz/data/catalog/deezer_client.dart';
+import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
 import 'package:swiftie_quiz/domain/engine/game_engine.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -15,146 +18,142 @@ typedef CatalogTracks = ({List<Track> allTracks, List<Track> pool});
 
 final class CatalogState {
   const CatalogState._({
-    required this.albumsLoading,
-    required this.albumsError,
-    required this.albumTrackTotals,
+    required this.catalogue,
+    required this.loading,
+    required this.error,
   });
 
-  static const CatalogState initial = CatalogState._(
-    albumsLoading: false,
-    albumsError: null,
-    albumTrackTotals: {},
+  static final CatalogState initial = CatalogState._(
+    catalogue: Catalogue.empty,
+    loading: false,
+    error: null,
   );
 
-  final bool albumsLoading;
-  final String? albumsError;
-  final Map<int, int> albumTrackTotals;
+  final Catalogue catalogue;
+  final bool loading;
+  final String? error;
 
   CatalogState copyWith({
-    bool? albumsLoading,
-    Object? albumsError = _unchanged,
-    Map<int, int>? albumTrackTotals,
+    Catalogue? catalogue,
+    bool? loading,
+    Object? error = _unchanged,
   }) => CatalogState._(
-    albumsLoading: albumsLoading ?? this.albumsLoading,
-    albumsError: identical(albumsError, _unchanged)
-        ? this.albumsError
-        : albumsError as String?,
-    albumTrackTotals: albumTrackTotals == null
-        ? this.albumTrackTotals
-        : Map.unmodifiable(albumTrackTotals),
+    catalogue: catalogue ?? this.catalogue,
+    loading: loading ?? this.loading,
+    error: identical(error, _unchanged) ? this.error : error as String?,
   );
 
   @override
   bool operator ==(Object other) =>
       other is CatalogState &&
-      other.albumsLoading == albumsLoading &&
-      other.albumsError == albumsError &&
-      const MapEquality<int, int>().equals(
-        other.albumTrackTotals,
-        albumTrackTotals,
-      );
+      other.catalogue == catalogue &&
+      other.loading == loading &&
+      other.error == error;
 
   @override
-  int get hashCode => Object.hash(
-    albumsLoading,
-    albumsError,
-    const MapEquality<int, int>().hash(albumTrackTotals),
-  );
+  int get hashCode => Object.hash(catalogue, loading, error);
 
   @override
   String toString() =>
-      'CatalogState(albumsLoading: $albumsLoading, albumsError: $albumsError, '
-      'albumTrackTotals: $albumTrackTotals)';
-}
-
-List<Album> curatedAlbums(List<Album> albums) {
-  final byId = {for (final album in albums) album.id: album};
-  return List.unmodifiable([
-    for (final era in curatedEras) ?byId[era.deezerAlbumId],
-  ]);
+      'CatalogState(recordings: ${catalogue.recordings.length}, '
+      'loading: $loading, error: $error)';
 }
 
 bool sameTrackSelection(GameState before, GameState now) =>
     before.mode == now.mode &&
-    const ListEquality<int>().equals(
-      before.selectedAlbumIds,
-      now.selectedAlbumIds,
+    const ListEquality<String>().equals(
+      before.selectedEraKeys,
+      now.selectedEraKeys,
     );
+
+List<Track> tracksForGame(Catalogue catalogue, GameState game, DateTime now) =>
+    switch (game.mode) {
+      GameMode.random => catalogue.allTracks,
+      GameMode.album => catalogue.tracksFor(game.selectedEraKeys),
+      GameMode.tonight => catalogue.tracksFor([tonightsEra(now).key]),
+    };
 
 final catalogControllerProvider =
     NotifierProvider<CatalogController, CatalogState>(CatalogController.new);
 
 class CatalogController extends Notifier<CatalogState> {
-  int _trackPoolRequest = 0;
+  Future<void>? _loading;
+  Future<void>? _releaseCheck;
 
   @override
-  CatalogState build() => CatalogState.initial;
+  CatalogState build() {
+    _loading = null;
+    _releaseCheck = null;
+    return CatalogState.initial;
+  }
 
-  Future<void> loadAlbums() async {
-    if (state.albumsLoading ||
-        ref.read(gameControllerProvider).albums.isNotEmpty) {
+  Future<void> loadCatalogue() => _loading ??= _load();
+
+  Future<CatalogTracks> loadTrackPool() async {
+    await loadCatalogue();
+    final game = ref.read(gameControllerProvider);
+    final tracks = tracksForGame(
+      state.catalogue,
+      game,
+      ref.read(clockProvider)(),
+    );
+    final pool = createTrackPool(tracks, random: ref.read(randomProvider));
+    if (ref.mounted) {
+      ref.read(gameControllerProvider.notifier).setTrackPool(pool);
+    }
+    return (allTracks: tracks, pool: pool);
+  }
+
+  Future<void> _load() async {
+    await Future<void>.value();
+    if (!ref.mounted) {
       return;
     }
-    state = state.copyWith(albumsLoading: true, albumsError: null);
+    state = state.copyWith(loading: true, error: null);
     try {
-      final albums = await (await _client()).fetchAlbums();
+      final releases = await ref.read(catalogueStoreProvider).load();
       if (!ref.mounted) {
         return;
       }
-      ref
-          .read(gameControllerProvider.notifier)
-          .setAlbums(curatedAlbums(albums));
-      state = state.copyWith(albumsLoading: false);
+      _apply(buildCatalogue(releases));
+      state = state.copyWith(loading: false);
     } on Object catch (error) {
+      _loading = null;
       if (ref.mounted) {
-        state = state.copyWith(albumsLoading: false, albumsError: '$error');
+        state = state.copyWith(loading: false, error: '$error');
       }
+      return;
     }
   }
 
-  Future<List<Track>> fetchTopTracks() async =>
-      (await _client()).fetchTopTracks();
+  Future<void> checkForNewReleases() =>
+      _releaseCheck ??= _checkForNewReleases();
 
-  Future<AlbumTracks> fetchAlbumTracks(int albumId) async {
-    final albumTracks = await (await _client()).fetchAlbumTracks(albumId);
-    if (ref.mounted) {
-      state = state.copyWith(
-        albumTrackTotals: {
-          ...state.albumTrackTotals,
-          albumId: albumTracks.totalTracks,
-        },
-      );
+  Future<void> _checkForNewReleases() async {
+    await loadCatalogue();
+    if (!ref.mounted) {
+      return;
     }
-    return albumTracks;
+    if (state.catalogue.isEmpty) {
+      _releaseCheck = null;
+      return;
+    }
+    try {
+      final client = await ref.read(deezerClientProvider.future);
+      final current = state.catalogue;
+      final added = await ref
+          .read(catalogueStoreProvider)
+          .addNewReleases(client, current.releaseIds);
+      if (added.isNotEmpty && ref.mounted) {
+        _apply(buildCatalogue([...current.sources, ...added]));
+      }
+    } on Object {
+      _releaseCheck = null;
+    }
   }
 
-  Future<CatalogTracks> loadTrackPool() async {
-    final request = ++_trackPoolRequest;
-    final game = ref.read(gameControllerProvider);
-    final random = ref.read(randomProvider);
-    final tracks = switch (game.mode) {
-      GameMode.random => await fetchTopTracks(),
-      GameMode.album => await _selectedAlbumTracks(game.selectedAlbumIds),
-      GameMode.tonight => await _selectedAlbumTracks([
-        tonightsEra(ref.read(clockProvider)()).deezerAlbumId,
-      ]),
-    };
-    final pool = createTrackPool(tracks, random: random);
-    if (ref.mounted &&
-        request == _trackPoolRequest &&
-        sameTrackSelection(game, ref.read(gameControllerProvider))) {
-      ref.read(gameControllerProvider.notifier).setTrackPool(pool);
-    }
-    return (allTracks: List<Track>.unmodifiable(tracks), pool: pool);
+  void _apply(Catalogue catalogue) {
+    state = state.copyWith(catalogue: catalogue);
+    ref.read(gameControllerProvider.notifier).setAlbums(catalogue.albums);
   }
-
-  Future<List<Track>> _selectedAlbumTracks(List<int> albumIds) async {
-    var tracks = const <Track>[];
-    for (final albumId in albumIds) {
-      tracks = [...tracks, ...(await fetchAlbumTracks(albumId)).tracks];
-    }
-    return tracks;
-  }
-
-  Future<DeezerClient> _client() => ref.read(deezerClientProvider.future);
 }
