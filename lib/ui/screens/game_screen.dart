@@ -266,6 +266,7 @@ class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({super.key});
 
   static const Duration roundLoaderMinimum = Duration(milliseconds: 450);
+  static const int maxUnavailableSkips = 3;
   static const Duration roundLoaderTimeout = Duration(seconds: 8);
   static const String modeLabel = 'Name That Song';
   static const String loadingTracksLabel = 'Loading tracks...';
@@ -302,6 +303,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   bool _tracksReady = false;
   bool _failed = false;
   bool _redraw = false;
+  int _unavailableSkips = 0;
   String? _failure;
   List<Track> _allTracks = const [];
   SoundStage _stage = SoundStage.playing;
@@ -420,6 +422,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void _handleAudioReady() {
     if (_failed) {
       return;
+    }
+    final audio = ref.read(audioControllerProvider);
+    if (audio.error == null && !audio.unavailable) {
+      _unavailableSkips = 0;
+      final next = ref.read(gameControllerProvider).trackPool.firstOrNull;
+      if (next != null) {
+        unawaited(
+          ref.read(audioControllerProvider.notifier).prefetchPreview(next),
+        );
+      }
     }
     if (_stage == SoundStage.loading) {
       final remaining =
@@ -608,6 +620,21 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
   }
 
+  void _skipUnavailable() {
+    final current = ref.read(gameControllerProvider).currentTrack;
+    _unavailableSkips += 1;
+    if (current == null || _unavailableSkips > GameScreen.maxUnavailableSkips) {
+      _fail(null);
+      return;
+    }
+    _allTracks = List.unmodifiable([
+      for (final track in _allTracks)
+        if (track.id != current.id) track,
+    ]);
+    _redraw = true;
+    _beginRound(ref.read(gameControllerProvider).trackPool, immediate: false);
+  }
+
   void _retry() {
     _redraw = true;
     ref.read(audioControllerProvider.notifier).reset();
@@ -630,6 +657,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
     ) {
       if (error != null && _tracksReady && !_failed) {
         _fail(null);
+      }
+    });
+    ref.listen(audioControllerProvider.select((audio) => audio.unavailable), (
+      _,
+      unavailable,
+    ) {
+      if (unavailable && _tracksReady && !_failed) {
+        _skipUnavailable();
       }
     });
     final Widget body;

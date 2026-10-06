@@ -41,6 +41,19 @@ final class PreviewDownloadFailed extends PreviewError {
   int get hashCode => Object.hash(PreviewDownloadFailed, status);
 }
 
+final class PreviewMissing extends PreviewError {
+  const PreviewMissing();
+
+  @override
+  String get message => 'This song has no preview right now';
+
+  @override
+  bool operator ==(Object other) => other is PreviewMissing;
+
+  @override
+  int get hashCode => (PreviewMissing).hashCode;
+}
+
 final class PreviewUnreachable extends PreviewError {
   const PreviewUnreachable(this.detail);
 

@@ -233,6 +233,8 @@ final class _Harness {
   final _RecordingMisu misu;
   late Future<CatalogTracks> Function() _load;
   int previewStatus = 200;
+  Set<int> withdrawn = const {};
+  List<String> deezerRequests = const [];
 
   set load(Future<CatalogTracks> Function() next) => _load = next;
 
@@ -243,11 +245,24 @@ final class _Harness {
     audioEngineProvider.overrideWithValue(engine),
     dangerZoneServiceProvider.overrideWithValue(AsyncData(_NoDangerZones())),
     httpClientProvider.overrideWithValue(
-      MockClient(
-        (request) async => request.url.host == 'cdnt-preview.dzcdn.net'
-            ? http.Response.bytes([1, 2, 3], previewStatus)
-            : http.Response('', 404),
-      ),
+      MockClient((request) async {
+        if (request.url.host == 'cdnt-preview.dzcdn.net') {
+          return http.Response.bytes([1, 2, 3], previewStatus);
+        }
+        final id = int.tryParse(request.url.pathSegments.lastOrNull ?? '');
+        if (request.url.host == 'api.deezer.com' && id != null) {
+          deezerRequests = [...deezerRequests, request.url.path];
+          return http.Response(
+            withdrawn.contains(id)
+                ? '{"error":{"type":"DataException","message":"no data","code":800}}'
+                : '{"id":$id,"title":"Song $id","duration":200,'
+                      '"preview":"https://cdnt-preview.dzcdn.net/api/1/1/$id.mp3",'
+                      '"artist":{"id":12246,"name":"Taylor Swift"}}',
+            200,
+          );
+        }
+        return http.Response('', 404);
+      }),
     ),
     catalogControllerProvider.overrideWith(
       () => _ScriptedCatalog(() => _load()),
@@ -503,6 +518,65 @@ void main() {
       expect(
         harness.state.roundResults.every((outcome) => outcome.correct),
         isTrue,
+      );
+    });
+
+    testWidgets('a song Deezer no longer has is skipped for another', (
+      tester,
+    ) async {
+      final gone = _song(7, 'Gone Song', 'red', 4).copyWith(preview: '');
+      final harness = _Harness(tester, pool: [gone, ..._songs])
+        ..withdrawn = {7};
+      await harness.open();
+      await harness.settle();
+      await tester.pump(GameScreen.roundLoaderMinimum);
+      await harness.settle();
+
+      expect(find.text("The needle won't drop."), findsNothing);
+      expect(harness.current, _loveStory);
+      expect(harness.state.roundNumber, 1);
+      expect(harness.deezerRequests, contains('/track/7'));
+    });
+
+    testWidgets('after three missing songs in a row the round gives up', (
+      tester,
+    ) async {
+      final gone = [
+        for (var id = 7; id <= 10; id++)
+          _song(id, 'Gone $id', 'red', id).copyWith(preview: ''),
+      ];
+      final harness = _Harness(tester, pool: [...gone, ..._songs])
+        ..withdrawn = {7, 8, 9, 10};
+      await harness.open();
+      for (var round = 0; round < 4; round++) {
+        await harness.settle();
+        await tester.pump(GameScreen.roundLoaderMinimum);
+      }
+      await harness.settle();
+
+      expect(find.text("The needle won't drop."), findsOneWidget);
+    });
+
+    testWidgets("the next song's link is fetched while this one plays", (
+      tester,
+    ) async {
+      final next = _song(8, 'Next Song', 'red', 5).copyWith(preview: '');
+      final harness = _Harness(tester, pool: [_loveStory, next, ..._songs]);
+      await harness.open();
+      await harness.settle();
+
+      expect(harness.deezerRequests, ['/track/8']);
+      await tester.tap(find.text('Love Story'));
+      await tester.pump(const Duration(seconds: 2));
+      await tester.tap(find.text('Next song →'));
+      await harness.settle();
+      await tester.pump(GameScreen.roundLoaderMinimum);
+      await harness.settle();
+
+      expect(harness.current.id, 8);
+      expect(
+        harness.deezerRequests.where((path) => path == '/track/8'),
+        hasLength(1),
       );
     });
 

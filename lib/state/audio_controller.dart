@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/data/catalog/catalog_error.dart';
 import 'package:swiftie_quiz/domain/engine/clip_selector.dart';
 import 'package:swiftie_quiz/domain/engine/relisten_schedule.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
@@ -26,6 +27,7 @@ const Duration snippetLength = Duration(seconds: 5);
 const double snippetVolumeShare = 0.7;
 
 const Duration snippetRest = Duration(milliseconds: 250);
+const Duration prefetchedLinkLifetime = Duration(minutes: 10);
 
 final class AudioState {
   const AudioState({
@@ -36,6 +38,7 @@ final class AudioState {
     required this.clipDuration,
     required this.relistenStage,
     required this.error,
+    this.unavailable = false,
   });
 
   static const AudioState idle = AudioState(
@@ -55,6 +58,7 @@ final class AudioState {
   final double clipDuration;
   final int relistenStage;
   final String? error;
+  final bool unavailable;
 
   AudioState copyWith({
     bool? playing,
@@ -64,6 +68,7 @@ final class AudioState {
     double? clipDuration,
     int? relistenStage,
     Object? error = _unchanged,
+    bool? unavailable,
   }) => AudioState(
     playing: playing ?? this.playing,
     paused: paused ?? this.paused,
@@ -72,6 +77,7 @@ final class AudioState {
     clipDuration: clipDuration ?? this.clipDuration,
     relistenStage: relistenStage ?? this.relistenStage,
     error: identical(error, _unchanged) ? this.error : error as String?,
+    unavailable: unavailable ?? this.unavailable,
   );
 
   @override
@@ -83,7 +89,8 @@ final class AudioState {
       other.progress == progress &&
       other.clipDuration == clipDuration &&
       other.relistenStage == relistenStage &&
-      other.error == error;
+      other.error == error &&
+      other.unavailable == unavailable;
 
   @override
   int get hashCode => Object.hash(
@@ -94,13 +101,15 @@ final class AudioState {
     clipDuration,
     relistenStage,
     error,
+    unavailable,
   );
 
   @override
   String toString() =>
       'AudioState(playing: $playing, paused: $paused, loading: $loading, '
       'progress: $progress, clipDuration: $clipDuration, '
-      'relistenStage: $relistenStage, error: $error)';
+      'relistenStage: $relistenStage, error: $error, '
+      'unavailable: $unavailable)';
 }
 
 final audioEngineProvider = Provider<AudioEngine>((ref) {
@@ -130,6 +139,7 @@ class AudioController extends Notifier<AudioState> {
   double _sliceOffset = 0;
   double _sliceDuration = 0;
   int _snippetVersion = 0;
+  Map<int, ({String link, DateTime fetchedAt})> _prefetched = const {};
   LoadedClip? _snippetClip;
   AudioVoice? _snippetVoice;
   Timer? _snippetTimer;
@@ -155,7 +165,7 @@ class AudioController extends Notifier<AudioState> {
     final dangerZones = smartClip
         ? _dangerZonesFor(track)
         : Future.value(const <DangerZone>[]);
-    state = state.copyWith(loading: true, error: null);
+    state = state.copyWith(loading: true, error: null, unavailable: false);
     try {
       final bytes = await _downloadPreview(track, version);
       if (bytes == null || version != _playVersion) {
@@ -179,6 +189,10 @@ class AudioController extends Notifier<AudioState> {
       }
       _clipStart = start;
       _playSlice(clip, start, sliceDurationSeconds);
+    } on PreviewMissing {
+      if (version == _playVersion) {
+        state = state.copyWith(unavailable: true);
+      }
     } on Object catch (error) {
       if (version == _playVersion) {
         state = state.copyWith(error: '$error');
@@ -187,6 +201,23 @@ class AudioController extends Notifier<AudioState> {
       if (version == _playVersion) {
         state = state.copyWith(loading: false);
       }
+    }
+  }
+
+  Future<void> prefetchPreview(Track track) async {
+    if (track.preview.isNotEmpty || _prefetchedLink(track.id) != null) {
+      return;
+    }
+    try {
+      final link = await _freshLink(track.id);
+      if (link.isNotEmpty) {
+        _prefetched = {
+          ..._prefetched,
+          track.id: (link: link, fetchedAt: ref.read(clockProvider)()),
+        };
+      }
+    } on Object {
+      return;
     }
   }
 
@@ -310,28 +341,57 @@ class AudioController extends Notifier<AudioState> {
 
   Future<Uint8List?> _downloadPreview(Track track, int version) async {
     final downloader = await ref.read(previewDownloaderProvider.future);
-    final preview = track.preview.isNotEmpty
+    if (version != _playVersion) {
+      return null;
+    }
+    final prefetched = track.preview.isEmpty ? _prefetchedLink(track.id) : null;
+    _prefetched = {
+      for (final entry in _prefetched.entries)
+        if (entry.key != track.id) entry.key: entry.value,
+    };
+    final fetchedNow = track.preview.isEmpty && prefetched == null;
+    final link = track.preview.isNotEmpty
         ? track.preview
-        : (await (await ref.read(deezerClientProvider.future))
-                  .refreshTrack(track.id))
-              .preview;
+        : prefetched ?? await _freshLink(track.id);
     if (version != _playVersion) {
       return null;
     }
     try {
-      return await downloader.download(Uri.parse(preview));
+      return await downloader.download(Uri.parse(_playable(link)));
     } on PreviewForbidden {
+      if (fetchedNow) {
+        rethrow;
+      }
       if (version != _playVersion) {
         return null;
       }
-      final deezer = await ref.read(deezerClientProvider.future);
-      final refreshed = await deezer.refreshTrack(track.id);
+      final refreshed = await _freshLink(track.id);
       if (version != _playVersion) {
         return null;
       }
-      return downloader.download(Uri.parse(refreshed.preview));
+      return downloader.download(Uri.parse(_playable(refreshed)));
     }
   }
+
+  Future<String> _freshLink(int trackId) async {
+    final deezer = await ref.read(deezerClientProvider.future);
+    try {
+      return (await deezer.refreshTrack(trackId)).preview;
+    } on ApiError {
+      throw const PreviewMissing();
+    }
+  }
+
+  String? _prefetchedLink(int trackId) => switch (_prefetched[trackId]) {
+    final entry?
+        when ref.read(clockProvider)().difference(entry.fetchedAt) <
+            prefetchedLinkLifetime =>
+      entry.link,
+    _ => null,
+  };
+
+  static String _playable(String link) =>
+      link.isEmpty ? throw const PreviewMissing() : link;
 
   Future<List<DangerZone>> _dangerZonesFor(Track track) async {
     try {

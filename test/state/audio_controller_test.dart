@@ -831,6 +831,116 @@ void main() {
       });
     });
 
+    test('a song with no preview is marked unavailable, not failed', () {
+      fakeAsync((async) {
+        final harness = _Harness();
+        harness.respond = (request) async => switch ('${request.url}') {
+          'https://api.deezer.com/track/1' => _json(_trackJson(_enchanted, '')),
+          _ => _json({'error': 'unexpected'}, 404),
+        };
+
+        unawaited(harness.audio.play(_enchanted.copyWith(preview: '')));
+        async.flushMicrotasks();
+
+        expect(harness.requestedUrls, ['https://api.deezer.com/track/1']);
+        expect(harness.state.unavailable, isTrue);
+        expect(harness.state.error, isNull);
+        expect(harness.state.loading, isFalse);
+      });
+    });
+
+    test('a song Deezer no longer has is marked unavailable', () {
+      fakeAsync((async) {
+        final harness = _Harness();
+        harness.respond = (request) async => _json({
+          'error': {'type': 'DataException', 'message': 'no data', 'code': 800},
+        });
+
+        unawaited(harness.audio.play(_enchanted.copyWith(preview: '')));
+        async.flushMicrotasks();
+
+        expect(harness.state.unavailable, isTrue);
+        expect(harness.state.error, isNull);
+      });
+    });
+
+    test('a link fetched for this play is not refreshed again on a 403', () {
+      fakeAsync((async) {
+        final harness = _Harness();
+        harness.respond = (request) async => switch ('${request.url}') {
+          'https://api.deezer.com/track/1' => _json(
+            _trackJson(_enchanted, _freshPreviewUrl),
+          ),
+          _ => _bytes(Uint8List(0), 403),
+        };
+
+        unawaited(harness.audio.play(_enchanted.copyWith(preview: '')));
+        async.flushMicrotasks();
+
+        expect(harness.requestedUrls, [
+          'https://api.deezer.com/track/1',
+          _freshPreviewUrl,
+        ]);
+        expect(harness.state.error, 'Preview download failed: HTTP 403');
+      });
+    });
+
+    test('a play replaced while its link is fetched downloads nothing', () {
+      fakeAsync((async) {
+        final harness = _Harness();
+        final link = Completer<http.Response>();
+        harness.respond = (request) => switch ('${request.url}') {
+          'https://api.deezer.com/track/1' => link.future,
+          _previewUrl => Future.value(_bytes(_previewBytes)),
+          _ => Future.value(_json({'error': 'unexpected'}, 404)),
+        };
+
+        unawaited(harness.audio.play(_enchanted.copyWith(preview: '')));
+        async.flushMicrotasks();
+        unawaited(harness.audio.play(_enchanted));
+        async.flushMicrotasks();
+        link.complete(_json(_trackJson(_enchanted, _freshPreviewUrl)));
+        async.flushMicrotasks();
+
+        expect(harness.requestedUrls, [
+          'https://api.deezer.com/track/1',
+          _previewUrl,
+        ]);
+        expect(harness.engine.loaded, [_previewBytes]);
+        expect(harness.state.loading, isFalse);
+      });
+    });
+
+    test(
+      'a link fetched ahead of time is used without asking Deezer again',
+      () {
+        fakeAsync((async) {
+          final harness = _Harness();
+          harness.respond = (request) async => switch ('${request.url}') {
+            'https://api.deezer.com/track/1' => _json(
+              _trackJson(_enchanted, _freshPreviewUrl),
+            ),
+            _freshPreviewUrl => _bytes(_freshPreviewBytes),
+            _ => _json({'error': 'unexpected'}, 404),
+          };
+
+          unawaited(
+            harness.audio.prefetchPreview(_enchanted.copyWith(preview: '')),
+          );
+          async.flushMicrotasks();
+          unawaited(harness.audio.play(_enchanted.copyWith(preview: '')));
+          async.flushMicrotasks();
+
+          expect(harness.requestedUrls, [
+            'https://api.deezer.com/track/1',
+            _freshPreviewUrl,
+          ]);
+          expect(harness.engine.loaded, [_freshPreviewBytes]);
+          expect(harness.state.playing, isTrue);
+        });
+      },
+    );
+
     test('a second 403 gives the error state without a third request', () {
       fakeAsync((async) {
         final harness = _Harness();
