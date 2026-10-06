@@ -897,6 +897,132 @@ void main() {
     });
   });
 
+  group('shelf preview', () {
+    const trackEndpoint = 'https://api.deezer.com/track/1';
+    const mineEndpoint = 'https://api.deezer.com/track/2';
+
+    _Harness shelfHarness() {
+      final harness = _Harness();
+      harness.respond = (request) async => switch ('${request.url}') {
+        trackEndpoint => _json(_trackJson(_enchanted, _freshPreviewUrl)),
+        mineEndpoint => _json(_trackJson(_mine, _otherPreviewUrl)),
+        _freshPreviewUrl => _bytes(_freshPreviewBytes),
+        _otherPreviewUrl => _bytes(_otherPreviewBytes),
+        _ => _bytes(Uint8List(0), 403),
+      };
+      final progress = harness.container.read(gameControllerProvider).progress;
+      harness.game.setProgress(
+        progress.copyWith(settings: progress.settings.copyWith(volume: 0.5)),
+      );
+      return harness;
+    }
+
+    test('a shelf preview plays five seconds at seventy percent volume', () {
+      fakeAsync((async) {
+        final harness = shelfHarness();
+
+        unawaited(harness.audio.previewSnippet('1'));
+        async.elapse(snippetRest);
+
+        expect(harness.requestedUrls, [trackEndpoint, _freshPreviewUrl]);
+        expect(harness.engine.loaded, [_freshPreviewBytes]);
+        final slice = harness.engine.slices.single;
+        expect(slice.offset, 8);
+        expect(slice.duration, 5);
+        expect(slice.volume, closeTo(0.35, 1e-9));
+        expect(harness.state, AudioState.idle);
+
+        async.elapse(const Duration(milliseconds: 4999));
+
+        expect(harness.engine.stopped, isEmpty);
+
+        async.elapse(const Duration(milliseconds: 1));
+
+        expect(harness.engine.stopped, [slice.voice]);
+        expect(harness.engine.unloaded, [slice.clip]);
+
+        unawaited(harness.audio.previewSnippet('1'));
+        async.elapse(snippetRest);
+        final second = harness.engine.slices.last;
+        harness.audio.stopSnippet();
+
+        expect(harness.engine.stopped, [slice.voice, second.voice]);
+        expect(harness.engine.unloaded, [slice.clip, second.clip]);
+
+        async.elapse(const Duration(seconds: 5));
+
+        expect(harness.engine.stopped, hasLength(2));
+        expect(async.pendingTimers, isEmpty);
+      });
+    });
+
+    test('a new shelf preview replaces the one playing', () {
+      fakeAsync((async) {
+        final harness = shelfHarness();
+
+        unawaited(harness.audio.previewSnippet('1'));
+        async.elapse(snippetRest);
+        final first = harness.engine.slices.single;
+        unawaited(harness.audio.previewSnippet('2'));
+        async.elapse(snippetRest);
+
+        expect(harness.engine.stopped, [first.voice]);
+        expect(
+          (harness.engine.slices.last.clip as _FakeClip).bytes,
+          _otherPreviewBytes,
+        );
+        expect(harness.engine.slices, hasLength(2));
+      });
+    });
+
+    test('sweeping across records sends no requests', () {
+      fakeAsync((async) {
+        final harness = shelfHarness();
+
+        unawaited(harness.audio.previewSnippet('1'));
+        async.elapse(snippetRest - const Duration(milliseconds: 1));
+        unawaited(harness.audio.previewSnippet('2'));
+        async.elapse(snippetRest - const Duration(milliseconds: 1));
+        harness.audio.stopSnippet();
+        async.elapse(const Duration(seconds: 1));
+
+        expect(harness.requestedUrls, isEmpty);
+        expect(harness.engine.slices, isEmpty);
+      });
+    });
+
+    test('leaving before the preview loads plays nothing', () {
+      fakeAsync((async) {
+        final harness = shelfHarness();
+        final refresh = Completer<http.Response>();
+        harness.respond = (request) => refresh.future;
+
+        unawaited(harness.audio.previewSnippet('1'));
+        async.elapse(snippetRest);
+        harness.audio.stopSnippet();
+        refresh.complete(_json(_trackJson(_enchanted, _freshPreviewUrl)));
+        async.flushMicrotasks();
+
+        expect(harness.requestedUrls, [trackEndpoint]);
+        expect(harness.engine.slices, isEmpty);
+      });
+    });
+
+    test('a failed shelf preview stays silent', () {
+      fakeAsync((async) {
+        final harness = shelfHarness();
+        harness.respond = (request) async => _bytes(Uint8List(0), 500);
+
+        unawaited(harness.audio.previewSnippet('1'));
+        async.elapse(snippetRest);
+
+        expect(harness.requestedUrls, [trackEndpoint]);
+        expect(harness.engine.slices, isEmpty);
+        expect(harness.state, AudioState.idle);
+      });
+    });
+  });
+
   group('preview downloader', () {
     late List<http.Request> requests;
     late Future<http.Response> Function(http.Request request) respond;
