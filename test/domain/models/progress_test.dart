@@ -584,19 +584,20 @@ void main() {
 
     test('wire names match the TypeScript string unions', () {
       expect(GamePhase.values.map((value) => value.wireName), [
+        'nickname',
         'menu',
         'album-select',
-        'quiz-type-select',
-        'lyrics-mode-select',
-        'difficulty-select',
+        'setup',
         'lyrics-loading',
         'playing',
-        'cat-gallery',
+        'round-summary',
+        'record-shelf',
         'settings',
       ]);
       expect(GameMode.values.map((value) => value.wireName), [
         'random',
         'album',
+        'tonight',
       ]);
       expect(QuizType.values.map((value) => value.wireName), [
         'sound',

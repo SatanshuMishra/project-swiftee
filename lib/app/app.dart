@@ -14,16 +14,18 @@ import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
 import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
 import 'package:swiftie_quiz/ui/overlays/toast_host.dart';
 import 'package:swiftie_quiz/ui/overlays/update_badge.dart';
+import 'package:swiftie_quiz/ui/chrome/title_bar.dart';
+import 'package:swiftie_quiz/ui/misu/misu_host.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
-import 'package:swiftie_quiz/ui/screens/cat_gallery.dart';
-import 'package:swiftie_quiz/ui/screens/difficulty_select.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/screens/lyrics_game_screen.dart';
 import 'package:swiftie_quiz/ui/screens/lyrics_loading_screen.dart';
-import 'package:swiftie_quiz/ui/screens/lyrics_mode_select.dart';
 import 'package:swiftie_quiz/ui/screens/main_menu.dart';
-import 'package:swiftie_quiz/ui/screens/quiz_type_select.dart';
+import 'package:swiftie_quiz/ui/screens/nickname_screen.dart';
+import 'package:swiftie_quiz/ui/screens/record_shelf_screen.dart';
+import 'package:swiftie_quiz/ui/screens/round_summary_screen.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
+import 'package:swiftie_quiz/ui/screens/setup_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
@@ -120,7 +122,7 @@ void installErrorHandlers(RenderFailures failures) {
 class SwiftieQuizApp extends ConsumerStatefulWidget {
   const SwiftieQuizApp({super.key});
 
-  static const String title = 'Swiftie Quiz';
+  static const String title = 'Project Swiftie';
 
   @override
   ConsumerState<SwiftieQuizApp> createState() => _SwiftieQuizAppState();
@@ -198,17 +200,17 @@ class _GameShellState extends ConsumerState<_GameShell> {
 
   static Widget _screenFor(GamePhase phase, QuizType? quizType) =>
       switch (phase) {
+        GamePhase.nickname => const NicknameScreen(),
         GamePhase.menu => const MainMenu(),
         GamePhase.albumSelect => const AlbumGrid(),
-        GamePhase.quizTypeSelect => const QuizTypeSelect(),
-        GamePhase.lyricsModeSelect => const LyricsModeSelect(),
-        GamePhase.difficultySelect => const DifficultySelect(),
+        GamePhase.setup => const SetupScreen(),
         GamePhase.lyricsLoading => const LyricsLoadingScreen(),
         GamePhase.playing =>
           quizType == QuizType.lyrics
               ? const LyricsGameScreen()
               : const GameScreen(),
-        GamePhase.catGallery => const CatGallery(),
+        GamePhase.roundSummary => const RoundSummaryScreen(),
+        GamePhase.recordShelf => const RecordShelfScreen(),
         GamePhase.settings => const SettingsScreen(),
       };
 
@@ -222,14 +224,23 @@ class _GameShellState extends ConsumerState<_GameShell> {
     return Material(
       color: AppTokens.of(context).background,
       animationDuration: Duration.zero,
-      child: Stack(
-        fit: StackFit.expand,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          UpdateOverlay(
-            screen: _screenFor(screen.phase, screen.quizType),
-            belowDialog: const AchievementToasts(),
+          const AppTitleBar(),
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                UpdateOverlay(
+                  screen: _screenFor(screen.phase, screen.quizType),
+                  belowDialog: const AchievementToasts(),
+                ),
+                const MisuHost(),
+                const ToastHost(),
+              ],
+            ),
           ),
-          const ToastHost(),
         ],
       ),
     );

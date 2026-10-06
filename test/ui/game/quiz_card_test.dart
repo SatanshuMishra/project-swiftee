@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/ui/game/quiz_card.dart';
-import 'package:swiftie_quiz/ui/game/result_feedback.dart';
+import 'package:swiftie_quiz/ui/widgets/motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/widgets/primary_button.dart';
 

@@ -24,6 +24,7 @@ import 'package:swiftie_quiz/ui/cat/loading_gate.dart';
 import 'package:swiftie_quiz/ui/game/audio_player.dart';
 import 'package:swiftie_quiz/ui/game/quiz_card.dart';
 import 'package:swiftie_quiz/ui/game/result_feedback.dart';
+import 'package:swiftie_quiz/ui/widgets/motion.dart';
 import 'package:swiftie_quiz/ui/game/streak_badge.dart';
 import 'package:swiftie_quiz/ui/game/timer_bar.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';

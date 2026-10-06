@@ -156,7 +156,7 @@ void main() {
 
       expect(
         harness.container.read(gameControllerProvider).phase,
-        GamePhase.quizTypeSelect,
+        GamePhase.setup,
       );
     });
 

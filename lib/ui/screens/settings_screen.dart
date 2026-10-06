@@ -8,7 +8,7 @@ import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
-import 'package:swiftie_quiz/ui/screens/main_menu.dart';
+import 'package:swiftie_quiz/ui/widgets/screen_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';

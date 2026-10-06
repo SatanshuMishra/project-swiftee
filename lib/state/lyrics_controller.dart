@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -44,6 +45,9 @@ class LyricsController {
       GameMode.random =>
         await _ref.read(catalogControllerProvider.notifier).fetchTopTracks(),
       GameMode.album => await _settledAlbumTracks(game.selectedAlbumIds),
+      GameMode.tonight => await _settledAlbumTracks([
+        tonightsEra(_ref.read(clockProvider)()).deezerAlbumId,
+      ]),
     };
     if (request == _sourceRequest &&
         sameTrackSelection(game, _ref.read(gameControllerProvider))) {

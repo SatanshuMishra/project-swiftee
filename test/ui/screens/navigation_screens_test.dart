@@ -12,11 +12,7 @@ import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/cat/cat_icon_button.dart';
 import 'package:swiftie_quiz/ui/overlays/birthday_card.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
-import 'package:swiftie_quiz/ui/screens/cat_gallery.dart';
-import 'package:swiftie_quiz/ui/screens/difficulty_select.dart';
-import 'package:swiftie_quiz/ui/screens/lyrics_mode_select.dart';
 import 'package:swiftie_quiz/ui/screens/main_menu.dart';
-import 'package:swiftie_quiz/ui/screens/quiz_type_select.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/widgets/selection_card.dart';
@@ -90,7 +86,7 @@ Future<void> tapBack(WidgetTester tester) async {
 
 void main() {
   group('menu and selection navigation', () {
-    testWidgets('Random Mode picks random mode and opens quiz type', (
+    testWidgets('Random Mode picks random mode and opens set up', (
       tester,
     ) async {
       final container = await pumpScreen(
@@ -102,7 +98,7 @@ void main() {
       await tester.tap(find.text('Random Mode'));
 
       expect(gameOf(container).mode, GameMode.random);
-      expect(gameOf(container).phase, GamePhase.quizTypeSelect);
+      expect(gameOf(container).phase, GamePhase.setup);
     });
 
     testWidgets('Pick Albums picks album mode and opens album select', (
@@ -116,13 +112,13 @@ void main() {
       expect(gameOf(container).phase, GamePhase.albumSelect);
     });
 
-    testWidgets('Cat Gallery and Settings cards open their screens', (
+    testWidgets('Cat Gallery and Settings cards open the shelf and settings', (
       tester,
     ) async {
       final container = await pumpScreen(tester, const MainMenu());
 
       await tester.tap(find.text('Cat Gallery'));
-      expect(gameOf(container).phase, GamePhase.catGallery);
+      expect(gameOf(container).phase, GamePhase.recordShelf);
 
       await tester.tap(find.text('Settings'));
       expect(gameOf(container).phase, GamePhase.settings);
@@ -148,251 +144,10 @@ void main() {
       }
     });
 
-    testWidgets('sound goes to difficulty and lyrics to lyrics mode', (
+    testWidgets('album select and settings go back to the menu', (
       tester,
     ) async {
-      final container = await pumpScreen(tester, const QuizTypeSelect());
-
-      await tester.tap(find.text('Sound'));
-      expect(gameOf(container).quizType, QuizType.sound);
-      expect(gameOf(container).phase, GamePhase.difficultySelect);
-
-      await tester.tap(find.text('Lyrics'));
-      expect(gameOf(container).quizType, QuizType.lyrics);
-      expect(gameOf(container).phase, GamePhase.lyricsModeSelect);
-    });
-
-    testWidgets('quiz type back returns to album select in album mode', (
-      tester,
-    ) async {
-      final container = await pumpScreen(
-        tester,
-        const QuizTypeSelect(),
-        setup: (game) => game.setMode(GameMode.album),
-      );
-
-      await tapBack(tester);
-
-      expect(gameOf(container).phase, GamePhase.albumSelect);
-    });
-
-    testWidgets('quiz type back returns to the menu in random mode', (
-      tester,
-    ) async {
-      final container = await pumpScreen(
-        tester,
-        const QuizTypeSelect(),
-        setup: (game) => game
-          ..setMode(GameMode.random)
-          ..setPhase(GamePhase.quizTypeSelect),
-      );
-
-      await tapBack(tester);
-
-      expect(gameOf(container).phase, GamePhase.menu);
-    });
-
-    testWidgets('lyrics modes set the mode and open difficulty', (
-      tester,
-    ) async {
-      for (final (title, mode) in [
-        ('Name That Song', LyricsMode.nameThatSong),
-        ('Lyrics or Lie', LyricsMode.lyricsOrLie),
-      ]) {
-        final container = await pumpScreen(
-          tester,
-          const LyricsModeSelect(),
-          setup: (game) => game.setPhase(GamePhase.lyricsModeSelect),
-        );
-
-        await tester.tap(find.text(title));
-
-        expect(gameOf(container).lyricsMode, mode, reason: title);
-        expect(gameOf(container).phase, GamePhase.difficultySelect);
-      }
-    });
-
-    testWidgets('lyrics mode back returns to quiz type', (tester) async {
-      final container = await pumpScreen(tester, const LyricsModeSelect());
-
-      await tapBack(tester);
-
-      expect(gameOf(container).phase, GamePhase.quizTypeSelect);
-    });
-
-    testWidgets('sound difficulty cards list their features and timers', (
-      tester,
-    ) async {
-      await pumpScreen(
-        tester,
-        const DifficultySelect(),
-        setup: (game) => game
-          ..setQuizType(QuizType.sound)
-          ..setMediumTimer(25)
-          ..setHardTimer(15),
-      );
-
-      for (final (difficulty, description, features) in [
-        (
-          'Easy',
-          'Quick warm-up round',
-          ['Multiple choice', 'Album hint shown', 'No time limit'],
-        ),
-        (
-          'Medium',
-          'The real thing',
-          ['Multiple choice', 'No album hint', '25-second timer'],
-        ),
-        (
-          'Hard',
-          'A challenge worthy of a true Swiftie',
-          ['Type your answer', 'No hints', '15-second timer'],
-        ),
-      ]) {
-        expect(featureOf(difficulty, description), findsOneWidget);
-        for (final feature in features) {
-          expect(featureOf(difficulty, feature), findsOneWidget);
-        }
-      }
-    });
-
-    testWidgets('name-that-song difficulty cards list their features', (
-      tester,
-    ) async {
-      await pumpScreen(
-        tester,
-        const DifficultySelect(),
-        setup: (game) => game
-          ..setQuizType(QuizType.lyrics)
-          ..setLyricsMode(LyricsMode.nameThatSong)
-          ..setMediumTimer(35)
-          ..setHardTimer(10),
-      );
-
-      for (final (difficulty, features) in [
-        (
-          'Easy',
-          ['4 lyric lines from chorus', 'Album hint', 'Multiple choice'],
-        ),
-        ('Medium', ['3 lyric lines', 'Multiple choice', '35-second timer']),
-        (
-          'Hard',
-          ['2 lyric lines, no chorus', 'Type your answer', '10-second timer'],
-        ),
-      ]) {
-        for (final feature in features) {
-          expect(featureOf(difficulty, feature), findsOneWidget);
-        }
-      }
-    });
-
-    testWidgets('lyrics-or-lie difficulty cards list their features', (
-      tester,
-    ) async {
-      await pumpScreen(
-        tester,
-        const DifficultySelect(),
-        setup: (game) => game
-          ..setQuizType(QuizType.lyrics)
-          ..setLyricsMode(LyricsMode.lyricsOrLie),
-      );
-
-      for (final (difficulty, features) in [
-        (
-          'Easy',
-          [
-            '3 lyric lines shown',
-            'Album cover shown',
-            'Fakes from different eras',
-            'No time limit',
-          ],
-        ),
-        (
-          'Medium',
-          [
-            '2 lyric lines shown',
-            'No hints',
-            'Fakes from similar albums',
-            '30-second timer',
-          ],
-        ),
-        (
-          'Hard',
-          [
-            '1 lyric line shown',
-            'No hints',
-            'Fakes from same album',
-            '20-second timer',
-          ],
-        ),
-      ]) {
-        for (final feature in features) {
-          expect(featureOf(difficulty, feature), findsOneWidget);
-        }
-      }
-    });
-
-    testWidgets('choosing a sound difficulty starts playing', (tester) async {
-      final container = await pumpScreen(
-        tester,
-        const DifficultySelect(),
-        setup: (game) => game.setQuizType(QuizType.sound),
-      );
-
-      await tester.tap(find.text('Hard'));
-
-      expect(gameOf(container).difficulty, Difficulty.hard);
-      expect(gameOf(container).phase, GamePhase.playing);
-    });
-
-    testWidgets('choosing a lyrics difficulty opens lyrics loading', (
-      tester,
-    ) async {
-      final container = await pumpScreen(
-        tester,
-        const DifficultySelect(),
-        setup: (game) => game
-          ..setQuizType(QuizType.lyrics)
-          ..setLyricsMode(LyricsMode.nameThatSong)
-          ..setDifficulty(Difficulty.hard),
-      );
-
-      await tester.tap(find.text('Easy'));
-
-      expect(gameOf(container).difficulty, Difficulty.easy);
-      expect(gameOf(container).phase, GamePhase.lyricsLoading);
-    });
-
-    testWidgets('difficulty back follows the quiz type', (tester) async {
-      for (final (quizType, expected) in [
-        (QuizType.lyrics, GamePhase.lyricsModeSelect),
-        (QuizType.sound, GamePhase.quizTypeSelect),
-        (null, GamePhase.menu),
-      ]) {
-        final container = await pumpScreen(
-          tester,
-          DifficultySelect(key: ValueKey(quizType)),
-          setup: (game) {
-            if (quizType != null) {
-              game.setQuizType(quizType);
-            }
-          },
-        );
-
-        await tapBack(tester);
-
-        expect(gameOf(container).phase, expected, reason: '$quizType');
-      }
-    });
-
-    testWidgets('album select, gallery and settings go back to the menu', (
-      tester,
-    ) async {
-      for (final screen in const [
-        AlbumGrid(),
-        CatGallery(),
-        SettingsScreen(),
-      ]) {
+      for (final screen in const [AlbumGrid(), SettingsScreen()]) {
         final container = await pumpScreen(
           tester,
           screen,

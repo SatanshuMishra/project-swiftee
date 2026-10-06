@@ -20,6 +20,7 @@ import 'package:swiftie_quiz/ui/game/audio_player.dart';
 import 'package:swiftie_quiz/ui/game/game_header.dart';
 import 'package:swiftie_quiz/ui/game/quiz_card.dart';
 import 'package:swiftie_quiz/ui/game/result_feedback.dart';
+import 'package:swiftie_quiz/ui/widgets/motion.dart';
 import 'package:swiftie_quiz/ui/game/timer_bar.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';

@@ -10,7 +10,7 @@ import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
 import 'package:swiftie_quiz/ui/cat/loading_gate.dart';
-import 'package:swiftie_quiz/ui/screens/main_menu.dart';
+import 'package:swiftie_quiz/ui/widgets/screen_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -45,9 +45,7 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
 
   void _start() {
     if (ref.read(gameControllerProvider).selectedAlbumIds.isNotEmpty) {
-      ref
-          .read(gameControllerProvider.notifier)
-          .setPhase(GamePhase.quizTypeSelect);
+      ref.read(gameControllerProvider.notifier).setPhase(GamePhase.setup);
     }
   }
 
