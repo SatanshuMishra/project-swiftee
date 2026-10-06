@@ -67,6 +67,13 @@ final class CatalogState {
       'albumTrackTotals: $albumTrackTotals)';
 }
 
+List<Album> curatedAlbums(List<Album> albums) {
+  final byId = {for (final album in albums) album.id: album};
+  return List.unmodifiable([
+    for (final era in curatedEras) ?byId[era.deezerAlbumId],
+  ]);
+}
+
 bool sameTrackSelection(GameState before, GameState now) =>
     before.mode == now.mode &&
     const ListEquality<int>().equals(
@@ -94,7 +101,9 @@ class CatalogController extends Notifier<CatalogState> {
       if (!ref.mounted) {
         return;
       }
-      ref.read(gameControllerProvider.notifier).setAlbums(albums);
+      ref
+          .read(gameControllerProvider.notifier)
+          .setAlbums(curatedAlbums(albums));
       state = state.copyWith(albumsLoading: false);
     } on Object catch (error) {
       if (ref.mounted) {

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/data/catalog/catalog_error.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
@@ -16,8 +17,12 @@ import 'package:swiftie_quiz/state/providers.dart';
 const String _albumsPath = '/artist/12246/albums';
 const String _topPath = '/artist/12246/top';
 const Artist _taylor = Artist(id: 12246, name: 'Taylor Swift');
-const Album _lover = Album(id: 10, title: 'Lover', coverMedium: null);
-const Album _folklore = Album(id: 20, title: 'folklore', coverMedium: null);
+const Album _lover = Album(id: 108447472, title: 'Lover', coverMedium: null);
+const Album _folklore = Album(
+  id: 162683632,
+  title: 'folklore',
+  coverMedium: null,
+);
 
 final DateTime _now = DateTime.utc(2026, 10, 5, 12);
 
@@ -111,6 +116,51 @@ void main() {
         _folklore,
       ]);
       expect(container.read(catalogControllerProvider).albumsLoading, isFalse);
+      expect(container.read(catalogControllerProvider).albumsError, isNull);
+    });
+
+    test('albums are curated to the twelve eras in order', () async {
+      final missing = curatedEras.firstWhere((era) => era.key == 'evermore');
+      final curated = [
+        for (final era in curatedEras)
+          if (era != missing)
+            Album(
+              id: era.deezerAlbumId,
+              title: era.eraName,
+              coverMedium: 'https://cdn-images.dzcdn.net/${era.key}.jpg',
+            ),
+      ];
+      const singles = [
+        Album(id: 3, title: 'Fortnight', coverMedium: null),
+        Album(id: 4, title: 'Cruel Summer', coverMedium: null),
+        Album(id: 5, title: 'Lover (Live From Paris)', coverMedium: null),
+      ];
+      final reversed = curated.reversed.toList();
+      final shuffled = [
+        singles[0],
+        ...reversed.take(4),
+        singles[1],
+        ...reversed.skip(4).take(4),
+        singles[2],
+        ...reversed.skip(8),
+      ];
+      respond = (request) async => _json({
+        'data': [for (final album in shuffled) _albumJson(album)],
+      });
+      var received = <List<Album>>[];
+      container.listen(
+        gameControllerProvider.select((state) => state.albums),
+        (_, albums) => received = [...received, albums],
+      );
+
+      await catalog().loadAlbums();
+
+      expect(received, [curated]);
+      expect(received.single, hasLength(curatedEras.length - 1));
+      expect(
+        received.single.map((album) => album.id),
+        isNot(contains(missing.deezerAlbumId)),
+      );
       expect(container.read(catalogControllerProvider).albumsError, isNull);
     });
 
@@ -221,18 +271,18 @@ void main() {
       "album mode builds the track pool from the selected albums' tracks",
       () async {
         respond = (request) async => switch (request.url.path) {
-          '/album/10' => _json(_albumDetailJson(_lover, [11, 12, 13])),
-          '/album/20' => _json(_albumDetailJson(_folklore, [21, 22])),
+          '/album/108447472' => _json(_albumDetailJson(_lover, [11, 12, 13])),
+          '/album/162683632' => _json(_albumDetailJson(_folklore, [21, 22])),
           _ => _json({'error': 'unexpected'}, 404),
         };
         game()
           ..setMode(GameMode.album)
-          ..toggleAlbum(10)
-          ..toggleAlbum(20);
+          ..toggleAlbum(_lover.id)
+          ..toggleAlbum(_folklore.id);
 
         final result = await catalog().loadTrackPool();
 
-        expect(requested, ['/album/10', '/album/20']);
+        expect(requested, ['/album/108447472', '/album/162683632']);
         expect(result.allTracks, [
           _track(11, _lover, position: 1),
           _track(12, _lover, position: 2),
@@ -247,25 +297,25 @@ void main() {
 
     test('records per-album totals for the album completionist', () async {
       respond = (request) async => switch (request.url.path) {
-        '/album/10' => _json(_albumDetailJson(_lover, [11, 12, 13])),
-        '/album/20' => _json(_albumDetailJson(_folklore, [21, 22])),
+        '/album/108447472' => _json(_albumDetailJson(_lover, [11, 12, 13])),
+        '/album/162683632' => _json(_albumDetailJson(_folklore, [21, 22])),
         _ => _json({'error': 'unexpected'}, 404),
       };
 
-      final lover = await catalog().fetchAlbumTracks(10);
-      await catalog().fetchAlbumTracks(20);
+      final lover = await catalog().fetchAlbumTracks(_lover.id);
+      await catalog().fetchAlbumTracks(_folklore.id);
 
       expect(lover.totalTracks, 3);
       expect(container.read(catalogControllerProvider).albumTrackTotals, {
-        10: 3,
-        20: 2,
+        _lover.id: 3,
+        _folklore.id: 2,
       });
     });
 
     test('a superseded load leaves the newer track pool in place', () async {
       final staleReply = Completer<http.Response>();
       respond = (request) => switch (request.url.path) {
-        '/album/10' => staleReply.future,
+        '/album/108447472' => staleReply.future,
         _topPath => Future.value(
           _json({
             'data': [
@@ -278,7 +328,7 @@ void main() {
       };
       game()
         ..setMode(GameMode.album)
-        ..toggleAlbum(10);
+        ..toggleAlbum(_lover.id);
       final stale = catalog().loadTrackPool();
       await pumpEventQueue();
 
@@ -303,7 +353,7 @@ void main() {
         respond = (request) => staleReply.future;
         game()
           ..setMode(GameMode.album)
-          ..toggleAlbum(10);
+          ..toggleAlbum(_lover.id);
         final stale = catalog().loadTrackPool();
         await pumpEventQueue();
 
@@ -319,7 +369,7 @@ void main() {
       respond = (request) async => http.Response('', 500);
       game()
         ..setMode(GameMode.album)
-        ..toggleAlbum(10)
+        ..toggleAlbum(_lover.id)
         ..setTrackPool([_track(1, _lover)]);
 
       await expectLater(

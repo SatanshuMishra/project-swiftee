@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:swiftie_quiz/domain/engine/answer_matcher.dart';
 import 'package:swiftie_quiz/domain/engine/lyric_processor.dart';
 import 'package:swiftie_quiz/domain/engine/option_generator.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
@@ -12,18 +12,19 @@ import 'package:swiftie_quiz/state/achievements_controller.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
+import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
-import 'package:swiftie_quiz/ui/game/game_header.dart';
-import 'package:swiftie_quiz/ui/game/lyric_snippet_card.dart';
-import 'package:swiftie_quiz/ui/game/lyrics_or_lie_card.dart';
-import 'package:swiftie_quiz/ui/game/quiz_card.dart';
-import 'package:swiftie_quiz/ui/game/result_feedback.dart';
-import 'package:swiftie_quiz/ui/widgets/motion.dart';
-import 'package:swiftie_quiz/ui/game/timer_bar.dart';
+import 'package:swiftie_quiz/ui/game/answer_list.dart';
+import 'package:swiftie_quiz/ui/game/lyric_paper.dart';
+import 'package:swiftie_quiz/ui/game/next_prompt.dart';
+import 'package:swiftie_quiz/ui/game/quack_burst.dart';
+import 'package:swiftie_quiz/ui/game/record_player.dart';
+import 'package:swiftie_quiz/ui/game/round_heading.dart';
+import 'package:swiftie_quiz/ui/kit/modal_stack.dart';
+import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';
-import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
-import 'package:swiftie_quiz/ui/widgets/screen_background.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
 
 int lyricsLineCount(LyricsMode? mode, Difficulty difficulty) =>
     switch ((mode, difficulty)) {
@@ -36,7 +37,10 @@ int lyricsLineCount(LyricsMode? mode, Difficulty difficulty) =>
       (null, _) => 1,
     };
 
-enum LyricsRoundState { playing, answered }
+String lyricsModeLabel(LyricsMode? mode) => switch (mode) {
+  LyricsMode.lyricsOrLie => LyricsGameScreen.lyricsOrLieLabel,
+  LyricsMode.nameThatSong || null => LyricsGameScreen.nameThatSongLabel,
+};
 
 final class _LyricsRound {
   const _LyricsRound({
@@ -50,29 +54,46 @@ final class _LyricsRound {
   final DecoyResult? decoy;
 }
 
-final class _TimedOut {
-  const _TimedOut();
-}
-
 class LyricsGameScreen extends ConsumerStatefulWidget {
   const LyricsGameScreen({super.key});
 
-  static const String preparingLabel = 'Preparing round...';
-  static const double gap = 24;
+  static const String nameThatSongLabel = 'Lyrics · Name That Song';
+  static const String lyricsOrLieLabel = 'Lyrics or Lie';
+  static const String lyricsQuestion = 'Name that song.';
+  static const String lieKicker = 'Is this lyric from';
+  static const String rightVerdict = 'Right.';
+  static const String wrongVerdict = 'Not this time.';
+  static const String timeUpVerdict = "Time's up.";
+  static const double lieGap = 18;
+
+  static String realLine(String song) => "It's a real line from $song.";
+
+  static String fakeLine(String? source) => switch (source) {
+    final source? when source.isNotEmpty =>
+      "It's a fake. That line is from $source.",
+    _ => "It's a fake.",
+  };
 
   @override
   ConsumerState<LyricsGameScreen> createState() => _LyricsGameScreenState();
 }
 
-class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen> {
-  LyricsRoundState _roundState = LyricsRoundState.playing;
+class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
+    with RoundTimers<LyricsGameScreen> {
+  final FocusNode _keys = FocusNode(
+    debugLabel: 'LyricsGameScreen keys',
+    skipTraversal: true,
+  );
+  final FocusNode _typedFocus = FocusNode(
+    debugLabel: 'LyricsGameScreen answer',
+  );
+  final TextEditingController _typed = TextEditingController();
   _LyricsRound? _round;
-  bool? _lastResult;
-  bool _timerActive = false;
+  RoundAnswer? _result;
   List<Track> _options = const [];
   List<Track> _allTracks = const [];
+  Album? _lastAlbum;
   DateTime _roundStart = DateTime.fromMillisecondsSinceEpoch(0);
-  int _poolIndex = 0;
   bool _started = false;
   Timer? _firstRound;
 
@@ -85,6 +106,9 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen> {
   @override
   void dispose() {
     _firstRound?.cancel();
+    _keys.dispose();
+    _typedFocus.dispose();
+    _typed.dispose();
     super.dispose();
   }
 
@@ -152,6 +176,14 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen> {
       case null:
         break;
     }
+    resetRound(
+      roundTimerSeconds(
+        difficulty,
+        game.progress.settings.mediumTimer,
+        game.progress.settings.hardTimer,
+      ),
+    );
+    _typed.clear();
     final startedAt = _now();
     setState(() {
       _round = _LyricsRound(
@@ -160,17 +192,16 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen> {
         decoy: decoy,
       );
       _options = options;
-      _roundState = LyricsRoundState.playing;
-      _lastResult = null;
-      _timerActive = true;
+      _result = null;
       _roundStart = startedAt;
-      _poolIndex += 1;
     });
+    startCountdown();
+    _focusInput();
   }
 
-  void _handleAnswer(Object answer) {
+  void _answer(Object? pick, {bool timedOut = false}) {
     final round = _round;
-    if (round == null || _roundState != LyricsRoundState.playing) {
+    if (round == null || _result != null) {
       return;
     }
     final game = ref.read(gameControllerProvider);
@@ -178,46 +209,138 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen> {
     final track = round.entry.track;
     final decoy = round.decoy;
     final timeElapsed = _now().difference(_roundStart);
-    final correct = switch (mode) {
-      LyricsMode.nameThatSong => checkAnswer(answer, track, game.difficulty),
-      LyricsMode.lyricsOrLie =>
-        decoy != null && answer is bool && answer == decoy.isReal,
-      null => false,
+    final RoundAnswer result = switch (mode) {
+      LyricsMode.lyricsOrLie => (
+        pick: pick,
+        correct: !timedOut && decoy != null && pick == decoy.isReal,
+        timedOut: timedOut,
+        close: false,
+        praise: '',
+      ),
+      LyricsMode.nameThatSong || null => songAnswer(
+        pick,
+        track,
+        game.difficulty,
+        QuizType.lyrics,
+        timedOut: timedOut || mode == null,
+      ),
     };
-    setState(() {
-      _timerActive = false;
-      _lastResult = correct;
-      _roundState = LyricsRoundState.answered;
-    });
+    stopCountdown();
     final controller = ref.read(gameControllerProvider.notifier);
-    if (correct) {
+    if (result.correct) {
       controller.answerCorrect(track);
       if (mode != null) {
         controller.incrementLyricsStat(mode);
       }
     } else {
-      controller.answerIncorrect();
+      controller.answerIncorrect(track);
       ref.read(audioControllerProvider.notifier).playQuack();
     }
     ref
         .read(achievementsControllerProvider)
         .checkAfterAnswer(
-          correct: correct,
+          correct: result.correct,
           timeElapsed: timeElapsed,
           usedFullClip: false,
+          track: track,
         );
+    final after = ref.read(gameControllerProvider);
+    ref
+        .read(misuControllerProvider.notifier)
+        .afterAnswer(
+          correct: result.correct,
+          streak: after.streak,
+          missRun: after.quackCount,
+          roundNumber: after.roundNumber,
+        );
+    setState(() {
+      _result = result;
+      _lastAlbum = track.album;
+    });
+    armNext();
+    _focusKeys();
     unawaited(ref.read(lyricsControllerProvider).extendPool());
   }
 
-  void _handleTimerExpire() {
-    if (_roundState != LyricsRoundState.playing) {
+  @override
+  void onTimeUp() => _answer(null, timedOut: true);
+
+  void _submitTyped() {
+    final typed = _typed.text.trim();
+    if (typed.isEmpty) {
+      _typedFocus.requestFocus();
       return;
     }
-    _handleAnswer(
-      ref.read(gameControllerProvider).lyricsMode == LyricsMode.lyricsOrLie
-          ? const _TimedOut()
-          : -1,
-    );
+    _answer(typed);
+  }
+
+  void _handleNext() {
+    if (_result == null || !nextReady) {
+      return;
+    }
+    if (ref.read(gameControllerProvider).isLastQuickRound) {
+      ref.read(gameControllerProvider.notifier).finishQuickRound();
+      return;
+    }
+    _beginRound();
+  }
+
+  bool _handleKey(LogicalKeyboardKey key) {
+    if (_round == null) {
+      return false;
+    }
+    if (isNextKey(key)) {
+      if (_result == null) {
+        return false;
+      }
+      _handleNext();
+      return true;
+    }
+    if (_result != null) {
+      return false;
+    }
+    final game = ref.read(gameControllerProvider);
+    if (game.lyricsMode == LyricsMode.lyricsOrLie) {
+      final verdict = switch (key) {
+        LogicalKeyboardKey.keyR => true,
+        LogicalKeyboardKey.keyF => false,
+        _ => null,
+      };
+      if (verdict == null) {
+        return false;
+      }
+      _answer(verdict);
+      return true;
+    }
+    final index = answerKeyIndex(key);
+    if (index == null ||
+        game.difficulty == Difficulty.hard ||
+        index >= _options.length) {
+      return false;
+    }
+    _answer(_options[index].id);
+    return true;
+  }
+
+  void _focusKeys() {
+    if (mounted &&
+        ref.read(modalStackProvider).isEmpty &&
+        !_keys.hasPrimaryFocus) {
+      _keys.requestFocus();
+    }
+  }
+
+  void _focusInput() {
+    final game = ref.read(gameControllerProvider);
+    if (game.difficulty != Difficulty.hard ||
+        game.lyricsMode != LyricsMode.nameThatSong) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _result == null && ref.read(modalStackProvider).isEmpty) {
+        _typedFocus.requestFocus();
+      }
+    });
   }
 
   void _exit() => ref.read(gameControllerProvider.notifier).resetGame();
@@ -232,141 +355,172 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen> {
         }
       },
     );
-    final tokens = AppTokens.of(context);
-    final view = ref.watch(
+    final round = _round;
+    return ScreenEnter(
+      child: GameKeys(
+        focusNode: _keys,
+        onKey: _handleKey,
+        child: round == null
+            ? GameFirstLoad(onBack: _exit)
+            : _roundView(context, round),
+      ),
+    );
+  }
+
+  Widget _roundView(BuildContext context, _LyricsRound round) {
+    final game = ref.watch(
       gameControllerProvider.select(
         (game) => (
-          streak: game.streak,
           mode: game.lyricsMode,
+          streak: game.streak,
           difficulty: game.difficulty,
-          timer: roundTimerSeconds(
-            game.difficulty,
-            game.progress.settings.mediumTimer,
-            game.progress.settings.hardTimer,
-          ),
+          round: game.roundNumber,
+          total: game.quickRoundTotal,
+          misses: game.quackCount,
+          last: game.isLastQuickRound,
         ),
       ),
     );
-    final round = _round;
-    if (round == null) {
-      return ScreenBackground(
-        child: Center(
-          child: Text(
-            LyricsGameScreen.preparingLabel,
-            style: AppText.base.copyWith(color: tokens.mutedForeground),
-          ),
-        ),
-      );
-    }
-    return ScreenBackground(
-      child: Padding(
-        padding: const EdgeInsets.all(GameScreen.padding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GameHeader(streak: view.streak, onExit: _exit),
-            if (view.timer > 0 && _roundState == LyricsRoundState.playing) ...[
-              const SizedBox(height: LyricsGameScreen.gap),
-              GameLane(
-                key: const ValueKey('timer'),
-                child: TimerBar(
-                  duration: view.timer,
-                  onExpire: _handleTimerExpire,
-                  active: _timerActive,
-                ),
-              ),
-            ],
-            MotionPresence(
-              spacing: LyricsGameScreen.gap,
-              child: _roundMotion(tokens, round, view.mode, view.difficulty),
+    final result = _result;
+    final answered = result != null;
+    final track = round.entry.track;
+    final lie = game.mode == LyricsMode.lyricsOrLie;
+    return GameStage(
+      topBar: RoundTopBar(
+        modeLabel: lyricsModeLabel(game.mode),
+        difficulty: game.difficulty,
+        streak: game.streak,
+        round: game.round,
+        totalRounds: game.total,
+        time: roundTime,
+        onExit: _exit,
+      ),
+      left: [
+        if (lie)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: RecordPlayer(
+              revealed: answered || game.difficulty == Difficulty.easy,
+              answered: answered,
+              spinning: false,
+              coverUrl: track.album.coverMedium,
+              placeholder: eraPlaceholderOf(track.album),
+              previousCoverUrl: _lastAlbum?.coverMedium,
+              previousPlaceholder: eraPlaceholderOf(_lastAlbum),
             ),
-          ],
-        ),
-      ),
+          )
+        else
+          LyricPaper(
+            lines: round.snippetLines,
+            song: songTitle(track),
+            era: eraNameOf(track.album),
+            coverUrl: track.album.coverMedium,
+            placeholder: eraPlaceholderOf(track.album),
+            revealed: answered,
+            showHint: game.difficulty == Difficulty.easy,
+          ),
+      ],
+      right: [
+        if (lie)
+          ..._lieColumn(round, track, result)
+        else
+          ..._songColumn(context, track, game.difficulty, result),
+        if (answered)
+          NextPrompt(
+            onNext: _handleNext,
+            enabled: nextReady,
+            label: game.last ? NextPrompt.seeRound : NextPrompt.nextSong,
+          ),
+      ],
+      quack: result != null && !result.correct
+          ? QuackBurst(key: ValueKey(game.round), level: game.misses)
+          : null,
     );
   }
 
-  Motion? _roundMotion(
-    AppTokens tokens,
-    _LyricsRound round,
-    LyricsMode? mode,
+  List<Widget> _songColumn(
+    BuildContext context,
+    Track track,
     Difficulty difficulty,
+    RoundAnswer? result,
   ) {
-    final lastResult = _lastResult;
-    final track = round.entry.track;
-    if (_roundState == LyricsRoundState.playing) {
-      return Motion(
-        key: ValueKey('quiz-$_poolIndex'),
-        initial: const MotionPose(
-          opacity: 0,
-          offset: GameScreen.quizEntranceOffset,
-        ),
-        exit: const MotionPose(opacity: 0, offset: GameScreen.quizExitOffset),
-        child: GameLane(child: _question(tokens, round, mode, difficulty)),
-      );
-    }
-    if (lastResult == null) {
-      return null;
-    }
-    return Motion(
-      key: const ValueKey('result'),
-      initial: const MotionPose(opacity: 0, scale: GameScreen.resultScale),
-      exit: const MotionPose(opacity: 0, scale: GameScreen.resultScale),
-      child: ResultFeedback(
-        correct: lastResult,
-        correctTrack: track,
-        onNext: _beginRound,
-        quizType: QuizType.lyrics,
-        lyricsMode: mode,
-        decoySourceSong: round.decoy?.sourceSong,
+    final tokens = AppTokens.of(context);
+    final answered = result != null;
+    final options = _options;
+    final rightIndex = options.indexWhere((option) => option.id == track.id);
+    final note = typedNoteOf(result);
+    return [
+      SongRoundHeading(
+        question: LyricsGameScreen.lyricsQuestion,
+        track: track,
+        answer: result,
+        time: roundTime,
+        coverHint: false,
       ),
-    );
+      if (difficulty != Difficulty.hard)
+        AnswerList(
+          labels: [for (final option in options) songTitle(option)],
+          onPick: (index) => _answer(options[index].id),
+          answered: answered,
+          rightIndex: rightIndex < 0 ? null : rightIndex,
+          pickedIndex: pickedIndexOf(options, result),
+        )
+      else if (!answered)
+        TypedAnswer(
+          controller: _typed,
+          focusNode: _typedFocus,
+          onSubmit: _submitTyped,
+        )
+      else if (note != null)
+        Text(note, style: AppType.body.copyWith(color: tokens.mut)),
+    ];
   }
 
-  Widget _question(
-    AppTokens tokens,
+  List<Widget> _lieColumn(
     _LyricsRound round,
-    LyricsMode? mode,
-    Difficulty difficulty,
+    Track track,
+    RoundAnswer? result,
   ) {
-    final track = round.entry.track;
     final decoy = round.decoy;
-    switch (mode) {
-      case LyricsMode.nameThatSong:
-        return Column(
+    final title = songTitle(track);
+    final pick = result?.pick;
+    return [
+      if (result == null)
+        ValueListenableBuilder<RoundTime>(
+          valueListenable: roundTime,
+          builder: (context, time, _) => RoundHeading.question(
+            kicker: LyricsGameScreen.lieKicker,
+            song: title,
+            subline: playingSubline(time, coverHint: false),
+            urgent: time.urgent,
+          ),
+        )
+      else
+        RoundHeading(
+          pre: result.correct
+              ? LyricsGameScreen.rightVerdict
+              : result.timedOut
+              ? LyricsGameScreen.timeUpVerdict
+              : LyricsGameScreen.wrongVerdict,
+          subline: decoy == null || decoy.isReal
+              ? LyricsGameScreen.realLine(title)
+              : LyricsGameScreen.fakeLine(decoy.sourceSong),
+        ),
+      if (decoy != null)
+        Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: LyricsGameScreen.lieGap,
           children: [
-            if (difficulty == Difficulty.easy) ...[
-              Text(
-                'Album: ${track.album.title}',
-                style: AppText.sm.copyWith(color: tokens.mutedForeground),
-              ),
-              const SizedBox(height: LyricsGameScreen.gap),
-            ],
-            LyricSnippetCard(lines: round.snippetLines),
-            const SizedBox(height: LyricsGameScreen.gap),
-            QuizCard(
-              difficulty: difficulty,
-              options: _options,
-              albumHint: null,
-              onAnswer: _handleAnswer,
-              disabled: false,
+            LyricPaper.quote(lines: decoy.lines),
+            RealFakeButtons(
+              onPick: _answer,
+              answered: result != null,
+              isReal: decoy.isReal,
+              picked: pick is bool ? pick : null,
             ),
           ],
-        );
-      case LyricsMode.lyricsOrLie when decoy != null:
-        return LyricsOrLieCard(
-          songTitle: track.titleShort.isNotEmpty
-              ? track.titleShort
-              : track.title,
-          albumCover: track.album.coverMedium,
-          showAlbumCover: difficulty == Difficulty.easy,
-          lyricLines: decoy.lines,
-          onAnswer: _handleAnswer,
-          disabled: false,
-        );
-      case LyricsMode.lyricsOrLie || null:
-        return const SizedBox.shrink();
-    }
+        ),
+    ];
   }
 }

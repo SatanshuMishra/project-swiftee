@@ -1,12 +1,13 @@
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -15,35 +16,44 @@ import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/providers.dart';
-import 'package:swiftie_quiz/ui/game/lyric_snippet_card.dart';
-import 'package:swiftie_quiz/ui/game/lyrics_or_lie_card.dart';
-import 'package:swiftie_quiz/ui/game/quiz_card.dart';
-import 'package:swiftie_quiz/ui/game/result_feedback.dart';
-import 'package:swiftie_quiz/ui/game/timer_bar.dart';
+import 'package:swiftie_quiz/ui/game/answer_list.dart';
+import 'package:swiftie_quiz/ui/game/game_top_bar.dart';
+import 'package:swiftie_quiz/ui/game/lyric_paper.dart';
+import 'package:swiftie_quiz/ui/game/praise_lines.dart';
+import 'package:swiftie_quiz/ui/game/quack_burst.dart';
+import 'package:swiftie_quiz/ui/game/record_player.dart';
+import 'package:swiftie_quiz/ui/game/round_heading.dart';
 import 'package:swiftie_quiz/ui/screens/lyrics_game_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 
-const Size _window = Size(1024, 1600);
+const Size _window = Size(1024, 800);
 const double _realLyric = 0.1;
 const double _decoyLyric = 0.9;
 
-const List<({int id, String title, String album})> _songs = [
-  (id: 1, title: 'Love Story', album: 'Fearless'),
-  (id: 2, title: 'Enchanted', album: 'Speak Now'),
-  (id: 3, title: 'Style', album: '1989'),
-  (id: 4, title: 'Cardigan', album: 'folklore'),
-  (id: 5, title: 'Willow', album: 'evermore'),
-  (id: 6, title: 'Anti-Hero', album: 'Midnights'),
+const List<({int id, String title, String era, int position})> _songs = [
+  (id: 1, title: 'Love Story', era: 'fearless', position: 3),
+  (id: 2, title: 'Enchanted', era: 'speaknow', position: 9),
+  (id: 3, title: 'Style', era: '1989', position: 3),
+  (id: 4, title: 'cardigan', era: 'folklore', position: 2),
+  (id: 5, title: 'willow', era: 'evermore', position: 1),
+  (id: 6, title: 'Anti-Hero', era: 'midnights', position: 3),
 ];
 
-Track _track(({int id, String title, String album}) song) => Track(
+Era _era(String key) => curatedEras.firstWhere((era) => era.key == key);
+
+Track _track(({int id, String title, String era, int position}) song) => Track(
   id: song.id,
   title: song.title,
   titleShort: song.title,
   duration: 200,
   preview: 'https://cdnt-preview.dzcdn.net/api/1/1/${song.id}.mp3',
   artist: const Artist(id: 12246, name: 'Taylor Swift'),
-  album: Album(id: song.id * 100, title: song.album, coverMedium: null),
+  album: Album(
+    id: _era(song.era).deezerAlbumId,
+    title: _era(song.era).eraName,
+    coverMedium: null,
+  ),
+  trackPosition: song.position,
 );
 
 const List<String> _words = [
@@ -61,22 +71,25 @@ const List<String> _words = [
   'lantern',
 ];
 
-TrackLyrics _lyricsOf(({int id, String title, String album}) song) =>
-    TrackLyrics(
-      lrclibId: 1000 + song.id,
-      lines: [
-        for (var line = 0; line < 12; line++)
-          'we walked the ${_words[line]} road number ${song.id} again',
-      ],
-      lineCount: 12,
-      sourceTrack: song.title,
-      sourceAlbum: song.album,
-    );
+TrackLyrics _lyricsOf(
+  ({int id, String title, String era, int position}) song,
+) => TrackLyrics(
+  lrclibId: 1000 + song.id,
+  lines: [
+    for (var line = 0; line < 12; line++)
+      'we walked the ${_words[line]} road number ${song.id} again',
+  ],
+  lineCount: 12,
+  sourceTrack: song.title,
+  sourceAlbum: _era(song.era).eraName,
+);
 
 final List<TrackWithLyrics> _pool = [
   for (final song in _songs)
     TrackWithLyrics(track: _track(song), lyrics: _lyricsOf(song)),
 ];
+
+Track get _first => _pool.first.track;
 
 final class _ScriptedRandom implements Random {
   _ScriptedRandom(this.realOrDecoy);
@@ -158,15 +171,16 @@ final class _Harness {
   ];
 
   Widget _app(Widget child) => ProviderScope(
+    key: ObjectKey(this),
     overrides: _overrides,
     child: MaterialApp(
       theme: AppTheme.dark,
-      home: Scaffold(body: child),
+      home: Material(child: child),
     ),
   );
 
   ProviderContainer get container =>
-      ProviderScope.containerOf(tester.element(find.byType(Scaffold)));
+      ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
 
   GameState get state => container.read(gameControllerProvider);
 
@@ -198,35 +212,90 @@ final class _Harness {
 
   Future<void> startFirstRound() async {
     await tester.pump(Duration.zero);
-    await tester.pump(const Duration(milliseconds: 600));
-  }
-
-  Future<void> showResult() async {
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
   }
 
-  List<String> get snippetLines => [
-    for (final text in tester.widgetList<Text>(
-      find.descendant(
-        of: find.byType(LyricSnippetCard),
-        matching: find.byType(Text),
-      ),
+  Future<void> press(LogicalKeyboardKey key) async {
+    await tester.sendKeyEvent(key);
+    await tester.pump();
+  }
+
+  Future<void> pressAnswer(int index) => press(
+    const [
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4,
+    ][index],
+  );
+
+  int get rightIndex => [
+    for (final button in tester.widgetList<AnswerButton>(
+      find.byType(AnswerButton),
     ))
-      text.data!,
-  ];
+      button.label,
+  ].indexOf(_first.title);
+
+  LyricPaper get paper => tester.widget<LyricPaper>(find.byType(LyricPaper));
+
+  AnswerState verdict(String label) => tester
+      .widget<RealFakeButton>(find.widgetWithText(RealFakeButton, label))
+      .state;
 }
 
-Track get _first => _pool.first.track;
+Finder _heading(String text) =>
+    find.descendant(of: find.byType(RoundHeading), matching: find.text(text));
 
-Finder _option(Track track) => find.descendant(
-  of: find.byType(QuizCard),
-  matching: find.text(track.titleShort),
+Finder get _lyricsPraise => find.byWidgetPredicate(
+  (widget) => widget is Text && lyricsPositiveMessages.contains(widget.data),
 );
 
 void main() {
-  group('lyrics round flow', () {
-    testWidgets('shows Preparing round... until the deferred first round', (
+  group('lyrics rounds', () {
+    testWidgets('lyrics or lie reveals where a fake line came from', (
+      tester,
+    ) async {
+      final harness = _Harness(tester, realOrDecoy: _decoyLyric);
+      await harness.open(
+        mode: LyricsMode.lyricsOrLie,
+        difficulty: Difficulty.medium,
+      );
+      await harness.startFirstRound();
+
+      expect(find.text('Lyrics or Lie · Medium'), findsOneWidget);
+      expect(_heading('Is this lyric from'), findsOneWidget);
+      expect(_heading('Love Story?'), findsOneWidget);
+      expect(harness.paper.kind, LyricPaperKind.quote);
+      expect(harness.paper.lines, hasLength(2));
+      expect(harness.paper.lines.first, contains('number 2'));
+      expect(find.text('Real'), findsOneWidget);
+      expect(find.text('Fake'), findsOneWidget);
+
+      await harness.press(LogicalKeyboardKey.keyF);
+
+      expect(_heading('Right.'), findsOneWidget);
+      expect(
+        _heading("It's a fake. That line is from Enchanted."),
+        findsOneWidget,
+      );
+      expect(harness.verdict('Fake'), AnswerState.right);
+      expect(harness.verdict('Real'), AnswerState.dim);
+      expect(harness.state.streak, 1);
+      expect(harness.state.progress.stats.lyricsOrLieCorrect, 1);
+
+      final easy = _Harness(tester);
+      await easy.open(
+        mode: LyricsMode.nameThatSong,
+        difficulty: Difficulty.easy,
+      );
+      await easy.startFirstRound();
+
+      expect(find.text('From Fearless'), findsOneWidget);
+      expect(easy.paper.showHint, isTrue);
+      expect(easy.paper.revealed, isFalse);
+    });
+
+    testWidgets('shows the cat loader until the deferred first round', (
       tester,
     ) async {
       final harness = _Harness(tester);
@@ -235,14 +304,15 @@ void main() {
         difficulty: Difficulty.easy,
       );
 
-      expect(find.text('Preparing round...'), findsOneWidget);
+      expect(find.text('Loading tracks...'), findsOneWidget);
       expect(harness.state.lyricsPoolIndex, 0);
 
       await harness.startFirstRound();
 
-      expect(find.text('Preparing round...'), findsNothing);
-      expect(find.byType(LyricSnippetCard), findsOneWidget);
+      expect(find.text('Loading tracks...'), findsNothing);
+      expect(find.byType(LyricPaper), findsOneWidget);
       expect(harness.state.lyricsPoolIndex, 1);
+      expect(harness.state.roundNumber, 1);
     });
 
     for (final (difficulty, lines) in const [
@@ -260,13 +330,15 @@ void main() {
           );
           await harness.startFirstRound();
 
-          expect(harness.snippetLines, hasLength(lines));
           expect(
-            harness.snippetLines,
-            everyElement(allOf(startsWith('“'), endsWith('”'))),
+            find.text('Lyrics · Name That Song · ${difficulty.label}'),
+            findsOneWidget,
           );
+          expect(_heading('Name that song.'), findsOneWidget);
+          expect(harness.paper.kind, LyricPaperKind.liner);
+          expect(harness.paper.lines, hasLength(lines));
           expect(
-            find.text('Album: ${_first.album.title}'),
+            find.text('From Fearless'),
             difficulty == Difficulty.easy ? findsOneWidget : findsNothing,
           );
           expect(
@@ -274,13 +346,14 @@ void main() {
             difficulty == Difficulty.hard ? findsOneWidget : findsNothing,
           );
           expect(
-            find.byType(TimerBar),
-            difficulty == Difficulty.easy ? findsNothing : findsOneWidget,
+            find.byType(AnswerButton),
+            difficulty == Difficulty.hard ? findsNothing : findsNWidgets(4),
           );
           expect(
-            _option(_first),
-            difficulty == Difficulty.hard ? findsNothing : findsOneWidget,
+            tester.widget<GameTopBar>(find.byType(GameTopBar)).timeFraction,
+            difficulty == Difficulty.easy ? isNull : 1,
           );
+          expect(find.byType(RecordPlayer), findsNothing);
         },
       );
     }
@@ -300,13 +373,13 @@ void main() {
           );
           await harness.startFirstRound();
 
-          expect(harness.snippetLines, hasLength(lines));
-          final card = tester.widget<LyricsOrLieCard>(
-            find.byType(LyricsOrLieCard),
+          expect(harness.paper.lines, hasLength(lines));
+          expect(find.text('“${harness.paper.lines.first}”'), findsOneWidget);
+          expect(
+            tester.widget<RecordPlayer>(find.byType(RecordPlayer)).revealed,
+            difficulty == Difficulty.easy,
           );
-          expect(card.songTitle, _first.titleShort);
-          expect(card.showAlbumCover, difficulty == Difficulty.easy);
-          expect(find.text('Is this lyric from...'), findsOneWidget);
+          expect(_heading('Love Story?'), findsOneWidget);
           expect(find.text('Real'), findsOneWidget);
           expect(find.text('Fake'), findsOneWidget);
         },
@@ -323,8 +396,7 @@ void main() {
       );
       await harness.startFirstRound();
 
-      await tester.tap(_option(_first));
-      await harness.showResult();
+      await harness.pressAnswer(harness.rightIndex);
 
       final stats = harness.state.progress.stats;
       expect(harness.state.streak, 1);
@@ -334,13 +406,13 @@ void main() {
       expect(stats.lyricsOrLieCorrect, 0);
       expect(harness.state.sessionLyricsCorrect, 1);
       expect(harness.engine.quacks, isEmpty);
+      expect(_heading('It was Love Story.'), findsOneWidget);
       expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is Text && lyricsPositiveMessages.contains(widget.data),
-        ),
+        find.descendant(of: find.byType(RoundHeading), matching: _lyricsPraise),
         findsOneWidget,
       );
+      expect(harness.paper.revealed, isTrue);
+      expect(find.text('Love Story'), findsWidgets);
     });
 
     testWidgets('a typed hard answer is matched loosely', (tester) async {
@@ -353,13 +425,14 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'love  story');
       await tester.testTextInput.receiveAction(TextInputAction.done);
-      await harness.showResult();
+      await tester.pump();
 
       expect(harness.state.streak, 1);
       expect(harness.state.progress.stats.nameThaSongCorrect, 1);
+      expect(find.text('You typed “love  story”.'), findsOneWidget);
     });
 
-    testWidgets('a wrong song name resets the streak with a quack', (
+    testWidgets('a wrong song name quacks and names the era and track', (
       tester,
     ) async {
       final harness = _Harness(tester);
@@ -368,19 +441,19 @@ void main() {
         difficulty: Difficulty.medium,
       );
       await harness.startFirstRound();
-      final wrong = harness.state.lyricsAvailableTracks.firstWhere(
-        (track) =>
-            track.id != _first.id && _option(track).evaluate().isNotEmpty,
-      );
 
-      await tester.tap(_option(wrong));
-      await harness.showResult();
+      await harness.pressAnswer((harness.rightIndex + 1) % 4);
 
       expect(harness.state.streak, 0);
       expect(harness.state.quackCount, 1);
       expect(harness.engine.quacks, [0.8]);
       expect(harness.state.progress.stats.totalLyricsCorrect, 0);
-      expect(find.text('It was “${_first.titleShort}”'), findsOneWidget);
+      expect(harness.state.roundResults, [
+        RoundOutcome(_first, correct: false),
+      ]);
+      expect(_heading('It was Love Story.'), findsOneWidget);
+      expect(_heading('Fearless · track 3'), findsOneWidget);
+      expect(tester.widget<QuackBurst>(find.byType(QuackBurst)).level, 1);
     });
 
     testWidgets('calling a real lyric real is right', (tester) async {
@@ -390,14 +463,16 @@ void main() {
         difficulty: Difficulty.medium,
       );
       await harness.startFirstRound();
-      expect(harness.snippetLines.first, contains('number 1'));
+      expect(harness.paper.lines.first, contains('number 1'));
 
-      await tester.tap(find.text('Real'));
-      await harness.showResult();
+      await harness.press(LogicalKeyboardKey.keyR);
 
       expect(harness.state.streak, 1);
       expect(harness.state.progress.stats.lyricsOrLieCorrect, 1);
       expect(harness.state.progress.stats.nameThaSongCorrect, 0);
+      expect(_heading('Right.'), findsOneWidget);
+      expect(_heading("It's a real line from Love Story."), findsOneWidget);
+      expect(harness.verdict('Real'), AnswerState.right);
     });
 
     testWidgets('calling a decoy real is wrong and names its song', (
@@ -409,32 +484,19 @@ void main() {
         difficulty: Difficulty.medium,
       );
       await harness.startFirstRound();
-      expect(harness.snippetLines.first, contains('number 2'));
 
       await tester.tap(find.text('Real'));
-      await harness.showResult();
+      await tester.pump();
 
       expect(harness.state.streak, 0);
       expect(harness.engine.quacks, [0.8]);
+      expect(_heading('Not this time.'), findsOneWidget);
       expect(
-        find.text("That's actually from “${_pool[1].lyrics.sourceTrack}”."),
+        _heading("It's a fake. That line is from Enchanted."),
         findsOneWidget,
       );
-    });
-
-    testWidgets('calling a decoy fake is right', (tester) async {
-      final harness = _Harness(tester, realOrDecoy: _decoyLyric);
-      await harness.open(
-        mode: LyricsMode.lyricsOrLie,
-        difficulty: Difficulty.medium,
-      );
-      await harness.startFirstRound();
-
-      await tester.tap(find.text('Fake'));
-      await harness.showResult();
-
-      expect(harness.state.streak, 1);
-      expect(harness.state.progress.stats.lyricsOrLieCorrect, 1);
+      expect(harness.verdict('Real'), AnswerState.wrong);
+      expect(harness.verdict('Fake'), AnswerState.right);
     });
 
     testWidgets('a timeout is wrong in name that song', (tester) async {
@@ -445,15 +507,15 @@ void main() {
         mediumTimer: 10,
       );
       await harness.startFirstRound();
+      expect(_heading('10 seconds left.'), findsOneWidget);
 
-      await tester.pump(const Duration(seconds: 9));
+      await tester.pump(const Duration(milliseconds: 9900));
       expect(harness.engine.quacks, isEmpty);
-      await tester.pump(const Duration(seconds: 1));
-      await harness.showResult();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(harness.state.quackCount, 1);
       expect(harness.engine.quacks, [0.8]);
-      expect(find.text('It was “${_first.titleShort}”'), findsOneWidget);
+      expect(_heading("Time's up. It was Love Story."), findsOneWidget);
     });
 
     testWidgets('a timeout is wrong in lyrics or lie, even on a decoy', (
@@ -468,35 +530,38 @@ void main() {
       await harness.startFirstRound();
 
       await tester.pump(const Duration(seconds: 10));
-      await harness.showResult();
 
       expect(harness.state.streak, 0);
       expect(harness.engine.quacks, [0.8]);
       expect(harness.state.progress.stats.lyricsOrLieCorrect, 0);
-      expect(find.byType(TimerBar), findsNothing);
+      expect(_heading("Time's up."), findsOneWidget);
+      expect(harness.verdict('Fake'), AnswerState.right);
+      expect(harness.verdict('Real'), AnswerState.dim);
     });
 
-    testWidgets('Next deals the next song from the pool', (tester) async {
+    testWidgets('next deals the next song from the pool', (tester) async {
       final harness = _Harness(tester);
       await harness.open(
         mode: LyricsMode.nameThatSong,
         difficulty: Difficulty.easy,
       );
       await harness.startFirstRound();
-      await tester.tap(_option(_first));
-      await harness.showResult();
+      await harness.pressAnswer(harness.rightIndex);
+      await harness.press(LogicalKeyboardKey.enter);
+      expect(harness.state.lyricsPoolIndex, 1);
 
-      await tester.pump(ResultFeedback.nextDelay);
-      await tester.tap(find.text('Next'));
-      await harness.showResult();
+      await tester.pump(const Duration(seconds: 2));
+      await harness.press(LogicalKeyboardKey.enter);
 
       expect(harness.state.lyricsPoolIndex, 2);
-      expect(find.text('Album: ${_pool[1].track.album.title}'), findsOneWidget);
-      expect(harness.snippetLines.first, contains('number 2'));
-      expect(find.byType(ResultFeedback), findsNothing);
+      expect(harness.state.roundNumber, 2);
+      expect(find.text('From Speak Now'), findsOneWidget);
+      expect(harness.paper.lines.first, contains('number 2'));
+      expect(harness.paper.revealed, isFalse);
+      expect(_heading('Name that song.'), findsOneWidget);
     });
 
-    testWidgets('Exit returns to the menu', (tester) async {
+    testWidgets('exit returns to the menu', (tester) async {
       final harness = _Harness(tester);
       await harness.open(
         mode: LyricsMode.nameThatSong,
@@ -522,4 +587,12 @@ void main() {
       );
     });
   });
+}
+
+extension on Difficulty {
+  String get label => switch (this) {
+    Difficulty.easy => 'Easy',
+    Difficulty.medium => 'Medium',
+    Difficulty.hard => 'Hard',
+  };
 }
