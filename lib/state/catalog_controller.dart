@@ -1,12 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:collection/collection.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
-import 'package:swiftie_quiz/data/save/save_location.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
 import 'package:swiftie_quiz/domain/engine/game_engine.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
@@ -20,16 +15,6 @@ import 'package:swiftie_quiz/state/providers.dart';
 const Object _unchanged = Object();
 
 typedef CatalogTracks = ({List<Track> allTracks, List<Track> pool});
-
-final catalogueStoreProvider = Provider<CatalogueStore>(
-  (ref) => CatalogueStore(
-    loadBundled: () => rootBundle.loadString(bundledCataloguePath),
-    updatesFile: File(
-      p.join(p.dirname(defaultSaveFilePath()), catalogueUpdatesFileName),
-    ),
-    now: ref.watch(clockProvider),
-  ),
-);
 
 final class CatalogState {
   const CatalogState._({
@@ -61,12 +46,12 @@ final class CatalogState {
   @override
   bool operator ==(Object other) =>
       other is CatalogState &&
-      identical(other.catalogue, catalogue) &&
+      other.catalogue == catalogue &&
       other.loading == loading &&
       other.error == error;
 
   @override
-  int get hashCode => Object.hash(identityHashCode(catalogue), loading, error);
+  int get hashCode => Object.hash(catalogue, loading, error);
 
   @override
   String toString() =>

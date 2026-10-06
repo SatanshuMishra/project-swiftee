@@ -217,4 +217,29 @@ final class Catalogue {
         .sortedBy((release) => release.releaseDate);
     return inEra.lastOrNull?.coverMedium;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is Catalogue &&
+      const ListEquality<RawRelease>().equals(other.sources, sources) &&
+      const MapEquality<int, String>().equals(
+        other._releaseEras,
+        _releaseEras,
+      ) &&
+      const ListEquality<CatalogueRecording>().equals(
+        other.recordings,
+        recordings,
+      );
+
+  @override
+  int get hashCode => Object.hash(
+    const ListEquality<RawRelease>().hash(sources),
+    const MapEquality<int, String>().hash(_releaseEras),
+    const ListEquality<CatalogueRecording>().hash(recordings),
+  );
+
+  @override
+  String toString() =>
+      'Catalogue(releases: ${sources.length}, '
+      'recordings: ${recordings.length})';
 }

@@ -1,10 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/misc.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
-import 'package:swiftie_quiz/state/catalog_controller.dart';
+import 'package:swiftie_quiz/state/providers.dart';
 
 const int taylor = 12246;
 
@@ -131,11 +132,16 @@ CatalogueStore fixtureCatalogueStore({
         fetchedAt: '2026-10-06T00:00:00Z',
       ),
   updatesFile: File(
-    '${(folder ?? Directory.systemTemp.createTempSync('catalogue')).path}/'
-    '$catalogueUpdatesFileName',
+    '${(folder ?? _temporaryFolder()).path}/$catalogueUpdatesFileName',
   ),
   now: () => DateTime.utc(2026, 10, 6),
 );
+
+Directory _temporaryFolder() {
+  final folder = Directory.systemTemp.createTempSync('catalogue');
+  addTearDown(() => folder.deleteSync(recursive: true));
+  return folder;
+}
 
 Override fixtureCatalogue({List<RawRelease>? releases}) =>
     catalogueStoreProvider.overrideWithValue(

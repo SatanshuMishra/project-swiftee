@@ -179,6 +179,12 @@ void main() {
       expect(loveStory.eraKey, 'fearless');
     });
 
+    test('catalogues built from the same releases are equal', () {
+      expect(buildCatalogue(fixtureReleases), catalogue);
+      expect(buildCatalogue(fixtureReleases).hashCode, catalogue.hashCode);
+      expect(buildCatalogue(fixtureReleases.skip(1)), isNot(catalogue));
+    });
+
     test('a recording without an ISRC is kept under its Deezer id', () {
       final rebuilt = buildCatalogue([
         rawRelease(5, 'evermore', '2020-12-11', [
