@@ -61,10 +61,14 @@ final class DeezerClient {
     final detail = parseAlbumDetail(
       await _getJson(_endpoint('/album/$albumId')),
     );
-    final tracks = List<Track>.unmodifiable(
-      _playableSongs(detail.tracks)
-          .map((track) => track.copyWith(album: detail.album)),
-    );
+    final tracks = List<Track>.unmodifiable([
+      for (final (index, candidate) in detail.tracks.indexed)
+        if (isPlayableSong(candidate))
+          candidate.track.copyWith(
+            album: detail.album,
+            trackPosition: index + 1,
+          ),
+    ]);
     final albumTracks = AlbumTracks(tracks: tracks, totalTracks: tracks.length);
     _cache.put(key, albumTracks, expiresAt: _previewsExpireAt(tracks));
     return albumTracks;

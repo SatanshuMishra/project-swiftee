@@ -35,6 +35,34 @@ const String tauriDefaultSaveJson = '''
   }
 }''';
 
+const String defaultSaveJson = '''
+{
+  "version": 4,
+  "achievements": {},
+  "stats": {
+    "totalCorrect": 0,
+    "albumsPlayed": [],
+    "tracksGuessedPerAlbum": {},
+    "totalLyricsCorrect": 0,
+    "nameThaSongCorrect": 0,
+    "lyricsOrLieCorrect": 0
+  },
+  "settings": {
+    "theme": "dark",
+    "volume": 0.8,
+    "mediumTimer": 30,
+    "hardTimer": 20,
+    "misuVisits": "sometimes",
+    "nickname": null
+  },
+  "updater": {
+    "autoCheckEnabled": true,
+    "lastCheckedAt": null,
+    "skippedVersions": [],
+    "remindLaterUntil": null
+  }
+}''';
+
 DateTime fixedNow() =>
     DateTime.fromMillisecondsSinceEpoch(1700000000500, isUtc: true);
 
@@ -116,12 +144,24 @@ void main() {
         expect(p.basename(backups.single.path), fixedBackupName);
         expect(await File(backups.single.path).readAsString(), original);
 
-        expect(await readJson(file), containsPair('version', 3));
+        expect(await readJson(file), containsPair('version', 4));
         expect(
           await store.load(),
           LoadLoaded(progress: progressWithTotalCorrect(7)),
         );
         expect(await backupTimestamps(), hasLength(1));
+      });
+
+      test('a Tauri version 3 save loads migrated with its values', () async {
+        await fileIn('save.json').writeAsString(tauriDefaultSaveJson);
+        final store = storeFor('save.json');
+
+        expect(
+          await store.load(),
+          const LoadMigrated(progress: defaultProgress, fromVersion: 3),
+        );
+        expect(await backupTimestamps(), hasLength(1));
+        expect(await fileIn('save.json').readAsString(), defaultSaveJson);
       });
 
       test('reports no from-version when the version is missing', () async {
@@ -267,10 +307,10 @@ void main() {
         );
       });
 
-      test('writes the pretty-printed Tauri save shape', () async {
+      test('writes the pretty-printed version 4 save shape', () async {
         await storeFor('save.json').save(defaultProgress);
 
-        expect(await fileIn('save.json').readAsString(), tauriDefaultSaveJson);
+        expect(await fileIn('save.json').readAsString(), defaultSaveJson);
       });
     });
 

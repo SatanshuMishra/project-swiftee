@@ -21,7 +21,7 @@ const Album _folklore = Album(id: 20, title: 'folklore', coverMedium: null);
 
 final DateTime _now = DateTime.utc(2026, 10, 5, 12);
 
-Track _track(int id, {Album album = _lover}) => Track(
+Track _track(int id, {Album album = _lover, int? position}) => Track(
   id: id,
   title: 'Song $id',
   titleShort: 'Song $id',
@@ -29,6 +29,7 @@ Track _track(int id, {Album album = _lover}) => Track(
   preview: 'https://cdnt-preview.dzcdn.net/api/1/1/$id.mp3',
   artist: _taylor,
   album: album,
+  trackPosition: position,
 );
 
 List<Track> _tracks(Iterable<int> ids) => [for (final id in ids) _track(id)];
@@ -324,7 +325,7 @@ void main() {
       final tracks = await lyrics().loadSourceTracks();
 
       expect(catalogRequests, unorderedEquals(['/album/10', '/album/20']));
-      expect(tracks, [_track(11), _track(12)]);
+      expect(tracks, [_track(11, position: 1), _track(12, position: 2)]);
       expect(read().lyricsAvailableTracks, tracks);
       expect(container.read(catalogControllerProvider).albumTrackTotals, {
         10: 2,
@@ -343,7 +344,10 @@ void main() {
 
       final tracks = await lyrics().loadSourceTracks();
 
-      expect(tracks, [_track(21, album: _folklore), _track(11)]);
+      expect(tracks, [
+        _track(21, album: _folklore, position: 1),
+        _track(11, position: 1),
+      ]);
     });
 
     test(

@@ -214,6 +214,8 @@ abstract final class AppTheme {
 
   static final light = build(AppTokens.light, Brightness.light);
 
+  static const double selectionOpacity = 0.35;
+
   static ThemeData build(AppTokens tokens, Brightness brightness) {
     final colorScheme = ColorScheme(
       brightness: brightness,
@@ -243,7 +245,12 @@ abstract final class AppTheme {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       hoverColor: Colors.transparent,
-      focusColor: Colors.transparent,
+      focusColor: tokens.coral,
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: tokens.coral,
+        selectionColor: tokens.coral.withValues(alpha: selectionOpacity),
+        selectionHandleColor: tokens.coral,
+      ),
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       sliderTheme: _sliderTheme,

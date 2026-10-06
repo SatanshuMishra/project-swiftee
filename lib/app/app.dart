@@ -26,6 +26,7 @@ import 'package:swiftie_quiz/ui/screens/record_shelf_screen.dart';
 import 'package:swiftie_quiz/ui/screens/round_summary_screen.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
 import 'package:swiftie_quiz/ui/screens/setup_screen.dart';
+import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
@@ -150,7 +151,13 @@ class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ref.watch(themeModeProvider),
-      themeAnimationDuration: Duration.zero,
+      themeAnimationDuration: switch (ref.watch(
+        persistenceControllerProvider,
+      )) {
+        PersistenceStatus.loaded || PersistenceStatus.failed =>
+          AppMotion.duration(context, AppMotion.themeFade),
+        PersistenceStatus.idle || PersistenceStatus.loading => Duration.zero,
+      },
       home: ValueListenableBuilder<Object?>(
         valueListenable: failures,
         builder: (context, failure, shell) => failure == null
@@ -222,7 +229,7 @@ class _GameShellState extends ConsumerState<_GameShell> {
       ),
     );
     return Material(
-      color: AppTokens.of(context).background,
+      color: AppTokens.of(context).bg,
       animationDuration: Duration.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

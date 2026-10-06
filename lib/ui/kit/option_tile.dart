@@ -1,0 +1,60 @@
+import 'package:flutter/widgets.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
+import 'package:swiftie_quiz/ui/theme/app_motion.dart';
+import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
+
+class OptionTile extends StatelessWidget {
+  const OptionTile({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.selected,
+    required this.onTap,
+  });
+
+  static const padding = EdgeInsets.symmetric(vertical: 14, horizontal: 16);
+  static const radius = BorderRadius.all(Radius.circular(14));
+  static const double textGap = 2;
+
+  final String title;
+  final String description;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Pressable(
+      onPressed: onTap,
+      selected: selected,
+      focusRadius: radius,
+      builder: (context, state) => AnimatedContainer(
+        duration: AppMotion.duration(context, AppMotion.selectionShift),
+        curve: Curves.ease,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: selected
+              ? tokens.designCard
+              : tokens.designCard.withValues(alpha: 0),
+          borderRadius: radius,
+          border: Border.all(
+            color: selected || state.hovered ? tokens.coral : tokens.line2,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: AppType.display(24, height: 28 / 24, color: tokens.fg),
+            ),
+            const SizedBox(height: textGap),
+            Text(description, style: AppType.small.copyWith(color: tokens.mut)),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -44,7 +44,7 @@ Map<String, Object?> _trackJson(
   if (album != null) 'album': _albumJson(album),
 };
 
-Track _track(int id, Album album, {String? preview}) => Track(
+Track _track(int id, Album album, {String? preview, int? position}) => Track(
   id: id,
   title: 'Song $id',
   titleShort: 'Song $id',
@@ -52,6 +52,7 @@ Track _track(int id, Album album, {String? preview}) => Track(
   preview: preview ?? 'https://cdnt-preview.dzcdn.net/api/1/1/$id.mp3',
   artist: _taylor,
   album: album,
+  trackPosition: position,
 );
 
 Map<String, Object?> _albumDetailJson(Album album, List<int> trackIds) => {
@@ -233,11 +234,11 @@ void main() {
 
         expect(requested, ['/album/10', '/album/20']);
         expect(result.allTracks, [
-          _track(11, _lover),
-          _track(12, _lover),
-          _track(13, _lover),
-          _track(21, _folklore),
-          _track(22, _folklore),
+          _track(11, _lover, position: 1),
+          _track(12, _lover, position: 2),
+          _track(13, _lover, position: 3),
+          _track(21, _folklore, position: 1),
+          _track(22, _folklore, position: 2),
         ]);
         expect(result.pool, unorderedEquals(result.allTracks));
         expect(container.read(gameControllerProvider).trackPool, result.pool);

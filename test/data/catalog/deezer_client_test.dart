@@ -499,7 +499,59 @@ void main() {
               '~data=user_id=0,application_id=42~hmac=00',
           artist: Artist(id: 12246, name: 'Taylor Swift'),
           album: showgirl,
+          trackPosition: 1,
         ),
+      );
+      expect(albumTracks.tracks.map((track) => track.trackPosition), [
+        1,
+        2,
+        3,
+        4,
+        5,
+        8,
+        12,
+      ]);
+    });
+
+    test('album tracks carry their position on the album', () async {
+      final album = fixtureJson('album');
+      final entries =
+          (album['tracks']! as Map<String, Object?>)['data']! as List<Object?>;
+      final intro = entries.singleWhere(
+        (entry) =>
+            (entry! as Map<String, Object?>)['title'] == 'Showgirl Intro',
+      );
+      fake.on('https://api.deezer.com/album/77', [
+        jsonResponse(
+          jsonEncode({
+            ...album,
+            'id': 77,
+            'tracks': {
+              'data': [entries[0], entries[1], intro, entries[3], entries[4]],
+            },
+          }),
+        ),
+      ]);
+
+      final albumTracks = await fake.client.fetchAlbumTracks(77);
+      final topTracks = await fake.client.fetchTopTracks();
+
+      expect(albumTracks.tracks.map((track) => track.title), [
+        'The Fate of Ophelia',
+        'Elizabeth Taylor',
+        'Father Figure',
+        'Eldest Daughter',
+      ]);
+      expect(albumTracks.tracks.map((track) => track.trackPosition), [
+        1,
+        2,
+        4,
+        5,
+      ]);
+      expect(topTracks, isNotEmpty);
+      expect(
+        topTracks.map((track) => track.trackPosition),
+        everyElement(isNull),
       );
     });
 

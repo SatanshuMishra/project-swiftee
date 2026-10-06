@@ -66,6 +66,7 @@ final class Track {
     required this.preview,
     required this.artist,
     required this.album,
+    this.trackPosition,
   });
 
   final int id;
@@ -75,6 +76,7 @@ final class Track {
   final String preview;
   final Artist artist;
   final Album album;
+  final int? trackPosition;
 
   Track copyWith({
     int? id,
@@ -84,6 +86,7 @@ final class Track {
     String? preview,
     Artist? artist,
     Album? album,
+    Object? trackPosition = _unchanged,
   }) => Track(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -92,6 +95,9 @@ final class Track {
     preview: preview ?? this.preview,
     artist: artist ?? this.artist,
     album: album ?? this.album,
+    trackPosition: identical(trackPosition, _unchanged)
+        ? this.trackPosition
+        : trackPosition as int?,
   );
 
   @override
@@ -103,17 +109,26 @@ final class Track {
       other.duration == duration &&
       other.preview == preview &&
       other.artist == artist &&
-      other.album == album;
+      other.album == album &&
+      other.trackPosition == trackPosition;
 
   @override
-  int get hashCode =>
-      Object.hash(id, title, titleShort, duration, preview, artist, album);
+  int get hashCode => Object.hash(
+    id,
+    title,
+    titleShort,
+    duration,
+    preview,
+    artist,
+    album,
+    trackPosition,
+  );
 
   @override
   String toString() =>
       'Track(id: $id, title: $title, titleShort: $titleShort, '
       'duration: $duration, preview: $preview, artist: $artist, '
-      'album: $album)';
+      'album: $album, trackPosition: $trackPosition)';
 }
 
 final class AlbumTracks {

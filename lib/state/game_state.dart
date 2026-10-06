@@ -9,6 +9,23 @@ const Object _unchanged = Object();
 
 typedef LyricsFetchProgress = ({int fetched, int total});
 
+final class RoundOutcome {
+  const RoundOutcome(this.track, {required this.correct});
+
+  final Track track;
+  final bool correct;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RoundOutcome && other.track == track && other.correct == correct;
+
+  @override
+  int get hashCode => Object.hash(track, correct);
+
+  @override
+  String toString() => 'RoundOutcome(track: $track, correct: $correct)';
+}
+
 final class GameState {
   const GameState._({
     required this.phase,
@@ -35,6 +52,9 @@ final class GameState {
     required this.progress,
     required this.updaterState,
     required this.pendingToasts,
+    required this.quickRoundTotal,
+    required this.roundNumber,
+    required this.roundResults,
   });
 
   static const GameState initial = GameState._(
@@ -62,6 +82,9 @@ final class GameState {
     progress: defaultProgress,
     updaterState: UpdaterIdle(),
     pendingToasts: [],
+    quickRoundTotal: null,
+    roundNumber: 0,
+    roundResults: [],
   );
 
   final GamePhase phase;
@@ -88,6 +111,14 @@ final class GameState {
   final GameProgress progress;
   final UpdaterMachineState updaterState;
   final List<String> pendingToasts;
+  final int? quickRoundTotal;
+  final int roundNumber;
+  final List<RoundOutcome> roundResults;
+
+  bool get isLastQuickRound {
+    final total = quickRoundTotal;
+    return total != null && roundNumber >= total;
+  }
 
   GameState copyWith({
     GamePhase? phase,
@@ -114,6 +145,9 @@ final class GameState {
     GameProgress? progress,
     UpdaterMachineState? updaterState,
     List<String>? pendingToasts,
+    Object? quickRoundTotal = _unchanged,
+    int? roundNumber,
+    List<RoundOutcome>? roundResults,
   }) => GameState._(
     phase: phase ?? this.phase,
     mode: mode ?? this.mode,
@@ -157,6 +191,13 @@ final class GameState {
     pendingToasts: pendingToasts == null
         ? this.pendingToasts
         : List.unmodifiable(pendingToasts),
+    quickRoundTotal: identical(quickRoundTotal, _unchanged)
+        ? this.quickRoundTotal
+        : quickRoundTotal as int?,
+    roundNumber: roundNumber ?? this.roundNumber,
+    roundResults: roundResults == null
+        ? this.roundResults
+        : List.unmodifiable(roundResults),
   );
 
   @override
@@ -197,7 +238,13 @@ final class GameState {
       const ListEquality<Album>().equals(other.albums, albums) &&
       other.progress == progress &&
       other.updaterState == updaterState &&
-      const ListEquality<String>().equals(other.pendingToasts, pendingToasts);
+      const ListEquality<String>().equals(other.pendingToasts, pendingToasts) &&
+      other.quickRoundTotal == quickRoundTotal &&
+      other.roundNumber == roundNumber &&
+      const ListEquality<RoundOutcome>().equals(
+        other.roundResults,
+        roundResults,
+      );
 
   @override
   int get hashCode => Object.hashAll([
@@ -225,6 +272,9 @@ final class GameState {
     progress,
     updaterState,
     const ListEquality<String>().hash(pendingToasts),
+    quickRoundTotal,
+    roundNumber,
+    const ListEquality<RoundOutcome>().hash(roundResults),
   ]);
 
   @override
@@ -244,5 +294,7 @@ final class GameState {
       'sessionSoundCorrect: $sessionSoundCorrect, '
       'sessionLyricsCorrect: $sessionLyricsCorrect, '
       'albums: ${albums.length} albums, progress: $progress, '
-      'updaterState: $updaterState, pendingToasts: $pendingToasts)';
+      'updaterState: $updaterState, pendingToasts: $pendingToasts, '
+      'quickRoundTotal: $quickRoundTotal, roundNumber: $roundNumber, '
+      'roundResults: ${roundResults.length} outcomes)';
 }
