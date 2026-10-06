@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#1E1E21;overflow:hidden;-webkit-font-smoothing:antialiased;}
+a{color:#E97F6A;}a:hover{color:#F5E5D4;}
+[data-theme="dark"]{--bg:#1A1514;--fg:#F5E5D4;--mut:#B8A99C;--faint:#8E8076;--line:rgba(245,229,212,.1);--line2:rgba(245,229,212,.18);--card:rgba(245,229,212,.04);--hover:rgba(245,229,212,.07);--coral:#E97F6A;--coralT:#E97F6A;--onCoral:#1A1514;--btn:#F5E5D4;--onBtn:#1A1514;--bubble:#FBF0E6;--bubbleFg:#3B2F2F;--paper:#FBF0E6;--paperFg:#3B2F2F;--sleeve:#E9DCCB;--sleeveFg:rgba(59,47,47,.55);--g1:#18120F;--g2:#2E2724;--rose:#E4A0A0;--roseBg:rgba(212,160,160,.1);--shadow:rgba(0,0,0,.45);--scrim:rgba(12,9,8,.62);--panel:#231D1B;--bar:rgba(26,21,20,.82);--muted-foreground:#B8A99C;}
+[data-theme="light"]{--bg:#FAF7F2;--fg:#2A2422;--mut:#6B5F59;--faint:#857870;--line:rgba(42,36,34,.1);--line2:rgba(42,36,34,.2);--card:#FFFFFF;--hover:#F3EDE5;--coral:#E97F6A;--coralT:#B4533F;--onCoral:#1A1514;--btn:#2A2422;--onBtn:#FAF7F2;--bubble:#FFFFFF;--bubbleFg:#3B2F2F;--paper:#FFFFFF;--paperFg:#3B2F2F;--sleeve:#E9DCCB;--sleeveFg:rgba(59,47,47,.55);--g1:#1A1514;--g2:#3A322E;--rose:#A64545;--roseBg:rgba(166,69,69,.08);--shadow:rgba(60,40,30,.2);--scrim:rgba(42,36,34,.35);--panel:#FFFFFF;--bar:rgba(250,247,242,.86);--muted-foreground:#6B5F59;}
+[data-sq-in]::placeholder{color:var(--faint);opacity:1;}
+[data-sq-scroll]::-webkit-scrollbar{width:10px;}[data-sq-scroll]::-webkit-scrollbar-thumb{background:var(--line2);border-radius:10px;border:3px solid transparent;background-clip:content-box;}
+@keyframes sq-pop{0%{transform:scale(0);}70%{transform:scale(1.25);}100%{transform:scale(1);}}
+@keyframes sq-quack{0%{opacity:0;transform:translate(0,0) scale(.4) rotate(0deg);}15%{opacity:1;}100%{opacity:0;transform:translate(var(--qx),var(--qy)) scale(1.1) rotate(var(--qr));}}
+@keyframes sq-count{0%{opacity:0;transform:scale(1.6);}25%{opacity:1;transform:scale(1);}85%{opacity:1;}100%{opacity:0;transform:scale(.9);}}
+@keyframes sq-pulse{0%,100%{box-shadow:0 0 0 0 rgba(233,127,106,.55);}50%{box-shadow:0 0 0 6px rgba(233,127,106,0);}}
+@keyframes sq-spin{to{transform:rotate(360deg);}}
+@keyframes sq-rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}}
+</style>
+</helmet>
+<div data-theme="{{ themeAttr }}" style="position:relative;width:100vw;height:100vh;overflow:hidden;background:{{ deskBg }};display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI Variable Text','Segoe UI','Helvetica Neue',sans-serif;">
+<div style="position:relative;flex:none;width:{{ sizerW }};height:{{ sizerH }};">
+<div data-screen-label="{{ screenLabel }}" style="position:absolute;left:0;top:0;width:{{ frameW }};height:{{ frameH }};transform:{{ frameTransform }};transform-origin:0 0;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;border-radius:{{ frameRadius }};box-shadow:{{ frameShadow }};background:var(--bg);color:var(--fg);transition:background-color .3s ease,color .3s ease;">
+
+<sc-if value="{{ isMac }}" hint-placeholder-val="{{ true }}">
+  <div style="position:relative;flex:none;height:28px;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:background-color .3s ease;">
+    <div style="position:absolute;left:9px;top:8px;display:flex;gap:8px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:#FF5F57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.2);"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#FEBC2E;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.2);"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#28C840;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.2);"></span>
+    </div>
+    <div style="font-size:13px;line-height:16px;font-weight:600;color:var(--fg);opacity:.8;">Project Swiftie</div>
+    <sc-if value="{{ hasBadge }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ openUpdate }}" style="position:absolute;right:10px;top:4px;display:flex;align-items:center;gap:6px;height:20px;padding:0 10px;border-radius:999px;background:{{ badgeBg }};color:{{ badgeFg }};font-size:11px;line-height:20px;font-weight:600;cursor:pointer;white-space:nowrap;">
+        <span style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8;"></span>{{ badgeLabel }}
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+<sc-if value="{{ isWin }}" hint-placeholder-val="{{ false }}">
+  <div style="position:relative;flex:none;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);transition:background-color .3s ease,color .3s ease;font-family:'Segoe UI Variable Text','Segoe UI',sans-serif;">
+    <div style="font-size:12px;line-height:16px;font-weight:600;opacity:.8;">Project Swiftie</div>
+    <div style="position:absolute;right:0;top:0;height:100%;display:flex;align-items:center;">
+      <sc-if value="{{ hasBadge }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ openUpdate }}" style="display:flex;align-items:center;gap:6px;height:22px;margin-right:8px;padding:0 10px;border-radius:999px;background:{{ badgeBg }};color:{{ badgeFg }};font-size:12px;line-height:22px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          <span style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8;"></span>{{ badgeLabel }}
+        </div>
+      </sc-if>
+      <div style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;transition:background-color .15s;" style-hover="background:var(--hover);"><span style="width:10px;height:1px;background:currentColor;"></span></div>
+      <div style="width:46px;height:100%;display:flex;align-items:center;justify-content:center;transition:background-color .15s;" style-hover="background:var(--hover);"><span style="width:10px;height:10px;box-sizing:border-box;border:1px solid currentColor;border-radius:2px;"></span></div>
+      <div style="position:relative;width:46px;height:100%;display:flex;align-items:center;justify-content:center;transition:background-color .15s,color .15s;" style-hover="background:#C42B1C;color:#fff;"><span style="position:absolute;width:14px;height:1px;background:currentColor;transform:rotate(45deg);"></span><span style="position:absolute;width:14px;height:1px;background:currentColor;transform:rotate(-45deg);"></span></div>
+    </div>
+  </div>
+</sc-if>
+
+<div style="position:relative;flex:1;min-height:0;overflow:hidden;font-size:16px;line-height:24px;cursor:default;user-select:none;">
+<div data-sq-scroll="" ref="{{ scrollRef }}" style="position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;">
+<div style="min-height:100%;box-sizing:border-box;display:flex;flex-direction:column;opacity:{{ enterOp }};transform:{{ enterTf }};transition:{{ enterTr }};">
+<sc-if value="{{ isNick }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:40px;padding:48px {{ L.padX }} 120px;">
+    <div style="display:flex;flex-direction:column;gap:14px;max-width:640px;">
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1.02;color:var(--fg);text-wrap:balance;">Hi. What should we call you?</div>
+      <div style="font-size:16px;line-height:24px;color:var(--mut);">It's only used in the app and in rooms you join. You can change it in Settings.</div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px;max-width:640px;">
+      <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:8px;">
+        <input data-sq-in="" ref="{{ inputRef }}" value="{{ nickDraft }}" onChange="{{ onNick }}" onKeyDown="{{ onNickKey }}" placeholder="Your nickname" maxlength="20" style="width:100%;box-sizing:border-box;padding:0 0 6px;border:0;border-bottom:1px solid var(--line2);background:transparent;outline:none;font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:44px;line-height:52px;color:var(--fg);caret-color:var(--coral);transition:border-color .2s;" style-focus="border-bottom-color:var(--coral);">
+      </div>
+      <div onClick="{{ submitNick }}" style="flex:none;padding:14px 26px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:16px;line-height:20px;font-weight:600;opacity:{{ nickBtnOp }};cursor:pointer;transition:opacity .2s,transform .2s cubic-bezier(.34,1.56,.64,1);" style-hover="transform:translateY(-1px);" style-active="transform:scale(.97);">Let's go →</div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isMenu }}" hint-placeholder-val="{{ true }}">
+  <div style="position:relative;flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;justify-content:space-between;gap:32px;padding:48px {{ L.padX }} 40px;border-right:1px solid var(--line);">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);text-wrap:balance;">{{ greetPre }}<span style="font-style:italic;color:var(--coralT);">{{ greetName }}</span>{{ greetPost }}</div>
+        <div style="font-size:16px;line-height:24px;color:var(--mut);">{{ greetSub }}</div>
+      </div>
+      <sc-if value="{{ hasCardBtn }}" hint-placeholder-val="{{ true }}">
+        <div onMouseEnter="{{ catEnter }}" onMouseLeave="{{ catLeave }}" onMouseDown="{{ catDown }}" onMouseUp="{{ catUp }}" onClick="{{ openCard }}" style="display:flex;align-items:flex-end;gap:16px;cursor:pointer;animation:sq-rise .5s ease .4s both;">
+          <div style="flex:none;transform:scale({{ catScale }});transform-origin:50% 100%;transition:transform .35s cubic-bezier(.34,1.56,.64,1);"><svg width="44" height="88" style="display:block;" aria-hidden="true" viewBox="0 0 87 174" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 5C15.6 6 18.4 7.25 21.6 8.5C28.2 11.1 36.7 13.9 43.5 14C50.3 13.9 58.8 11.1 65.4 8.5C68.6 7.25 71.4 6 73.5 5V141.5H13.5V5Z" fill="#F5E5D4" stroke="#3B2F2F" stroke-width="5" stroke-linejoin="miter" stroke-miterlimit="4"></path><g stroke="#3B2F2F" stroke-width="2" stroke-linecap="round"><path d="M68.5 32L85.5 25.5M68.5 35.5H85.5M68.5 39L85.5 44"></path><path d="M18.5 32L1.5 25.5M18.5 35.5H1.5M18.5 39L1.5 44"></path></g><circle cx="31" cy="32" r="3.5" fill="#6FA8DC"></circle><circle cx="56" cy="32" r="3.5" fill="#6FA8DC"></circle><ellipse cx="43.5" cy="36" rx="8" ry="6" fill="#3B2F2F"></ellipse><circle cx="39.5" cy="41.5" r="3.5" stroke="#3B2F2F" stroke-width="2"></circle><circle cx="47.5" cy="41.5" r="3.5" stroke="#3B2F2F" stroke-width="2"></circle><path d="M43.5 64C52.5 64 60 72 60 94C60 118 53 124 43.5 124C34 124 27 118 27 94C27 72 34.5 64 43.5 64Z" fill="#FBF0E6"></path><circle cx="43.5" cy="67" r="15" fill="#D4A0A0"></circle><g fill="#3B2F2F"><path d="M19.8 75H33.2V95C33.2 97.76 30.96 100 28.2 100H24.8C22.04 100 19.8 97.76 19.8 95V75Z"></path><path d="M53.8 75H67.2V95C67.2 97.76 64.96 100 62.2 100H58.8C56.04 100 53.8 97.76 53.8 95V75Z"></path><path d="M19.8 130H33.2V150C33.2 152.76 30.96 155 28.2 155H24.8C22.04 155 19.8 152.76 19.8 150V130Z"></path><path d="M53.8 130H67.2V150C67.2 152.76 64.96 155 62.2 155H58.8C56.04 155 53.8 152.76 53.8 150V130Z"></path><path d="M37 140H50V169C50 171.76 47.76 174 45 174H42C39.24 174 37 171.76 37 169V140Z"></path></g><g stroke="#EBE9E9" stroke-width="1.5" stroke-linecap="round"><path d="M26.5 134V150M60.5 134V150M43.5 145V169"></path></g></svg></div>
+          <div style="display:flex;flex-direction:column;gap:6px;padding-bottom:6px;">
+            <div style="font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:28px;color:var(--fg);text-wrap:balance;">Misu's keeping your birthday card safe.</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:14px;line-height:20px;color:var(--coralT);transform:translateX({{ catTipY }});transition:transform .2s ease;">Open it <span>→</span></div>
+          </div>
+        </div>
+      </sc-if>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Tonight's era</div>
+        <div onClick="{{ quickRound }}" style="display:flex;align-items:center;gap:16px;cursor:pointer;" style-hover="opacity:.9;">
+          <div style="position:relative;flex:none;width:128px;height:88px;">
+            <div style="position:absolute;left:44px;top:4px;width:80px;height:80px;border-radius:50%;background:repeating-radial-gradient(circle,var(--g1) 0 1px,var(--g2) 1px 2.5px);box-shadow:inset 0 0 0 1px rgba(245,229,212,.12),0 6px 14px var(--shadow);display:flex;align-items:center;justify-content:center;">
+              <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;background:{{ tnPh }};"><sc-if value="{{ tnHasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ tnCover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+            </div>
+            <div style="position:absolute;left:0;top:0;width:88px;height:88px;border-radius:3px;overflow:hidden;background:{{ tnPh }};box-shadow:0 10px 24px var(--shadow);"><sc-if value="{{ tnHasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ tnCover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+            <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:28px;line-height:30px;color:var(--fg);">{{ tnEra }}</div>
+            <div style="font-size:13px;line-height:18px;color:var(--mut);">A quick round of 10 →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;padding:24px {{ L.padX }} 40px;">
+      <sc-for list="{{ menuRows }}" as="r" hint-placeholder-count="3">
+        <div onClick="{{ r.onTap }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:padding .25s cubic-bezier(.2,.8,.2,1);" style-hover="padding-left:8px;">
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+            <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.rowT }};line-height:1.1;color:var(--fg);">{{ r.title }}</div>
+            <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ r.desc }}</div>
+          </div>
+          <span style="flex:none;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:1px solid {{ r.arrowBorder }};background:{{ r.arrowBg }};color:{{ r.arrowFg }};display:flex;align-items:center;justify-content:center;font-size:20px;">→</span>
+        </div>
+      </sc-for>
+      <div style="display:flex;flex-wrap:wrap;gap:12px 28px;padding-top:28px;font-size:14px;line-height:20px;">
+        <sc-for list="{{ menuLinks }}" as="l" hint-placeholder-count="3">
+          <div onClick="{{ l.onTap }}" style="display:flex;align-items:center;gap:8px;min-height:44px;color:var(--mut);cursor:pointer;transition:color .15s;" style-hover="color:var(--fg);">
+            <sc-if value="{{ l.dot }}" hint-placeholder-val="{{ false }}"><span style="width:8px;height:8px;border-radius:50%;background:var(--coral);animation:sq-pulse 2s ease-in-out infinite;"></span></sc-if>{{ l.label }}
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isEras }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;">
+    <div style="display:flex;flex-direction:column;gap:14px;padding:20px {{ L.padX }} 28px;">
+      <div onClick="{{ toMenu }}" style="align-self:flex-start;display:flex;align-items:center;gap:8px;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);">Pick your eras</div>
+        <div style="font-size:15px;line-height:22px;color:var(--mut);">Tap as many as you like.</div>
+      </div>
+    </div>
+    <sc-if value="{{ catLoading }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding-bottom:80px;">
+        <x-import component-from-global-scope="cat-loader-v2" from="./cat-loader-v2.js" size="lg" px="220" label="Loading albums..." hint-size="220px,256px"></x-import>
+      </div>
+    </sc-if>
+    <sc-if value="{{ catError }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 {{ L.padX }} 80px;text-align:center;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:36px;line-height:40px;color:var(--fg);">The record store is closed.</div>
+        <div style="max-width:420px;font-size:15px;line-height:22px;color:var(--mut);">We couldn't reach Deezer to load the albums. Check your connection and try again.</div>
+        <div style="display:flex;gap:12px;padding-top:8px;">
+          <div onClick="{{ retryCat }}" style="padding:12px 24px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:15px;line-height:20px;font-weight:600;cursor:pointer;">Try again</div>
+          <div onClick="{{ toMenu }}" style="padding:12px 24px;border-radius:999px;border:1px solid var(--line2);color:var(--fg);font-size:15px;line-height:20px;cursor:pointer;" style-hover="background:var(--hover);">Back to menu</div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ catReady }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:grid;grid-template-columns:{{ eraCols }};gap:30px 24px;padding:24px {{ L.padX }} 40px;align-content:start;">
+        <sc-for list="{{ eraTiles }}" as="e" hint-placeholder-count="12">
+          <div onClick="{{ e.onTap }}" style="display:flex;flex-direction:column;gap:12px;cursor:pointer;animation:sq-rise .4s ease both;">
+            <div style="position:relative;width:100%;aspect-ratio:1;">
+              <div style="position:absolute;left:4%;top:4%;width:92%;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle,var(--g1) 0 1px,var(--g2) 1px 2.6px);box-shadow:inset 0 0 0 1px rgba(245,229,212,.14),0 6px 16px var(--shadow);transform:translateX({{ e.discX }});transition:transform .45s cubic-bezier(.2,.8,.2,1);display:flex;align-items:center;justify-content:center;">
+                <div style="width:34%;height:34%;border-radius:50%;overflow:hidden;background:{{ e.ph }};"><sc-if value="{{ e.hasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ e.cover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+              </div>
+              <div style="position:absolute;inset:0;border-radius:3px;overflow:hidden;background:{{ e.ph }};box-shadow:{{ e.ring }},0 10px 24px var(--shadow);transition:box-shadow .25s,transform .25s cubic-bezier(.2,.8,.2,1);" style-hover="transform:translateY(-3px);">
+                <sc-if value="{{ e.hasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ e.cover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if>
+              </div>
+              <div style="position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:var(--coral);color:var(--onCoral);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;opacity:{{ e.check }};transform:scale({{ e.check }});transition:opacity .2s,transform .25s cubic-bezier(.34,1.56,.64,1);">✓</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:21px;line-height:24px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.era }}</div>
+              <div style="font-size:12px;line-height:16px;color:var(--mut);">{{ e.sub }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:sticky;bottom:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px {{ L.padX }};border-top:1px solid var(--line);background:var(--bar);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);">
+        <div style="display:flex;align-items:center;gap:16px;min-width:0;">
+          <div style="font-size:14px;line-height:20px;color:var(--fg);">{{ selLabel }}</div>
+          <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}"><div onClick="{{ clearSel }}" style="font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">Clear</div></sc-if>
+        </div>
+        <div onClick="{{ continueEras }}" style="flex:none;padding:12px 24px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:15px;line-height:20px;font-weight:600;opacity:{{ continueOp }};cursor:pointer;transition:opacity .2s;">Continue →</div>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isSetup }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;gap:28px;padding:20px {{ L.padX }} 40px;border-right:1px solid var(--line);">
+      <div onClick="{{ setupBack }}" style="align-self:flex-start;display:flex;align-items:center;gap:8px;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">You're playing</div>
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);text-wrap:balance;">{{ srcTitle }}</div>
+        <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ srcSub }}</div>
+      </div>
+      <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
+        <div style="position:relative;width:{{ stackW }};height:{{ stackS }};margin-top:8px;">
+          <sc-for list="{{ stack }}" as="k" hint-placeholder-count="5">
+            <div style="position:absolute;left:{{ k.x }};top:0;z-index:{{ k.z }};width:{{ stackS }};height:{{ stackS }};border-radius:3px;overflow:hidden;background:{{ k.ph }};box-shadow:0 12px 28px var(--shadow);transform:rotate({{ k.rot }});">
+              <sc-if value="{{ k.hasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ k.cover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:30px;padding:32px {{ L.padX }} 40px;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Listen or read</div>
+        <div style="display:grid;grid-template-columns:{{ twoCols }};gap:10px;">
+          <sc-for list="{{ typeRows }}" as="r" hint-placeholder-count="2">
+            <div onClick="{{ r.onTap }}" style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border-radius:14px;border:1px solid {{ r.ring }};background:{{ r.bg }};cursor:pointer;transition:border-color .2s,background-color .2s;" style-hover="border-color:var(--coral);">
+              <span style="flex:none;width:18px;height:18px;margin-top:3px;box-sizing:border-box;border-radius:50%;border:1.5px solid {{ r.ring }};display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:var(--coral);opacity:{{ r.dot }};transform:scale({{ r.dot }});transition:opacity .2s,transform .2s;"></span></span>
+              <div style="display:flex;flex-direction:column;gap:2px;"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:30px;color:var(--fg);">{{ r.title }}</div><div style="font-size:14px;line-height:20px;color:var(--mut);">{{ r.desc }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <sc-if value="{{ showLmode }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px;animation:sq-rise .3s ease both;">
+          <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Which lyrics game</div>
+          <div style="display:grid;grid-template-columns:{{ twoCols }};gap:10px;">
+            <sc-for list="{{ lmodeRows }}" as="r" hint-placeholder-count="2">
+              <div onClick="{{ r.onTap }}" style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border-radius:14px;border:1px solid {{ r.ring }};background:{{ r.bg }};cursor:pointer;transition:border-color .2s,background-color .2s;" style-hover="border-color:var(--coral);">
+                <span style="flex:none;width:18px;height:18px;margin-top:3px;box-sizing:border-box;border-radius:50%;border:1.5px solid {{ r.ring }};display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:var(--coral);opacity:{{ r.dot }};transform:scale({{ r.dot }});transition:opacity .2s,transform .2s;"></span></span>
+                <div style="display:flex;flex-direction:column;gap:2px;"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:30px;color:var(--fg);">{{ r.title }}</div><div style="font-size:14px;line-height:20px;color:var(--mut);">{{ r.desc }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Difficulty</div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+          <sc-for list="{{ diffTiles }}" as="d" hint-placeholder-count="3">
+            <div onClick="{{ d.onTap }}" style="display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:14px;border:1px solid {{ d.border }};background:{{ d.bg }};cursor:pointer;transition:border-color .2s,background-color .2s;" style-hover="border-color:var(--coral);">
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:28px;color:var(--fg);">{{ d.title }}</div>
+              <div style="font-size:13px;line-height:18px;color:var(--mut);">{{ d.desc }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px 18px;padding:6px 2px 0;">
+          <sc-for list="{{ diffFeats }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:var(--mut);"><span style="width:5px;height:5px;border-radius:50%;background:var(--coral);"></span>{{ f }}</div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding-top:4px;">
+        <div onClick="{{ startGame }}" style="padding:14px 28px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:16px;line-height:20px;font-weight:600;cursor:pointer;transition:transform .2s cubic-bezier(.34,1.56,.64,1);" style-hover="transform:translateY(-1px);" style-active="transform:scale(.97);">Start →</div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isLL }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px {{ L.padX }} 60px;text-align:center;">
+    <sc-if value="{{ llLoading }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:18px;">
+        <x-import component-from-global-scope="cat-loader-v2" from="./cat-loader-v2.js" size="lg" px="220" label="{{ llMsg }}" hint-size="220px,256px"></x-import>
+        <div style="width:220px;height:2px;border-radius:2px;background:var(--line);overflow:hidden;"><div style="height:100%;width:{{ llPct }};background:var(--coral);transition:width .3s ease;"></div></div>
+        <div style="font-size:13px;line-height:18px;color:var(--mut);font-variant-numeric:tabular-nums;">{{ llProg }}</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ llError }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:36px;line-height:40px;color:var(--fg);">The lyric sheets got lost.</div>
+        <div style="max-width:420px;font-size:15px;line-height:22px;color:var(--mut);">We couldn't fetch lyrics from LRCLIB. Check your connection and try again.</div>
+        <div style="display:flex;gap:12px;padding-top:8px;">
+          <div onClick="{{ retryLyrics }}" style="padding:12px 24px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:15px;line-height:20px;font-weight:600;cursor:pointer;">Try again</div>
+          <div onClick="{{ exitGame }}" style="padding:12px 24px;border-radius:999px;border:1px solid var(--line2);color:var(--fg);font-size:15px;line-height:20px;cursor:pointer;" style-hover="background:var(--hover);">Back to menu</div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ llLoading }}" hint-placeholder-val="{{ true }}">
+      <div onClick="{{ exitGame }}" style="display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back to menu</div>
+    </sc-if>
+  </div>
+</sc-if>
+<sc-if value="{{ isGame }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;">
+    <sc-if value="{{ gLoading }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding-bottom:40px;">
+        <x-import component-from-global-scope="cat-loader-v2" from="./cat-loader-v2.js" size="lg" px="220" label="Loading tracks..." hint-size="220px,256px"></x-import>
+        <div onClick="{{ exitGame }}" style="display:flex;align-items:center;min-height:44px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back to menu</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ gError }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 {{ L.padX }} 60px;text-align:center;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:36px;line-height:40px;color:var(--fg);">The needle won't drop.</div>
+        <div style="max-width:420px;font-size:15px;line-height:22px;color:var(--mut);">We couldn't load the tracks from Deezer. Check your connection and try again.</div>
+        <div style="display:flex;gap:12px;padding-top:8px;">
+          <div onClick="{{ retryGame }}" style="padding:12px 24px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:15px;line-height:20px;font-weight:600;cursor:pointer;">Try again</div>
+          <div onClick="{{ exitGame }}" style="padding:12px 24px;border-radius:999px;border:1px solid var(--line2);color:var(--fg);font-size:15px;line-height:20px;cursor:pointer;" style-hover="background:var(--hover);">Back to menu</div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ gOn }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 32px 12px;">
+        <div onClick="{{ exitGame }}" style="display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Exit</div>
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;font-size:14px;line-height:20px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          <span>{{ modeLabel }} · {{ diffLabel }}</span>
+          <sc-if value="{{ hasRound }}" hint-placeholder-val="{{ false }}"><span style="color:var(--fg);">· {{ roundLabel }}</span></sc-if>
+        </div>
+        <div title="Your streak" style="position:relative;display:flex;align-items:center;gap:5px;min-width:56px;justify-content:flex-end;padding:0 2px;">
+          <span style="position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line2);"></span>
+          <sc-for list="{{ beads }}" as="b" hint-placeholder-count="0">
+            <span style="position:relative;width:12px;height:12px;border-radius:50%;background:{{ b.c }};box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);animation:sq-pop .45s cubic-bezier(.34,1.56,.64,1) both;"></span>
+          </sc-for>
+          <span style="position:relative;padding:0 5px;height:16px;border-radius:3px;background:var(--paper);color:var(--paperFg);box-shadow:inset 0 0 0 1px var(--line2);font-size:11px;line-height:16px;font-weight:700;font-variant-numeric:tabular-nums;">{{ streak }}</span>
+        </div>
+      </div>
+      <div style="flex:none;height:2px;margin:0 32px;background:var(--line);overflow:hidden;">
+        <sc-if value="{{ showTimer }}" hint-placeholder-val="{{ false }}"><div style="height:100%;width:{{ timerPct }};background:{{ timerColor }};transition:{{ timerTr }},background-color .3s;"></div></sc-if>
+      </div>
+      <div style="flex:1;display:grid;grid-template-columns:{{ gameCols }};gap:{{ L.gap }};align-items:center;padding:24px {{ L.padX }} 40px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:22px;min-width:0;">
+          <sc-if value="{{ recSound }}" hint-placeholder-val="{{ true }}">
+            <div style="position:relative;flex:none;width:{{ rec.box }};height:{{ rec.size }};max-width:100%;">
+              <div style="position:absolute;left:0;top:{{ rec.discTop }};width:{{ rec.disc }};height:{{ rec.disc }};transform:translateX({{ rec.discX }});transition:transform .55s cubic-bezier(.2,.8,.2,1);">
+                <div ref="{{ spinRef }}" style="width:100%;height:100%;border-radius:50%;background:repeating-radial-gradient(circle,var(--g1) 0 1.5px,var(--g2) 1.5px 3.2px);box-shadow:inset 0 0 0 1px rgba(245,229,212,.14),0 14px 34px var(--shadow);display:flex;align-items:center;justify-content:center;">
+                  <div style="position:relative;width:{{ rec.label }};height:{{ rec.label }};border-radius:50%;overflow:hidden;background:var(--coral);display:flex;align-items:center;justify-content:center;">
+                    <sc-if value="{{ rec.labelCover }}" hint-placeholder-val="{{ false }}"><img src="{{ rec.labelSrc }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></sc-if>
+                    <span style="position:relative;width:{{ rec.hole }};height:{{ rec.hole }};border-radius:50%;background:var(--bg);"></span>
+                  </div>
+                </div>
+              </div>
+              <div style="position:absolute;left:0;top:0;width:{{ rec.size }};height:{{ rec.size }};perspective:1400px;">
+                <div style="position:relative;width:100%;height:100%;transform-style:preserve-3d;transform:{{ rec.flip }};transition:transform .55s cubic-bezier(.4,0,.2,1);">
+                  <div style="position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;border-radius:4px;background:var(--sleeve);box-shadow:0 18px 40px var(--shadow);display:flex;flex-direction:column;justify-content:space-between;padding:16px;box-sizing:border-box;">
+                    <span style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:22px;line-height:24px;color:var(--sleeveFg);">Side A</span>
+                    <span style="align-self:center;width:38%;aspect-ratio:1;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(59,47,47,.18);"></span>
+                    <span style="font-size:11px;line-height:14px;color:var(--sleeveFg);">33⅓</span>
+                  </div>
+                  <div style="position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:rotateY(180deg);border-radius:4px;overflow:hidden;background:{{ rec.backPh }};box-shadow:0 18px 40px var(--shadow);">
+                    <sc-if value="{{ rec.hasBack }}" hint-placeholder-val="{{ false }}"><img src="{{ rec.backSrc }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isSoundGame }}" hint-placeholder-val="{{ true }}">
+            <div style="width:{{ rec.size }};max-width:100%;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <sc-if value="{{ transport.loading }}" hint-placeholder-val="{{ false }}">
+                  <div style="flex:none;width:44px;height:44px;overflow:hidden;display:flex;align-items:center;justify-content:center;"><x-import component-from-global-scope="cat-loader-v2" from="./cat-loader-v2.js" size="sm" px="44" hint-size="44px,44px"></x-import></div>
+                </sc-if>
+                <sc-if value="{{ transport.ready }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ togglePlay }}" title="{{ transport.caption }}" style="flex:none;width:44px;height:44px;border-radius:50%;background:var(--btn);color:var(--onBtn);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s cubic-bezier(.34,1.56,.64,1);" style-hover="transform:scale(1.08);" style-active="transform:scale(.94);">
+                    <sc-if value="{{ transport.isPause }}" hint-placeholder-val="{{ false }}"><span style="display:flex;gap:4px;"><span style="width:4px;height:14px;border-radius:1px;background:currentColor;"></span><span style="width:4px;height:14px;border-radius:1px;background:currentColor;"></span></span></sc-if>
+                    <sc-if value="{{ transport.isPlay }}" hint-placeholder-val="{{ true }}"><span style="width:0;height:0;margin-left:3px;border-left:13px solid currentColor;border-top:8px solid transparent;border-bottom:8px solid transparent;"></span></sc-if>
+                    <sc-if value="{{ transport.isAgain }}" hint-placeholder-val="{{ false }}"><span style="font-size:20px;line-height:20px;font-weight:600;">↻</span></sc-if>
+                  </div>
+                </sc-if>
+                <div style="flex:1;height:3px;border-radius:2px;background:var(--line);overflow:hidden;"><div style="height:100%;width:{{ transport.pct }};border-radius:2px;background:var(--fg);transition:width .1s linear;"></div></div>
+                <span style="flex:none;font-size:12px;line-height:16px;color:var(--mut);font-variant-numeric:tabular-nums;">{{ transport.time }}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;line-height:16px;color:var(--faint);">
+                <span>{{ transport.caption }}</span>
+                <sc-if value="{{ transport.extended }}" hint-placeholder-val="{{ false }}"><span style="color:var(--mut);">Clip extended to help with your guess</span></sc-if>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hasRecCaption }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;line-height:18px;color:var(--mut);">{{ recCaption }}</div>
+          </sc-if>
+          <sc-if value="{{ lineNts }}" hint-placeholder-val="{{ false }}">
+            <div style="width:100%;max-width:440px;display:flex;flex-direction:column;gap:14px;">
+              <sc-if value="{{ hasLinerHint }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <div style="flex:none;width:44px;height:44px;border-radius:3px;overflow:hidden;background:{{ linerPh }};box-shadow:0 6px 14px var(--shadow);"><sc-if value="{{ linerHasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ linerCover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+                  <div style="font-size:14px;line-height:20px;color:var(--mut);">{{ linerHint }}</div>
+                </div>
+              </sc-if>
+              <div style="position:relative;display:flex;flex-direction:column;gap:14px;padding:28px 30px 20px;border-radius:6px;background:var(--paper);color:var(--paperFg);box-shadow:0 18px 40px var(--shadow);transform:rotate(-1deg);">
+                <sc-if value="{{ linerRevealed }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid rgba(59,47,47,.12);animation:sq-rise .35s ease both;">
+                    <div style="flex:none;width:36px;height:36px;border-radius:3px;overflow:hidden;background:{{ linerPh }};"><sc-if value="{{ linerHasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ linerCover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+                    <div style="display:flex;flex-direction:column;"><span style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:22px;line-height:24px;color:#B4533F;">{{ linerSong }}</span><span style="font-size:12px;line-height:16px;color:rgba(59,47,47,.6);">{{ linerEra }}</span></div>
+                  </div>
+                </sc-if>
+                <sc-for list="{{ liner }}" as="ln" hint-placeholder-count="3">
+                  <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:24px;line-height:32px;text-wrap:pretty;">{{ ln }}</div>
+                </sc-for>
+                
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="position:relative;display:flex;flex-direction:column;gap:24px;min-width:0;">
+          <sc-if value="{{ lolAsk }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ lolKicker }}</div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:{{ L.h1 }};line-height:1.02;color:var(--coralT);text-wrap:balance;">{{ lolSong }}?</div>
+              <div style="font-size:15px;line-height:22px;color:{{ subColor }};">{{ subLine }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showTtl }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1.02;color:var(--fg);text-wrap:balance;">{{ ttl.pre }}<span style="font-style:italic;color:var(--coralT);">{{ ttl.song }}</span>{{ ttl.post }}</div>
+              <div style="font-size:16px;line-height:24px;color:{{ subColor }};text-wrap:pretty;">{{ subLine }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showOpts }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <sc-for list="{{ opts }}" as="o" hint-placeholder-count="4">
+                <div onClick="{{ o.onTap }}" style="display:flex;align-items:center;gap:14px;min-height:56px;box-sizing:border-box;padding:12px 16px;border-radius:12px;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};opacity:{{ o.op }};font-size:18px;line-height:24px;font-weight:{{ o.weight }};cursor:pointer;transition:background-color .2s,border-color .2s,color .2s,opacity .3s,transform .15s;" style-hover="border-color:{{ o.hb }};background:{{ o.hbg }};" style-active="transform:scale(.99);">
+                  <span style="flex:none;width:24px;height:24px;border-radius:6px;background:{{ o.numBg }};color:{{ o.numColor }};font-size:12px;line-height:24px;font-weight:600;text-align:center;">{{ o.num }}</span>
+                  <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ o.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showInput }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <sc-if value="{{ inputOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;">
+                  <input data-sq-in="" value="{{ typed }}" onChange="{{ onTyped }}" onKeyDown="{{ onTypedKey }}" placeholder="Type the song title" autofocus="" style="flex:1;min-width:200px;box-sizing:border-box;padding:0 0 6px;border:0;border-bottom:1px solid var(--line2);background:transparent;outline:none;font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:34px;line-height:42px;color:var(--fg);caret-color:var(--coral);" style-focus="border-bottom-color:var(--coral);">
+                  <div onClick="{{ submitTyped }}" style="flex:none;padding:12px 22px;border-radius:999px;background:var(--btn);color:var(--onBtn);font-size:15px;line-height:20px;font-weight:600;opacity:{{ submitOp }};cursor:pointer;">Submit</div>
+                </div>
+                <div style="font-size:12px;line-height:16px;color:var(--faint);">Small typos are fine. Press Enter to submit.</div>
+              </sc-if>
+              <sc-if value="{{ hasTypedNote }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ typedNote }}</div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isLol }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:18px;">
+              <div style="display:flex;flex-direction:column;gap:12px;padding:24px 26px 18px;border-radius:6px;background:var(--paper);color:var(--paperFg);box-shadow:0 14px 32px var(--shadow);">
+                <sc-for list="{{ liner }}" as="ln" hint-placeholder-count="2">
+                  <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:24px;line-height:32px;text-wrap:pretty;">“{{ ln }}”</div>
+                </sc-for>
+                
+              </div>
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;">
+                <sc-for list="{{ lolBtns }}" as="b" hint-placeholder-count="2">
+                  <div onClick="{{ b.onTap }}" style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:56px;border-radius:12px;border:1px solid {{ b.border }};background:{{ b.bg }};color:{{ b.color }};font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:30px;cursor:pointer;transition:background-color .2s,border-color .2s,color .2s,transform .15s;" style-hover="border-color:{{ b.hb }};" style-active="transform:scale(.98);">{{ b.label }}<span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:11px;line-height:18px;padding:0 6px;border-radius:4px;border:1px solid currentColor;opacity:.55;">{{ b.key }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isAnswered }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:14px;animation:sq-rise .3s ease both;">
+              <div onClick="{{ next }}" style="padding:12px 24px;border-radius:999px;background:var(--btn);color:var(--onBtn);font-size:15px;line-height:20px;font-weight:600;opacity:{{ nextOp }};cursor:pointer;transition:opacity .3s;">{{ nextLabel }}</div>
+              <span style="font-size:13px;line-height:18px;color:var(--faint);">or press Enter</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hasQuack }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:40%;top:30px;width:0;height:0;pointer-events:none;z-index:3;">
+              <sc-for list="{{ quackWords }}" as="q" hint-placeholder-count="0">
+                <span style="position:absolute;left:0;top:0;--qx:{{ q.x }};--qy:{{ q.y }};--qr:{{ q.r }};font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:{{ q.size }};line-height:1;color:var(--coralT);white-space:nowrap;opacity:0;animation:sq-quack 1.3s cubic-bezier(.2,.8,.2,1) {{ q.d }} forwards;">quack</span>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isSummary }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:16px;padding:40px {{ L.padX }};border-right:1px solid var(--line);">
+      <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Tonight's era · {{ sumEra }}</div>
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:96px;line-height:1;color:var(--fg);">{{ sumScore }}</div>
+      <div style="font-size:16px;line-height:24px;color:var(--mut);">{{ sumLine }}</div>
+      <div style="position:relative;display:flex;align-items:center;gap:6px;padding:10px 0;">
+        <span style="position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line2);"></span>
+        <sc-for list="{{ sumBeads }}" as="b" hint-placeholder-count="10">
+          <span style="position:relative;width:14px;height:14px;box-sizing:border-box;border-radius:50%;background:{{ b.c }};border:1.5px solid {{ b.b }};"></span>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:24px;padding:40px {{ L.padX }};">
+      <sc-if value="{{ hasSumRecords }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">The ones you knew</div>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px 12px;">
+            <sc-for list="{{ sumRecords }}" as="r" hint-placeholder-count="5">
+              <div style="display:flex;flex-direction:column;gap:6px;min-width:0;animation:sq-rise .4s ease both;">
+                <div style="width:100%;aspect-ratio:1;border-radius:3px;overflow:hidden;background:{{ r.ph }};box-shadow:0 8px 18px var(--shadow);"><sc-if value="{{ r.hasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ r.cover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+                <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:16px;line-height:19px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.title }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;">
+        <div onClick="{{ againRound }}" style="padding:12px 24px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:15px;line-height:20px;font-weight:600;cursor:pointer;">Another round →</div>
+        <div onClick="{{ toMenu }}" style="padding:12px 24px;border-radius:999px;border:1px solid var(--line2);color:var(--fg);font-size:15px;line-height:20px;cursor:pointer;" style-hover="background:var(--hover);">Back to menu</div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+<sc-if value="{{ isShelf }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;gap:30px;padding:20px {{ L.padX }} 48px;">
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div onClick="{{ toMenu }}" style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);">{{ shelfTitle }}</div>
+        <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ shelfCount }} · hover a record to hear it</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:{{ shelfCols }};gap:22px 26px;">
+      <sc-for list="{{ shelf }}" as="r" hint-placeholder-count="15">
+        <div title="{{ r.desc }}" onMouseEnter="{{ r.enter }}" onMouseLeave="{{ r.leave }}" style="display:flex;flex-direction:column;gap:12px;min-width:0;animation:sq-rise .4s ease both;">
+          <sc-if value="{{ r.on }}" hint-placeholder-val="{{ false }}">
+            <div style="position:relative;width:100%;aspect-ratio:1;margin-top:46px;">
+              <div style="position:absolute;left:{{ r.discX }};right:-6%;top:{{ r.discY }};aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle,var(--g1) 0 1px,var(--g2) 1px 2.6px);box-shadow:inset 0 0 0 1px rgba(245,229,212,.14),0 6px 16px var(--shadow);display:flex;align-items:center;justify-content:center;transition:top .4s cubic-bezier(.2,.8,.2,1),left .4s cubic-bezier(.2,.8,.2,1);">
+                <div style="width:34%;height:34%;border-radius:50%;overflow:hidden;background:{{ r.ph }};"><sc-if value="{{ r.hasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ r.cover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+              </div>
+              <div style="position:absolute;inset:0;border-radius:3px;overflow:hidden;background:{{ r.ph }};box-shadow:0 10px 24px var(--shadow);"><sc-if value="{{ r.hasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ r.cover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:21px;line-height:24px;color:var(--fg);">{{ r.name }}</div>
+              <div style="font-size:12px;line-height:17px;color:var(--mut);">{{ r.sub }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ r.off }}" hint-placeholder-val="{{ true }}">
+            <div style="width:100%;aspect-ratio:1;margin-top:46px;box-sizing:border-box;border-radius:3px;border:1px dashed var(--line2);"></div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:21px;line-height:24px;color:var(--faint);">{{ r.name }}</div>
+              <div style="font-size:12px;line-height:17px;color:var(--faint);">{{ r.hint }}</div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;gap:14px;padding:20px {{ L.padX }} 32px;border-right:1px solid var(--line);">
+      <div onClick="{{ toMenu }}" style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back</div>
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);">Settings</div>
+      <div style="font-size:15px;line-height:22px;color:var(--mut);">Saved as you go.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;padding:12px {{ L.padX }} 48px;">
+      <div style="padding:22px 0 4px;font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Look and sound</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+        <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Theme</div><div style="font-size:13px;line-height:18px;color:var(--mut);">System follows your computer.</div></div>
+        <div style="display:flex;gap:2px;padding:3px;border-radius:999px;border:1px solid var(--line);background:var(--card);">
+          <sc-for list="{{ themeSeg }}" as="o" hint-placeholder-count="3"><div onClick="{{ o.onTap }}" style="padding:6px 14px;border-radius:999px;background:{{ o.bg }};color:{{ o.color }};font-size:13px;line-height:18px;font-weight:500;cursor:pointer;transition:background-color .2s,color .2s;" style-hover="color:{{ o.hc }};">{{ o.label }}</div></sc-for>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+        <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Volume</div><div style="font-size:13px;line-height:18px;color:var(--mut);">{{ volumeLabel }}</div></div>
+        <input type="range" min="0" max="1" step="0.01" value="{{ volume }}" onChange="{{ onVolume }}" style="width:180px;margin:0;accent-color:var(--coral);">
+      </div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+        <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Misu visits</div><div style="font-size:13px;line-height:18px;color:var(--mut);">How often she drops by with a word.</div></div>
+        <div style="display:flex;gap:2px;padding:3px;border-radius:999px;border:1px solid var(--line);background:var(--card);">
+          <sc-for list="{{ misuSeg }}" as="o" hint-placeholder-count="3"><div onClick="{{ o.onTap }}" style="padding:6px 14px;border-radius:999px;background:{{ o.bg }};color:{{ o.color }};font-size:13px;line-height:18px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background-color .2s,color .2s;" style-hover="color:{{ o.hc }};">{{ o.label }}</div></sc-for>
+        </div>
+      </div>
+      <sc-if value="{{ isOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+          <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Nickname</div><div style="font-size:13px;line-height:18px;color:var(--mut);">Shown in the app and in rooms.</div></div>
+          <input data-sq-in="" value="{{ nickname }}" onChange="{{ onNickname }}" maxlength="20" style="width:180px;box-sizing:border-box;padding:6px 0;border:0;border-bottom:1px solid var(--line2);background:transparent;outline:none;font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:22px;line-height:28px;color:var(--fg);text-align:right;" style-focus="border-bottom-color:var(--coral);">
+        </div>
+      </sc-if>
+
+      <div style="padding:30px 0 4px;font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Timers</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+        <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Medium</div><div style="font-size:13px;line-height:18px;color:var(--mut);">Seconds to answer each round.</div></div>
+        <div style="display:flex;align-items:center;gap:12px;"><input type="range" min="10" max="40" step="5" value="{{ mediumTimer }}" onChange="{{ onMedium }}" style="width:150px;margin:0;accent-color:var(--coral);"><span style="width:32px;text-align:right;font-size:14px;line-height:20px;color:var(--fg);font-variant-numeric:tabular-nums;">{{ mediumLabel }}</span></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+        <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Hard</div><div style="font-size:13px;line-height:18px;color:var(--mut);">Seconds to answer each round.</div></div>
+        <div style="display:flex;align-items:center;gap:12px;"><input type="range" min="10" max="40" step="5" value="{{ hardTimer }}" onChange="{{ onHard }}" style="width:150px;margin:0;accent-color:var(--coral);"><span style="width:32px;text-align:right;font-size:14px;line-height:20px;color:var(--fg);font-variant-numeric:tabular-nums;">{{ hardLabel }}</span></div>
+      </div>
+
+      <div style="padding:30px 0 4px;font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Updates</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+        <div>
+          <div style="font-size:15px;line-height:22px;color:var(--fg);">Project Swiftie <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:var(--mut);">{{ versionLabel }}</span></div>
+          <div style="font-size:13px;line-height:18px;color:var(--mut);">{{ lastCheckedLabel }}</div>
+          <sc-if value="{{ hasCheckMsg }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;line-height:18px;color:var(--coralT);animation:sq-rise .3s ease both;">{{ checkMsg }}</div></sc-if>
+        </div>
+        <div onClick="{{ checkNow }}" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;border:1px solid var(--line2);font-size:13px;line-height:18px;color:var(--fg);cursor:pointer;" style-hover="background:var(--hover);">
+          <sc-if value="{{ checking }}" hint-placeholder-val="{{ false }}"><span style="width:12px;height:12px;box-sizing:border-box;border-radius:50%;border:2px solid var(--line2);border-top-color:var(--coral);animation:sq-spin .8s linear infinite;"></span>Checking…</sc-if>
+          <sc-if value="{{ notChecking }}" hint-placeholder-val="{{ true }}">Check now</sc-if>
+        </div>
+      </div>
+      <div onClick="{{ toggleAuto }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+        <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Check for updates automatically</div><div style="font-size:13px;line-height:18px;color:var(--mut);">Sends only a standard request to GitHub. No analytics or tracking.</div></div>
+        <span style="flex:none;position:relative;width:36px;height:20px;border-radius:999px;background:{{ autoBg }};transition:background-color .2s;"><span style="position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transform:translateX({{ autoKnobX }});transition:transform .2s cubic-bezier(.34,1.56,.64,1);"></span></span>
+      </div>
+
+      <div style="padding:30px 0 4px;font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Backups</div>
+      <div style="padding:12px 0 6px;font-size:13px;line-height:18px;color:var(--mut);">The three most recent automatic backups are kept.</div>
+      <sc-for list="{{ backups }}" as="b" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);">
+          <div><div style="font-size:14px;line-height:20px;color:var(--fg);">{{ b.date }}</div><div style="font-size:12px;line-height:16px;color:var(--mut);">{{ b.size }}</div></div>
+          <div onClick="{{ b.onRestore }}" style="padding:6px 14px;border-radius:999px;border:1px solid var(--line2);font-size:13px;line-height:18px;color:var(--fg);cursor:pointer;" style-hover="background:var(--hover);">Restore</div>
+        </div>
+      </sc-for>
+
+      <div style="padding:30px 0 4px;font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Progress</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:16px 0;border-bottom:1px solid var(--line);">
+        <div><div style="font-size:15px;line-height:22px;color:var(--fg);">Reset progress</div><div style="font-size:13px;line-height:18px;color:var(--mut);">Clears the record shelf and all stats.</div></div>
+        <div onClick="{{ askReset }}" style="padding:8px 16px;border-radius:999px;border:1px solid var(--rose);font-size:13px;line-height:18px;color:var(--rose);cursor:pointer;" style-hover="background:var(--roseBg);">Reset…</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:28px 0 0;">
+        <img src="assets/app-icon/app-icon.svg" alt="" width="40" height="40" style="flex:none;display:block;border-radius:9px;">
+        <div><div style="font-size:14px;line-height:20px;color:var(--fg);">Project Swiftie</div><div style="font-size:12px;line-height:16px;color:var(--mut);">{{ aboutLine }}</div></div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isTogether }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;gap:14px;padding:20px {{ L.padX }} 32px;border-right:1px solid var(--line);">
+      <div onClick="{{ toMenu }}" style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back</div>
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);">Play together</div>
+      <div style="font-size:15px;line-height:22px;color:var(--mut);max-width:320px;">Same room or far apart. One person hosts, everyone else joins with a code. No accounts.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;padding:24px {{ L.padX }} 40px;">
+      <div onClick="{{ toHost }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:padding .25s cubic-bezier(.2,.8,.2,1);" style-hover="padding-left:8px;">
+        <div style="display:flex;flex-direction:column;gap:4px;"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.rowT }};line-height:1.1;color:var(--fg);">Host a room</div><div style="font-size:15px;line-height:22px;color:var(--mut);">Pick a game, then share the code.</div></div>
+        <span style="flex:none;width:44px;height:44px;border-radius:50%;background:var(--coral);color:var(--onCoral);display:flex;align-items:center;justify-content:center;font-size:20px;">→</span>
+      </div>
+      <div onClick="{{ toJoin }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:padding .25s cubic-bezier(.2,.8,.2,1);" style-hover="padding-left:8px;">
+        <div style="display:flex;flex-direction:column;gap:4px;"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.rowT }};line-height:1.1;color:var(--fg);">Join a room</div><div style="font-size:15px;line-height:22px;color:var(--mut);">Got a code from a friend? Pop it in.</div></div>
+        <span style="flex:none;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:1px solid var(--line2);color:var(--fg);display:flex;align-items:center;justify-content:center;font-size:20px;">→</span>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isHost }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;gap:14px;padding:20px {{ L.padX }} 32px;border-right:1px solid var(--line);">
+      <div onClick="{{ toTogether }}" style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back</div>
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);">Host a room</div>
+      <div style="font-size:15px;line-height:22px;color:var(--mut);">Everyone plays the same songs at the same time. Up to 8 players.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:28px;padding:32px {{ L.padX }} 40px;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Game</div>
+        <sc-for list="{{ modeRows }}" as="r" hint-placeholder-count="3">
+          <div onClick="{{ r.onTap }}" style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border-radius:14px;border:1px solid {{ r.ring }};background:{{ r.bg }};cursor:pointer;transition:border-color .2s,background-color .2s;" style-hover="border-color:var(--coral);">
+            <span style="flex:none;width:18px;height:18px;margin-top:5px;box-sizing:border-box;border-radius:50%;border:1.5px solid {{ r.ring }};display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:var(--coral);opacity:{{ r.dot }};transform:scale({{ r.dot }});transition:opacity .2s,transform .2s;"></span></span>
+            <div style="display:flex;flex-direction:column;gap:2px;"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:30px;color:var(--fg);">{{ r.title }}</div><div style="font-size:14px;line-height:20px;color:var(--mut);">{{ r.desc }}</div></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:24px 40px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Rounds</div>
+          <div style="display:flex;gap:2px;padding:3px;border-radius:999px;border:1px solid var(--line);background:var(--card);">
+            <sc-for list="{{ roundSeg }}" as="o" hint-placeholder-count="3"><div onClick="{{ o.onTap }}" style="min-width:24px;text-align:center;padding:6px 14px;border-radius:999px;background:{{ o.bg }};color:{{ o.color }};font-size:13px;line-height:18px;font-weight:500;cursor:pointer;transition:background-color .2s,color .2s;" style-hover="color:{{ o.hc }};">{{ o.label }}</div></sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Difficulty</div>
+          <div style="display:flex;gap:2px;padding:3px;border-radius:999px;border:1px solid var(--line);background:var(--card);">
+            <sc-for list="{{ mpDiffSeg }}" as="o" hint-placeholder-count="3"><div onClick="{{ o.onTap }}" style="padding:6px 14px;border-radius:999px;background:{{ o.bg }};color:{{ o.color }};font-size:13px;line-height:18px;font-weight:500;cursor:pointer;transition:background-color .2s,color .2s;" style-hover="color:{{ o.hc }};">{{ o.label }}</div></sc-for>
+          </div>
+          <div style="font-size:13px;line-height:18px;color:var(--mut);">{{ mpDiffNote }}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div onClick="{{ openRoom }}" style="align-self:flex-start;padding:14px 28px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:16px;line-height:20px;font-weight:600;cursor:pointer;transition:transform .2s cubic-bezier(.34,1.56,.64,1);" style-hover="transform:translateY(-1px);" style-active="transform:scale(.97);">Open room →</div>
+        <sc-if value="{{ hasHostErr }}" hint-placeholder-val="{{ false }}"><div style="font-size:14px;line-height:20px;color:var(--rose);animation:sq-rise .3s ease both;">{{ hostErr }}</div></sc-if>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isJoin }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:32px;padding:20px {{ L.padX }} 100px;">
+    <div onClick="{{ toTogether }}" style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Back</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);">Join a room</div>
+      <div style="font-size:16px;line-height:24px;color:var(--mut);">Ask the host for their 4-letter code.</div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px;">
+      <input data-sq-in="" value="{{ joinCode }}" onChange="{{ onJoinCode }}" onKeyDown="{{ onJoinKey }}" placeholder="ABCD" maxlength="4" autofocus="" style="width:280px;box-sizing:border-box;padding:0 0 6px;border:0;border-bottom:1px solid var(--line2);background:transparent;outline:none;font-family:'Instrument Serif',Georgia,serif;font-size:64px;line-height:72px;letter-spacing:18px;text-transform:uppercase;color:var(--fg);caret-color:var(--coral);" style-focus="border-bottom-color:var(--coral);">
+      <div onClick="{{ joinRoom }}" style="display:flex;align-items:center;gap:8px;padding:14px 26px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:16px;line-height:20px;font-weight:600;opacity:{{ joinOp }};cursor:pointer;">
+        <sc-if value="{{ joining }}" hint-placeholder-val="{{ false }}"><span style="width:12px;height:12px;box-sizing:border-box;border-radius:50%;border:2px solid rgba(26,21,20,.25);border-top-color:var(--onCoral);animation:sq-spin .8s linear infinite;"></span>Joining…</sc-if>
+        <sc-if value="{{ notJoining }}" hint-placeholder-val="{{ true }}">Join →</sc-if>
+      </div>
+    </div>
+    <sc-if value="{{ hasJoinErr }}" hint-placeholder-val="{{ false }}"><div style="font-size:14px;line-height:20px;color:var(--rose);animation:sq-rise .3s ease both;">{{ joinErr }}</div></sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isLobby }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;gap:22px;padding:20px {{ L.padX }} 32px;border-right:1px solid var(--line);">
+      <div onClick="{{ leaveRoom }}" style="align-self:flex-start;display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Leave room</div>
+      <sc-if value="{{ mpIsHost }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Room code</div>
+          <div style="display:flex;gap:8px;">
+            <sc-for list="{{ mpCodeLetters }}" as="c" hint-placeholder-count="4">
+              <span style="width:58px;height:72px;border-radius:10px;border:1px solid var(--line2);background:var(--card);display:flex;align-items:center;justify-content:center;font-family:'Instrument Serif',Georgia,serif;font-size:48px;line-height:1;color:var(--fg);">{{ c }}</span>
+            </sc-for>
+          </div>
+          <div onClick="{{ copyCode }}" style="align-self:flex-start;padding:7px 14px;border-radius:999px;border:1px solid var(--line2);font-size:13px;line-height:18px;color:var(--fg);cursor:pointer;" style-hover="background:var(--hover);">{{ copyLabel }}</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ mpIsGuest }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Room {{ mpCode }}</div>
+          <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1;color:var(--fg);">{{ mpHostName }}'s room</div>
+        </div>
+      </sc-if>
+      <div style="display:flex;flex-direction:column;gap:6px;padding-top:16px;border-top:1px solid var(--line);">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:28px;line-height:32px;color:var(--fg);">{{ mpModeTitle }}</div>
+        <div style="font-size:14px;line-height:20px;color:var(--mut);">{{ mpModeDesc }}</div>
+        <div style="font-size:13px;line-height:18px;color:var(--fg);">{{ mpMeta }}</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px;padding:32px {{ L.padX }} 40px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:36px;line-height:40px;color:var(--fg);">Players</div>
+        <div style="font-size:13px;line-height:18px;color:var(--mut);">{{ lobbyCount }}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;">
+        <sc-for list="{{ lobbyRows }}" as="p" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);animation:sq-rise .4s cubic-bezier(.2,.8,.2,1) both;">
+            <span style="flex:none;width:36px;height:36px;border-radius:50%;background:{{ p.color }};color:#1A1514;font-weight:700;display:flex;align-items:center;justify-content:center;">{{ p.init }}</span>
+            <span style="flex:1;font-size:16px;line-height:22px;color:var(--fg);">{{ p.name }}</span>
+            <sc-if value="{{ p.hasTag }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;line-height:16px;color:var(--mut);">{{ p.tag }}</span></sc-if>
+          </div>
+        </sc-for>
+        <div style="display:flex;align-items:center;gap:14px;padding:14px 0;color:var(--faint);font-size:14px;line-height:20px;">
+          <span style="flex:none;width:36px;height:36px;box-sizing:border-box;border-radius:50%;border:1px dashed var(--line2);"></span>
+          <sc-if value="{{ mpIsHost }}" hint-placeholder-val="{{ false }}"><span>Waiting for friends to join…</span></sc-if>
+          <sc-if value="{{ mpIsGuest }}" hint-placeholder-val="{{ false }}"><span>Waiting for {{ mpHostName }} to start…</span></sc-if>
+        </div>
+      </div>
+      <sc-if value="{{ mpIsHost }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div onClick="{{ startMp }}" style="padding:14px 28px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:16px;line-height:20px;font-weight:600;opacity:{{ startOp }};cursor:pointer;transition:opacity .2s;">Start game →</div>
+          <span style="font-size:13px;line-height:18px;color:var(--faint);">Needs at least 2 players</span>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isMpGame }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:flex;flex-direction:column;">
+    <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 32px 12px;">
+      <div onClick="{{ leaveRoom }}" style="display:flex;align-items:center;min-height:32px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);">← Leave</div>
+      <div style="font-size:14px;line-height:20px;color:var(--mut);white-space:nowrap;">{{ mpRoundLabel }}</div>
+      <div style="font-size:14px;line-height:20px;color:var(--mut);">Room {{ mpCode }}</div>
+    </div>
+    <div style="flex:none;height:2px;margin:0 32px;background:var(--line);overflow:hidden;"><div style="height:100%;width:{{ mpTimerPct }};background:var(--coral);transition:width .1s linear;"></div></div>
+    <sc-if value="{{ mpErr }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding-bottom:60px;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:36px;line-height:40px;color:var(--fg);">Lost the connection to the room.</div>
+        <div onClick="{{ leaveEnd }}" style="padding:12px 24px;border-radius:999px;border:1px solid var(--line2);color:var(--fg);font-size:15px;line-height:20px;cursor:pointer;">Back to menu</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ mpCountdown }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding-bottom:60px;">
+        <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ mpRoundLabel }}</div>
+        <div style="height:160px;display:flex;align-items:center;justify-content:center;">
+          <sc-if value="{{ mpC3 }}" hint-placeholder-val="{{ false }}"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:160px;line-height:1;color:var(--coralT);animation:sq-count .8s ease both;">3</div></sc-if>
+          <sc-if value="{{ mpC2 }}" hint-placeholder-val="{{ false }}"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:160px;line-height:1;color:var(--coralT);animation:sq-count .8s ease both;">2</div></sc-if>
+          <sc-if value="{{ mpC1 }}" hint-placeholder-val="{{ false }}"><div style="font-family:'Instrument Serif',Georgia,serif;font-size:160px;line-height:1;color:var(--coralT);animation:sq-count .8s ease both;">1</div></sc-if>
+        </div>
+        <div style="font-size:15px;line-height:22px;color:var(--mut);">Get ready…</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ mpPlay }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:grid;grid-template-columns:{{ gameCols }};gap:{{ L.gap }};align-items:center;padding:20px {{ L.padX }} 32px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:20px;min-width:0;">
+          <div style="position:relative;flex:none;width:{{ rec.box }};height:{{ rec.size }};max-width:100%;">
+            <div style="position:absolute;left:0;top:{{ rec.discTop }};width:{{ rec.disc }};height:{{ rec.disc }};transform:translateX({{ rec.discX }});transition:transform .55s cubic-bezier(.2,.8,.2,1);">
+              <div ref="{{ spinRef }}" style="width:100%;height:100%;border-radius:50%;background:repeating-radial-gradient(circle,var(--g1) 0 1.5px,var(--g2) 1.5px 3.2px);box-shadow:inset 0 0 0 1px rgba(245,229,212,.14),0 14px 34px var(--shadow);display:flex;align-items:center;justify-content:center;">
+                <div style="position:relative;width:{{ rec.label }};height:{{ rec.label }};border-radius:50%;overflow:hidden;background:var(--coral);display:flex;align-items:center;justify-content:center;">
+                  <sc-if value="{{ rec.labelCover }}" hint-placeholder-val="{{ false }}"><img src="{{ rec.labelSrc }}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></sc-if>
+                  <span style="position:relative;width:{{ rec.hole }};height:{{ rec.hole }};border-radius:50%;background:var(--bg);"></span>
+                </div>
+              </div>
+            </div>
+            <div style="position:absolute;left:0;top:0;width:{{ rec.size }};height:{{ rec.size }};perspective:1400px;">
+              <div style="position:relative;width:100%;height:100%;transform-style:preserve-3d;transform:{{ rec.flip }};transition:transform .55s cubic-bezier(.4,0,.2,1);">
+                <div style="position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;border-radius:4px;background:var(--sleeve);box-shadow:0 18px 40px var(--shadow);display:flex;flex-direction:column;justify-content:space-between;padding:16px;box-sizing:border-box;">
+                  <span style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:22px;line-height:24px;color:var(--sleeveFg);">Side A</span>
+                  <span style="align-self:center;width:38%;aspect-ratio:1;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(59,47,47,.18);"></span>
+                  <span style="font-size:11px;line-height:14px;color:var(--sleeveFg);">33⅓</span>
+                </div>
+                <div style="position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:rotateY(180deg);border-radius:4px;overflow:hidden;background:{{ rec.backPh }};box-shadow:0 18px 40px var(--shadow);">
+                  <sc-if value="{{ rec.hasBack }}" hint-placeholder-val="{{ false }}"><img src="{{ rec.backSrc }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if>
+                </div>
+              </div>
+            </div>
+          </div>
+          <sc-if value="{{ mpIsSound }}" hint-placeholder-val="{{ true }}">
+            <div style="width:{{ rec.size }};max-width:100%;display:flex;align-items:center;gap:14px;">
+              <div onClick="{{ mpToggle }}" style="flex:none;width:40px;height:40px;border-radius:50%;background:var(--btn);color:var(--onBtn);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                <sc-if value="{{ transport.isPause }}" hint-placeholder-val="{{ false }}"><span style="display:flex;gap:4px;"><span style="width:4px;height:13px;border-radius:1px;background:currentColor;"></span><span style="width:4px;height:13px;border-radius:1px;background:currentColor;"></span></span></sc-if>
+                <sc-if value="{{ transport.isPlay }}" hint-placeholder-val="{{ true }}"><span style="width:0;height:0;margin-left:3px;border-left:12px solid currentColor;border-top:7px solid transparent;border-bottom:7px solid transparent;"></span></sc-if>
+                <sc-if value="{{ transport.isAgain }}" hint-placeholder-val="{{ false }}"><span style="font-size:18px;line-height:18px;font-weight:600;">↻</span></sc-if>
+              </div>
+              <div style="flex:1;height:3px;border-radius:2px;background:var(--line);overflow:hidden;"><div style="height:100%;width:{{ transport.pct }};background:var(--fg);transition:width .1s linear;"></div></div>
+              <span style="flex:none;font-size:12px;line-height:16px;color:var(--mut);font-variant-numeric:tabular-nums;">{{ transport.time }}</span>
+            </div>
+          </sc-if>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:22px;min-width:0;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-if value="{{ mpIsLol }}" hint-placeholder-val="{{ false }}"><div style="font-size:15px;line-height:22px;color:var(--mut);">Is this lyric from <span style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:22px;color:var(--coralT);">{{ mpLolSong }}</span>?</div></sc-if>
+            <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1.02;color:var(--fg);text-wrap:balance;">{{ mpTitle.pre }}<span style="font-style:italic;color:var(--coralT);">{{ mpTitle.song }}</span>{{ mpTitle.post }}</div>
+            <div style="font-size:16px;line-height:24px;color:var(--mut);">{{ mpSub }}</div>
+          </div>
+          <sc-if value="{{ mpRound }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:18px;">
+              <sc-if value="{{ mpIsSound }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ mpOpts }}" as="o" hint-placeholder-count="4">
+                    <div onClick="{{ o.onTap }}" style="display:flex;align-items:center;gap:14px;min-height:54px;box-sizing:border-box;padding:12px 16px;border-radius:12px;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.color }};font-size:18px;line-height:24px;cursor:pointer;transition:background-color .2s,border-color .2s,color .2s;" style-hover="border-color:{{ o.hb }};">
+                      <span style="flex:none;width:24px;height:24px;border-radius:6px;background:var(--hover);font-size:12px;line-height:24px;font-weight:600;text-align:center;">{{ o.num }}</span>
+                      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ o.label }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ mpIsLol }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                  <div style="display:flex;flex-direction:column;gap:10px;padding:22px 24px 16px;border-radius:6px;background:var(--paper);color:var(--paperFg);box-shadow:0 14px 32px var(--shadow);">
+                    <sc-for list="{{ mpLines }}" as="ln" hint-placeholder-count="2"><div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:22px;line-height:30px;">“{{ ln }}”</div></sc-for>
+                    
+                  </div>
+                  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;">
+                    <sc-for list="{{ mpLolBtns }}" as="b" hint-placeholder-count="2">
+                      <div onClick="{{ b.onTap }}" style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:54px;border-radius:12px;border:1px solid {{ b.border }};background:{{ b.bg }};color:{{ b.color }};font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:30px;cursor:pointer;transition:background-color .2s,border-color .2s;" style-hover="border-color:{{ b.hb }};">{{ b.label }}<span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:11px;line-height:18px;padding:0 6px;border-radius:4px;border:1px solid currentColor;opacity:.55;">{{ b.key }}</span></div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <div style="position:relative;height:{{ mpRowsH }};">
+            <sc-for list="{{ mpRows }}" as="p" hint-placeholder-count="3">
+              <div style="position:absolute;left:0;right:0;top:{{ p.top }};height:56px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 14px;border-radius:12px;border:1px solid {{ p.border }};background:var(--card);transition:top .6s cubic-bezier(.2,.8,.2,1);">
+                <span style="flex:none;width:16px;font-size:13px;line-height:18px;color:var(--faint);font-variant-numeric:tabular-nums;">{{ p.rank }}</span>
+                <span style="flex:none;width:30px;height:30px;border-radius:50%;background:{{ p.color }};color:#1A1514;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;">{{ p.init }}</span>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+                  <span style="font-size:15px;line-height:20px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.name }}</span>
+                  <span style="font-size:12px;line-height:16px;color:{{ p.stColor }};">{{ p.status }}</span>
+                </div>
+                <div style="position:relative;display:flex;align-items:center;gap:4px;">
+                  <sc-for list="{{ p.beads }}" as="b" hint-placeholder-count="0"><span style="width:9px;height:9px;border-radius:50%;background:{{ b.c }};box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);"></span></sc-for>
+                </div>
+                <sc-if value="{{ p.hasGain }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;line-height:18px;font-weight:600;color:var(--coralT);animation:sq-rise .3s ease both;">{{ p.gain }}</span></sc-if>
+                <span style="flex:none;min-width:44px;text-align:right;font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:28px;color:var(--fg);font-variant-numeric:tabular-nums;">{{ p.score }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ mpReveal }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <span style="font-size:14px;line-height:20px;color:var(--mut);font-variant-numeric:tabular-nums;">{{ mpNext }}</span>
+              <sc-if value="{{ mpShowSkip }}" hint-placeholder-val="{{ false }}"><div onClick="{{ mpSkip }}" style="padding:8px 16px;border-radius:999px;border:1px solid var(--line2);font-size:13px;line-height:18px;color:var(--fg);cursor:pointer;" style-hover="background:var(--hover);">Next now</div></sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ isMpEnd }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;display:grid;grid-template-columns:{{ menuCols }};">
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:16px;padding:40px {{ L.padX }};border-right:1px solid var(--line);">
+      <div style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">Final standings · {{ mpModeTitle }}</div>
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:{{ L.h1 }};line-height:1.02;color:var(--fg);text-wrap:balance;">{{ winTitle }}</div>
+      <div style="font-size:16px;line-height:24px;color:var(--mut);">{{ winSub }}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid var(--line);">
+        <sc-for list="{{ highlights }}" as="h" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;"><span style="font-size:12px;line-height:16px;font-weight:600;color:var(--mut);">{{ h.k }}</span><span style="font-size:15px;line-height:22px;color:var(--fg);">{{ h.v }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:24px;padding:40px {{ L.padX }};">
+      <div style="position:relative;height:{{ mpRowsH }};">
+        <sc-for list="{{ mpRows }}" as="p" hint-placeholder-count="3">
+          <div style="position:absolute;left:0;right:0;top:{{ p.top }};height:56px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 14px;border-radius:12px;border:1px solid {{ p.border }};background:var(--card);animation:sq-rise .5s ease both;">
+            <span style="flex:none;width:16px;font-size:13px;line-height:18px;color:var(--faint);">{{ p.rank }}</span>
+            <span style="flex:none;width:30px;height:30px;border-radius:50%;background:{{ p.color }};color:#1A1514;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;">{{ p.init }}</span>
+            <span style="flex:1;min-width:0;font-size:15px;line-height:20px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.name }}</span>
+            <div style="display:flex;align-items:center;gap:4px;"><sc-for list="{{ p.beads }}" as="b" hint-placeholder-count="0"><span style="width:9px;height:9px;border-radius:50%;background:{{ b.c }};box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);"></span></sc-for></div>
+            <span style="flex:none;min-width:44px;text-align:right;font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:28px;color:var(--fg);">{{ p.score }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;">
+        <sc-if value="{{ mpIsHost }}" hint-placeholder-val="{{ false }}"><div onClick="{{ playAgain }}" style="padding:12px 24px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:15px;line-height:20px;font-weight:600;cursor:pointer;">Play again →</div></sc-if>
+        <div onClick="{{ leaveEnd }}" style="padding:12px 24px;border-radius:999px;border:1px solid var(--line2);color:var(--fg);font-size:15px;line-height:20px;cursor:pointer;" style-hover="background:var(--hover);">Back to menu</div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+</div>
+</div>
+<sc-if value="{{ showOverlay }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;animation:sq-rise .2s ease both;">
+    <x-import component-from-global-scope="cat-loader-v2" from="./cat-loader-v2.js" size="lg" px="200" label="Loading next track..." hint-size="200px,236px"></x-import>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasMisu }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;bottom:0;left:{{ misuLeftPos }};right:{{ misuRightPos }};z-index:30;display:flex;flex-direction:{{ misuDir }};align-items:flex-end;gap:10px;pointer-events:none;">
+    <div onClick="{{ hideMisu }}" style="flex:none;width:76px;height:62px;overflow:hidden;pointer-events:auto;cursor:pointer;">
+      <div style="transform:{{ misuUp }};transition:transform .45s cubic-bezier(.34,1.3,.64,1);"><svg width="76" height="152" style="display:block;" aria-hidden="true" viewBox="0 0 87 174" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 5C15.6 6 18.4 7.25 21.6 8.5C28.2 11.1 36.7 13.9 43.5 14C50.3 13.9 58.8 11.1 65.4 8.5C68.6 7.25 71.4 6 73.5 5V141.5H13.5V5Z" fill="#F5E5D4" stroke="#3B2F2F" stroke-width="5" stroke-linejoin="miter" stroke-miterlimit="4"></path><g stroke="#3B2F2F" stroke-width="2" stroke-linecap="round"><path d="M68.5 32L85.5 25.5M68.5 35.5H85.5M68.5 39L85.5 44"></path><path d="M18.5 32L1.5 25.5M18.5 35.5H1.5M18.5 39L1.5 44"></path></g><circle cx="31" cy="32" r="3.5" fill="#6FA8DC"></circle><circle cx="56" cy="32" r="3.5" fill="#6FA8DC"></circle><ellipse cx="43.5" cy="36" rx="8" ry="6" fill="#3B2F2F"></ellipse><circle cx="39.5" cy="41.5" r="3.5" stroke="#3B2F2F" stroke-width="2"></circle><circle cx="47.5" cy="41.5" r="3.5" stroke="#3B2F2F" stroke-width="2"></circle><path d="M43.5 64C52.5 64 60 72 60 94C60 118 53 124 43.5 124C34 124 27 118 27 94C27 72 34.5 64 43.5 64Z" fill="#FBF0E6"></path><circle cx="43.5" cy="67" r="15" fill="#D4A0A0"></circle><g fill="#3B2F2F"><path d="M19.8 75H33.2V95C33.2 97.76 30.96 100 28.2 100H24.8C22.04 100 19.8 97.76 19.8 95V75Z"></path><path d="M53.8 75H67.2V95C67.2 97.76 64.96 100 62.2 100H58.8C56.04 100 53.8 97.76 53.8 95V75Z"></path><path d="M19.8 130H33.2V150C33.2 152.76 30.96 155 28.2 155H24.8C22.04 155 19.8 152.76 19.8 150V130Z"></path><path d="M53.8 130H67.2V150C67.2 152.76 64.96 155 62.2 155H58.8C56.04 155 53.8 152.76 53.8 150V130Z"></path><path d="M37 140H50V169C50 171.76 47.76 174 45 174H42C39.24 174 37 171.76 37 169V140Z"></path></g><g stroke="#EBE9E9" stroke-width="1.5" stroke-linecap="round"><path d="M26.5 134V150M60.5 134V150M43.5 145V169"></path></g></svg></div>
+    </div>
+    <div style="position:relative;margin-bottom:44px;max-width:340px;padding:12px 16px;border-radius:14px;background:var(--bubble);color:var(--bubbleFg);box-shadow:0 8px 24px var(--shadow),0 0 0 1px var(--line);opacity:{{ misuBubbleOp }};transform:{{ misuBubbleTf }};transition:opacity .3s ease .12s,transform .35s cubic-bezier(.2,.8,.2,1) .12s;pointer-events:auto;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:20px;line-height:24px;text-wrap:pretty;">{{ misuText }}</div>
+      <sc-if value="{{ misuHasAction }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ misuAction }}" style="align-self:flex-start;padding:6px 14px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:13px;line-height:18px;font-weight:600;cursor:pointer;">{{ misuActionLabel }}</div>
+      </sc-if>
+      <span style="position:absolute;left:{{ tailLeft }};right:{{ tailRight }};bottom:14px;width:12px;height:12px;background:var(--bubble);transform:rotate(45deg);"></span>
+    </div>
+  </div>
+</sc-if>
+
+<sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+  <div style="position:absolute;top:{{ t.top }};right:16px;z-index:40;width:300px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line2);box-shadow:0 12px 32px var(--shadow);opacity:{{ t.op }};transform:{{ t.tf }};transition:opacity .3s ease,transform .35s cubic-bezier(.2,.8,.2,1);">
+    <sc-if value="{{ t.hasAlbum }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative;flex:none;width:52px;height:44px;">
+        <div style="position:absolute;left:14px;top:2px;width:40px;height:40px;border-radius:50%;background:repeating-radial-gradient(circle,var(--g1) 0 1px,var(--g2) 1px 2.4px);"></div>
+        <div style="position:absolute;left:0;top:0;width:44px;height:44px;border-radius:3px;overflow:hidden;background:{{ t.ph }};"><sc-if value="{{ t.hasCover }}" hint-placeholder-val="{{ false }}"><img src="{{ t.cover }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"></sc-if></div>
+      </div>
+    </sc-if>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+      <span style="font-size:11px;line-height:14px;font-weight:600;color:var(--coralT);">{{ t.kicker }}</span>
+      <span style="font-family:'Instrument Serif',Georgia,serif;font-size:20px;line-height:24px;color:var(--fg);">{{ t.title }}</span>
+      <span style="font-size:12px;line-height:16px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.sub }}</span>
+    </div>
+    <div onClick="{{ t.onDismiss }}" style="flex:none;align-self:flex-start;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:13px;color:var(--mut);cursor:pointer;" style-hover="background:var(--hover);color:var(--fg);">✕</div>
+  </div>
+</sc-for>
+
+<sc-if value="{{ cardOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeCard }}" style="position:absolute;inset:0;z-index:45;background:var(--scrim);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;animation:sq-rise .25s ease both;">
+    <div onClick="{{ stop }}" style="position:relative;width:100%;max-width:540px;max-height:100%;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:var(--paper);color:var(--paperFg);box-shadow:0 30px 70px var(--shadow);animation:sq-rise .45s cubic-bezier(.2,.8,.2,1) both;">
+      <div style="position:relative;flex:none;height:132px;background:#E97F6A;overflow:hidden;">
+        <div style="position:absolute;left:28px;top:30px;display:flex;flex-direction:column;gap:2px;">
+          <span style="font-size:12px;line-height:16px;font-weight:600;color:rgba(26,21,20,.7);">For Ana</span>
+          <span style="font-family:'Instrument Serif',Georgia,serif;font-size:44px;line-height:1;color:#1A1514;">Happy Birthday!</span>
+        </div>
+        <div style="position:absolute;right:40px;bottom:-34px;"><svg width="54" height="108" style="display:block;" aria-hidden="true" viewBox="0 0 87 174" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 5C15.6 6 18.4 7.25 21.6 8.5C28.2 11.1 36.7 13.9 43.5 14C50.3 13.9 58.8 11.1 65.4 8.5C68.6 7.25 71.4 6 73.5 5V141.5H13.5V5Z" fill="#F5E5D4" stroke="#3B2F2F" stroke-width="5" stroke-linejoin="miter" stroke-miterlimit="4"></path><g stroke="#3B2F2F" stroke-width="2" stroke-linecap="round"><path d="M68.5 32L85.5 25.5M68.5 35.5H85.5M68.5 39L85.5 44"></path><path d="M18.5 32L1.5 25.5M18.5 35.5H1.5M18.5 39L1.5 44"></path></g><circle cx="31" cy="32" r="3.5" fill="#6FA8DC"></circle><circle cx="56" cy="32" r="3.5" fill="#6FA8DC"></circle><ellipse cx="43.5" cy="36" rx="8" ry="6" fill="#3B2F2F"></ellipse><circle cx="39.5" cy="41.5" r="3.5" stroke="#3B2F2F" stroke-width="2"></circle><circle cx="47.5" cy="41.5" r="3.5" stroke="#3B2F2F" stroke-width="2"></circle><path d="M43.5 64C52.5 64 60 72 60 94C60 118 53 124 43.5 124C34 124 27 118 27 94C27 72 34.5 64 43.5 64Z" fill="#FBF0E6"></path><circle cx="43.5" cy="67" r="15" fill="#D4A0A0"></circle><g fill="#3B2F2F"><path d="M19.8 75H33.2V95C33.2 97.76 30.96 100 28.2 100H24.8C22.04 100 19.8 97.76 19.8 95V75Z"></path><path d="M53.8 75H67.2V95C67.2 97.76 64.96 100 62.2 100H58.8C56.04 100 53.8 97.76 53.8 95V75Z"></path><path d="M19.8 130H33.2V150C33.2 152.76 30.96 155 28.2 155H24.8C22.04 155 19.8 152.76 19.8 150V130Z"></path><path d="M53.8 130H67.2V150C67.2 152.76 64.96 155 62.2 155H58.8C56.04 155 53.8 152.76 53.8 150V130Z"></path><path d="M37 140H50V169C50 171.76 47.76 174 45 174H42C39.24 174 37 171.76 37 169V140Z"></path></g><g stroke="#EBE9E9" stroke-width="1.5" stroke-linecap="round"><path d="M26.5 134V150M60.5 134V150M43.5 145V169"></path></g></svg></div>
+      </div>
+      <div data-sq-scroll="" style="flex:1;min-height:0;overflow-y:auto;padding:28px 34px 34px;display:flex;flex-direction:column;gap:16px;font-size:16px;line-height:26px;user-select:text;">
+        <div style="font-family:'Instrument Serif',Georgia,serif;font-size:28px;line-height:32px;">Dear Ana,</div>
+        <div>Sending you the warmest of wishes for a very Happy Birthday!</div>
+        <div>Thank you for always being there for me over these past couple of years. I'm very grateful and lucky to have a friend like you.</div>
+        <div>I've said it before, and I'll say it again: there is nothing you can't accomplish once you put your mind to it. As you enter this next year, which will hopefully be filled with exciting opportunities and unforgettable memories, I have no doubt in my mind that you will find success and reach the goals you set for yourself!</div>
+        <div>I can't wait to see what you accomplish in the year ahead! Know that I am always rooting for you!</div>
+        <div style="display:flex;flex-direction:column;gap:2px;padding-top:6px;color:#B4533F;font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:28px;">
+          <div>Your Best Friend,</div>
+          <div>Satanshu :)</div>
+        </div>
+        <div style="padding-top:12px;border-top:1px solid rgba(59,47,47,.12);font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:20px;line-height:26px;">P.S. Meowwwww Meow Meaaww ~ Clef</div>
+      </div>
+      <div onClick="{{ closeCard }}" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(26,21,20,.14);color:#1A1514;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:background-color .15s;" style-hover="background:rgba(26,21,20,.24);">✕</div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasDialog }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeDialog }}" style="position:absolute;inset:0;z-index:50;background:var(--scrim);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:sq-rise .2s ease both;">
+    <div onClick="{{ stop }}" style="width:100%;max-width:440px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;padding:26px 26px 22px;border-radius:16px;background:var(--panel);border:1px solid var(--line2);box-shadow:0 24px 60px var(--shadow);">
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:30px;line-height:34px;color:var(--fg);">{{ dialogTitle }}</div>
+      <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ dialogMsg }}</div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:12px;">
+        <div onClick="{{ closeDialog }}" style="padding:10px 18px;border-radius:999px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);background:var(--hover);">Cancel</div>
+        <div onClick="{{ confirmDialog }}" style="padding:10px 18px;border-radius:999px;background:{{ dialogBtnBg }};color:{{ dialogBtnFg }};font-size:14px;line-height:20px;font-weight:600;cursor:pointer;">{{ dialogConfirm }}</div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ updOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeUpdate }}" style="position:absolute;inset:0;z-index:55;background:var(--scrim);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:sq-rise .2s ease both;">
+    <div onClick="{{ stop }}" style="width:100%;max-width:480px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;padding:26px 26px 22px;border-radius:16px;background:var(--panel);border:1px solid var(--line2);box-shadow:0 24px 60px var(--shadow);">
+      <div style="font-family:'Instrument Serif',Georgia,serif;font-size:32px;line-height:36px;color:var(--fg);">{{ modal.title }}</div>
+      <sc-if value="{{ modalHasNotes }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px 16px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:14px;line-height:22px;color:var(--mut);white-space:pre-wrap;">{{ modal.notes }}</div>
+      </sc-if>
+      <sc-if value="{{ modalHasProgress }}" hint-placeholder-val="{{ false }}">
+        <div style="height:4px;border-radius:2px;background:var(--line);overflow:hidden;"><div style="height:100%;width:{{ modal.pct }};background:var(--coral);transition:width .12s linear;"></div></div>
+      </sc-if>
+      <sc-if value="{{ modalHasPara }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:15px;line-height:22px;color:var(--mut);">{{ modal.para }}</div>
+      </sc-if>
+      <sc-if value="{{ modalHasBanner }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:12px 14px;border-radius:10px;background:var(--roseBg);color:var(--rose);font-size:14px;line-height:20px;">{{ modal.banner }}</div>
+      </sc-if>
+      <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding-top:8px;">
+        <sc-for list="{{ modal.actions }}" as="a" hint-placeholder-count="2">
+          <sc-if value="{{ a.quiet }}" hint-placeholder-val="{{ false }}"><div onClick="{{ a.run }}" style="padding:10px 16px;border-radius:999px;font-size:14px;line-height:20px;color:var(--mut);cursor:pointer;" style-hover="color:var(--fg);background:var(--hover);">{{ a.label }}</div></sc-if>
+          <sc-if value="{{ a.secondary }}" hint-placeholder-val="{{ false }}"><div onClick="{{ a.run }}" style="padding:10px 16px;border-radius:999px;border:1px solid var(--line2);font-size:14px;line-height:20px;color:var(--fg);cursor:pointer;" style-hover="background:var(--hover);">{{ a.label }}</div></sc-if>
+          <sc-if value="{{ a.primary }}" hint-placeholder-val="{{ false }}"><div onClick="{{ a.run }}" style="padding:10px 18px;border-radius:999px;background:var(--coral);color:var(--onCoral);font-size:14px;line-height:20px;font-weight:600;cursor:pointer;">{{ a.label }}</div></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ restarting }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;z-index:60;background:var(--bg);display:flex;align-items:center;justify-content:center;animation:sq-rise .25s ease both;">
+    <x-import component-from-global-scope="cat-loader-v2" from="./cat-loader-v2.js" size="lg" px="200" label="Restarting Project Swiftie..." hint-size="200px,236px"></x-import>
+  </div>
+</sc-if>
+</div>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;platform&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;macos&quot;,&quot;windows&quot;],&quot;default&quot;:&quot;macos&quot;,&quot;tsType&quot;:&quot;'macos' | 'windows'&quot;,&quot;section&quot;:&quot;Window&quot;},&quot;windowSize&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;default&quot;,&quot;minimum&quot;,&quot;large&quot;],&quot;default&quot;:&quot;default&quot;,&quot;tsType&quot;:&quot;'default' | 'minimum' | 'large'&quot;,&quot;section&quot;:&quot;Window&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;,&quot;system&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark' | 'light' | 'system'&quot;,&quot;section&quot;:&quot;App&quot;},&quot;edition&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ana&quot;,&quot;open&quot;],&quot;default&quot;:&quot;ana&quot;,&quot;tsType&quot;:&quot;'ana' | 'open'&quot;,&quot;section&quot;:&quot;App&quot;},&quot;birthday&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;App&quot;},&quot;update&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;available&quot;,&quot;downloading&quot;,&quot;ready&quot;,&quot;error&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Simulate&quot;},&quot;network&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;live&quot;,&quot;slow&quot;,&quot;offline&quot;],&quot;default&quot;:&quot;live&quot;,&quot;tsType&quot;:&quot;'live' | 'slow' | 'offline'&quot;,&quot;section&quot;:&quot;Simulate&quot;}}">
+/* ============================================================================
+ * PROTOTYPE vs PRODUCTION — read this before porting to Flutter (Claude Code)
+ * ----------------------------------------------------------------------------
+ * Everything tagged PROTOTYPE-ONLY exists only so this HTML mock can run
+ * without the real app's services. Do NOT port it. Use the existing Dart code:
+ *   - Catalog + previews ....... lib/data/catalog/deezer_client.dart (not JSONP)
+ *   - Lyrics ................... lib/data/lyrics/lrclib_client.dart + danger_zones.dart
+ *   - Relisten / full clip ..... lib/domain/engine/relisten_schedule.dart (mirrored here)
+ *   - Hard-mode matching ....... lib/domain/engine/answer_matcher.dart (mirrored here)
+ *   - Achievements ............. lib/state/achievements_controller.dart (mirrored here)
+ *   - Quack sound .............. assets/sounds/quack.mp3 via audio_engine.dart
+ *   - Updater / backups ........ lib/services/updater, persistence_controller.dart
+ * PROTOTYPE-ONLY items in this file:
+ *   FALL (fallback track titles), SAMPLE (invented lyric lines — never ship),
+ *   seedStats/seedUnlocked (demo progress), jsonp(), quackSound() synth,
+ *   simulated multiplayer players (bot(), mpBot(), friends()), the "network",
+ *   "update" and "birthday" tweak props, fake backups list, download()/install()
+ *   timers, and the time-based fake room code. Multiplayer networking is
+ *   not designed here; only its UI/UX is.
+ * ========================================================================== */
+// PROTOTYPE-ONLY: the app talks to Deezer through deezer_client.dart.
+const DZ = 'https://api.deezer.com';
+const AL = [
+  ['ts', 321177137, 'Taylor Swift', 'Taylor Swift', '2006', 150],
+  ['fearless', 221543452, "Fearless (Taylor's Version)", 'Fearless', "Taylor's Version", 85],
+  ['speaknow', 461146065, "Speak Now (Taylor's Version)", 'Speak Now', "Taylor's Version", 320],
+  ['red', 272247412, "Red (Taylor's Version)", 'Red', "Taylor's Version", 25],
+  ['1989', 504180521, "1989 (Taylor's Version)", '1989', "Taylor's Version", 230],
+  ['rep', 52612062, 'reputation', 'reputation', '2017', 265],
+  ['lover', 108447472, 'Lover', 'Lover', '2019', 350],
+  ['folklore', 162683632, 'folklore', 'folklore', '2020', 200],
+  ['evermore', 192580112, 'evermore', 'evermore', '2020', 55],
+  ['midnights', 368474187, 'Midnights', 'Midnights', '2022', 280],
+  ['ttpd', 574109801, 'THE TORTURED POETS DEPARTMENT', 'The Tortured Poets Department', '2024', 70],
+  ['showgirl', 829966251, 'The Life of a Showgirl', 'The Life of a Showgirl', '2025', 40],
+].map(([key, dz, title, era, sub, h], i) => ({ key, dz, title, era, sub, i, ph: `oklch(0.46 0.07 ${h})` }));
+const ALK = Object.fromEntries(AL.map((a) => [a.key, a]));
+// PROTOTYPE-ONLY: offline fallback titles so the mock still works without Deezer. Never ship.
+const FALL = {
+  ts: ['Tim McGraw', 'Picture to Burn', 'Teardrops on My Guitar', 'A Place in This World', 'Cold as You', 'Our Song'],
+  fearless: ['Fearless', 'Fifteen', 'Love Story', 'Hey Stephen', 'White Horse', 'You Belong With Me'],
+  speaknow: ['Mine', 'Sparks Fly', 'Back To December', 'Speak Now', 'Dear John', 'Enchanted'],
+  red: ['State Of Grace', 'Red', 'Treacherous', 'I Knew You Were Trouble', 'All Too Well', '22'],
+  '1989': ['Welcome To New York', 'Blank Space', 'Style', 'Out Of The Woods', 'Shake It Off', 'Wildest Dreams'],
+  rep: ['...Ready For It?', 'End Game', 'I Did Something Bad', "Don't Blame Me", 'Delicate', 'Getaway Car'],
+  lover: ['I Forgot That You Existed', 'Cruel Summer', 'Lover', 'The Man', 'The Archer', 'Paper Rings'],
+  folklore: ['the 1', 'cardigan', 'the last great american dynasty', 'exile', 'mirrorball', 'august'],
+  evermore: ['willow', 'champagne problems', 'gold rush', "'tis the damn season", 'tolerate it', 'marjorie'],
+  midnights: ['Lavender Haze', 'Maroon', 'Anti-Hero', 'Snow On The Beach', "You're On Your Own, Kid", 'Karma'],
+  ttpd: ['Fortnight', 'The Tortured Poets Department', 'My Boy Only Breaks His Favorite Toys', 'Down Bad', 'So Long, London', 'Florida!!!'],
+  showgirl: ['The Fate of Ophelia', 'Elizabeth Taylor', 'Opalite', 'Father Figure', 'Eldest Daughter', 'Wood'],
+};
+const ACH = [
+  ['first_meow', 'First Meow', 'Get 1 correct answer', 'Get 1 right'],
+  ['getting_warmed_up', 'Getting Warmed Up', 'Get 10 correct answers (all-time)', '10 right, all-time'],
+  ['purrfect_streak', 'Purrfect Streak', 'Get 10 correct in a row', '10 in a row'],
+  ['album_explorer', 'Album Explorer', 'Play songs from 5 different albums', 'Songs from 5 eras'],
+  ['album_completionist', 'Album Completionist', 'Guess every track on an album', 'Every song on one album'],
+  ['hard_mode_hero', 'Hard Mode Hero', 'Get 5 correct on Hard difficulty', '5 right on Hard'],
+  ['speed_demon', 'Speed Demon', 'Answer correctly within 3 seconds', 'Right in under 3 s'],
+  ['persistent_listener', 'Persistent Listener', 'Use "Play full clip" and still get it right', 'Right after the full clip'],
+  ['quack_collector', 'Quack Collector', 'Trigger the level 5 quack explosion', 'A secret'],
+  ['all_ears', 'All Ears', 'Correctly guess 50 songs (all-time)', '50 songs, all-time'],
+  ['lyric_lover', 'Lyric Lover', 'Get 1 correct in any lyrics mode', 'Any lyrics round'],
+  ['poet_laureate', 'Poet Laureate', 'Get 20 correct in Name That Song', '20 in Name That Song'],
+  ['lie_detector', 'Lie Detector', 'Get 15 correct in Lyrics or Lie', '15 in Lyrics or Lie'],
+  ['dual_threat', 'Dual Threat', 'Score in both Sound and Lyrics modes (same session)', 'Sound and lyrics, one session'],
+  ['lyric_streak', 'Lyric Streak', 'Get 10 correct in a row in lyrics mode', '10 in a row on lyrics'],
+].map(([id, name, desc, hint]) => ({ id, name, desc, hint }));
+// PROTOTYPE-ONLY: invented placeholder lines standing in for LRCLIB lyrics (copyright). Never ship; the app must use real fetched lyrics.
+const SAMPLE = ['The porch light hums the way it did in June', 'I kept your sweater folded like a promise', 'We drove until the radio ran out of words', 'Every stairwell echoes when you leave', 'You wrote my name in the frost on the glass', 'The city sleeps but I keep counting streetlights', 'I wore the dress just to watch you notice', 'We were paper lanterns on a borrowed sky', 'The kettle sings the chorus you forgot', 'I left the door unlocked in case you wandered back', 'Glitter on the dashboard, gravel on the road', 'You laughed like the summer owed you something', 'I still know the creak of the third stair', 'Polaroids curling on the fridge door', 'The rain spelled out your name on the roof', 'We danced in the kitchen with the lights off', 'Your jacket smelled like bonfire and rain', 'I counted every exit and stayed anyway', 'The ferris wheel stopped right at the top', 'Postcards from a town we never visited', 'You hummed along to a song that was not playing', 'I traced the map until the creases tore', 'The moon was a coin we forgot to spend', 'Midnight felt like a secret we both kept'];
+const LOADING_MSGS = ['Fetching lyrics...', 'Digging through the vault...', 'Long story short, almost ready...', 'Shaking it off...', 'Gathering all the easter eggs...', 'In your wildest dreams...', 'This is me trying...', 'Almost out of the woods...', "It's a love story, just wait...", 'Finding the bridge...'];
+const POS = ['Purrfection', "Meow, that's impressive.", "You've earned a head boop.", 'A meow-ster guess! Incredible.', 'Nine lives, zero wrong answers.', 'You belong with this song.', 'Fearless guess.', "You're in your music era.", 'Enchanting performance.', "This is why we can't have nice quizzes — you keep winning.", 'You knew it all too well.', 'No blank space in your knowledge.', "You need to calm down — you're too good.", 'Cruel summer? More like cool guesser.', "It's me, hi, you're the winner, it's you.", "Are you sure you aren't Taylor?", "Elizabeth Taylor couldn't have done it better.", 'Uncancellable.', 'Take a bow, showgirl.', "Who's afraid of little old you? The quiz is.", 'The prophecy was right about you.', 'Pure alchemy.'];
+const LPOS = ['You read that like poetry.', 'The pen is mightier — and you know every word.', 'Straight from the page to your brain.', "You don't need a melody. The words are enough.", 'That lyric never stood a chance.', "Reading between the lines? You're reading the actual lines.", 'Ink in your veins.', 'The manuscript reveals its secrets to you.', 'No audiobook needed.', 'Your lyric radar is flawless.', 'Words are your instrument.', 'Every syllable, accounted for.', 'Chapter and verse. You know it all.', 'The songwriter would be impressed.', 'Purrfectly quoted.', 'A well-read cat is a powerful cat.', 'Cat-alogued every lyric.', 'A meow-sterpiece of lyric knowledge.', 'Written in the stars — and you read them.', 'Guilty of being lyrically brilliant.', 'Take a bow, you lyric showgirl.'];
+const BEADS = ['#F5E5D4', '#D4A0A0', '#6FA8DC', '#E97F6A', '#FBF0E6'];
+const PCOLS = ['#E97F6A', '#6FA8DC', '#D4A0A0', '#9DBF8E'];
+const SCHED = [10, 10, 15, 15, 20, 20];
+const MODES = [
+  { id: 'classic', title: 'Classic', desc: 'Everyone hears the same clip and answers. Faster right answers score more.' },
+  { id: 'quick', title: 'Quick draw', desc: 'First right answer takes the round. Guess wrong and you sit out until the next song.' },
+  { id: 'lol', title: 'Lyrics or Lie', desc: 'Everyone sees the same line and votes Real or Fake. Every right call scores.' },
+];
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+const norm = (t) => String(t).toLowerCase().replace(/\s*\([^)]*\)\s*/g, ' ').replace(/-/g, ' ').replace(/['.,?!:;"’]/g, '').replace(/\s+/g, ' ').trim();
+const lev = (a, b) => { const m = a.length, n = b.length; if (!m) return n; if (!n) return m; let p = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[n]; };
+const tol = (t) => (t.length <= 4 ? 0 : t.length <= 8 ? 1 : 2);
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const shortDate = (iso) => { const d = new Date(iso + 'T12:00:00'); return `${MON[d.getMonth()]} ${d.getDate()}`; };
+const fmtDT = (d) => `${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+const today = () => new Date().toISOString().slice(0, 10);
+const WORDS = { 5: 'Five', 10: 'Ten', 15: 'Fifteen', 20: 'Twenty', 25: 'Twenty-five', 30: 'Thirty' };
+const dayPart = () => { const h = new Date().getHours(); return h >= 5 && h < 12 ? 'morning' : h < 17 && h >= 12 ? 'afternoon' : h >= 17 && h < 23 ? 'evening' : 'night'; };
+// PROTOTYPE-ONLY: JSONP loader for the browser mock.
+let jsonpN = 0;
+const jsonp = (url) => new Promise((res, rej) => {
+  const cb = `__sqdz${++jsonpN}_${Date.now()}`, s = document.createElement('script');
+  const done = () => { clearTimeout(to); delete window[cb]; s.remove(); };
+  const to = setTimeout(() => { done(); rej('timeout'); }, 10000);
+  window[cb] = (d) => { done(); d && d.error ? rej(d.error) : res(d); };
+  s.onerror = () => { done(); rej('error'); };
+  s.src = `${url}${url.includes('?') ? '&' : '?'}output=jsonp&callback=${cb}`;
+  document.head.appendChild(s);
+});
+// PROTOTYPE-ONLY: demo progress so Ana's edition opens with a few records on the shelf.
+const seedStats = () => ({ total: 12, albums: ['ts', 'red', '1989', 'evermore', 'folklore'], per: {}, lyricsTotal: 1, nts: 1, lol: 0 });
+const emptyStats = () => ({ total: 0, albums: [], per: {}, lyricsTotal: 0, nts: 0, lol: 0 });
+const seedUnlocked = () => ({
+  first_meow: { date: '2026-09-12', song: 'Tim McGraw', album: 'ts' },
+  getting_warmed_up: { date: '2026-09-14', song: 'All Too Well', album: 'red' },
+  album_explorer: { date: '2026-09-20', song: 'Style', album: '1989' },
+  lyric_lover: { date: '2026-10-01', song: 'champagne problems', album: 'evermore' },
+});
+const SCREEN_LABELS = { nickname: 'First launch', menu: 'Main menu', eras: 'Pick your eras', setup: 'Set up', lyricsLoading: 'Lyrics loading', game: 'Game', summary: 'Round summary', shelf: 'Record shelf', settings: 'Settings', notes: 'Notes', together: 'Play together', mpHost: 'Host a room', mpJoin: 'Join a room', mpLobby: 'Lobby', mpGame: 'Multiplayer round', mpEnd: 'Final standings' };
+
+class Component extends DCLogic {
+  scrollRef = React.createRef();
+  spinRef = React.createRef();
+  inputRef = React.createRef();
+  _t = {};
+  _recent = [];
+  _catWait = [];
+  constructor(props) {
+    super(props);
+    this.state = this.fresh(props.edition ?? 'ana');
+  }
+  fresh(edition) {
+    const ana = edition === 'ana';
+    return {
+      edition, w: typeof window !== 'undefined' ? window.innerWidth : 1280, vh: typeof window !== 'undefined' ? window.innerHeight : 900, sysDark: true,
+      themeSet: null, volume: 0.8, mediumTimer: 30, hardTimer: 20, misuFreq: 'sometimes', autoCheck: true, lastChecked: new Date(Date.now() - 3 * 3600e3),
+      nickname: '', nickDraft: '', version: '0.3.0', updState: null, dl: 0, updOpen: false, checking: false, checkMsg: '', restarting: false,
+      phase: ana ? 'menu' : 'nickname', enter: false, greeted: false, introShown: false,
+      catalog: 'idle', albums: {},
+      selected: [], source: 'all', type: 'sound', lmode: 'nts', diff: 'medium',
+      g: null, audio: { status: 'idle', t: 0, dur: 10, stage: 0, offset: 0 }, overlay: false,
+      streak: 0, beads: [], quack: 0, quackKey: 0, missRun: 0, session: { sound: 0, lyrics: 0 }, lastMisuRound: -99,
+      stats: ana ? seedStats() : emptyStats(), unlocked: ana ? seedUnlocked() : {},
+      ll: null, lastAlbum: null, cardOpen: false, cardShown: false, catHover: false, catDown: false, misu: null, toasts: [], dialog: null, shelfHover: null,
+      mpCfg: { mode: 'classic', rounds: 10, diff: 'medium' }, mp: null, joinCode: '', joinErr: '', joining: false, hostErr: '',
+    };
+  }
+  net() { return this.props.network ?? 'live'; }
+  later(k, ms, fn) { this.clear(k); this._t[k] = setTimeout(() => { delete this._t[k]; fn(); }, ms); }
+  every(k, ms, fn) { this.clear(k); this._t[k] = setInterval(fn, ms); }
+  clear(k) { const t = this._t[k]; if (t) { clearTimeout(t); clearInterval(t); delete this._t[k]; } }
+  clearPrefix(p) { Object.keys(this._t).forEach((k) => { if (k.startsWith(p)) this.clear(k); }); }
+
+  componentDidMount() {
+    this._onResize = () => this.setState({ w: window.innerWidth, vh: window.innerHeight });
+    window.addEventListener('resize', this._onResize);
+    this._mq = window.matchMedia('(prefers-color-scheme: dark)');
+    this._onMq = () => this.setState({ sysDark: this._mq.matches });
+    this._mq.addEventListener('change', this._onMq);
+    this._onKey = (e) => this.onKey(e);
+    window.addEventListener('keydown', this._onKey);
+    this.setState({ sysDark: this._mq.matches });
+    let last = performance.now(), ang = 0;
+    const loop = (now) => {
+      const dt = now - last; last = now;
+      const s = this.state, spinning = s.audio.status === 'playing';
+      if (spinning) ang = (ang + dt * 0.2) % 360;
+      if (this.spinRef.current) this.spinRef.current.style.transform = `rotate(${ang}deg)`;
+      this._raf = requestAnimationFrame(loop);
+    };
+    this._raf = requestAnimationFrame(loop);
+    this.loadCatalog();
+    this.onEnter(this.state.phase);
+  }
+  componentDidUpdate(prev) {
+    if ((prev.edition ?? 'ana') !== (this.props.edition ?? 'ana')) this.resetEdition();
+    if (prev.theme !== this.props.theme) this.setState({ themeSet: null });
+    if (prev.update !== this.props.update) { this.clear('dl'); this.setState({ updState: null, updOpen: false, version: '0.3.0', checkMsg: '' }); }
+    if (prev.network !== this.props.network && this.state.catalog === 'error') this.loadCatalog(true);
+    if (prev.birthday !== this.props.birthday) this.setState({ greeted: false, cardShown: false }, () => { if (this.state.phase === 'menu') this.onEnter('menu'); });
+  }
+  componentWillUnmount() {
+    Object.keys(this._t).forEach((k) => this.clear(k));
+    cancelAnimationFrame(this._raf);
+    window.removeEventListener('resize', this._onResize);
+    window.removeEventListener('keydown', this._onKey);
+    this._mq && this._mq.removeEventListener('change', this._onMq);
+    this.stopAudio();
+  }
+  resetEdition() {
+    Object.keys(this._t).forEach((k) => this.clear(k));
+    this.stopAudio();
+    const keep = { w: this.state.w, vh: this.state.vh, sysDark: this.state.sysDark, catalog: this.state.catalog, albums: this.state.albums };
+    this.setState({ ...this.fresh(this.props.edition ?? 'ana'), ...keep }, () => this.onEnter(this.state.phase));
+  }
+
+  name() { return this.state.edition === 'ana' ? 'Ana' : (this.state.nickname || 'you'); }
+  ana() { return this.state.edition === 'ana'; }
+  line(kind, x) {
+    const a = this.ana(), n = this.name();
+    const part = dayPart();
+    const L = {
+      greet: a ? { morning: "Morning, Ana. I've been up since five.", afternoon: "Nap's over. Let's play, Ana.", evening: 'Saved you a spot on the couch, Ana.', night: "It's late, Ana. One more round?" }[part]
+        : { morning: `Morning, ${n}. Misu's been up since five.`, afternoon: `Nap's over, ${n}. Misu's ready.`, evening: `Misu saved you a spot on the couch, ${n}.`, night: `It's late, ${n}. Misu says one more round.` }[part],
+            intro: "I'm Misu. I'll drop by now and then.",
+      streak5: a ? `${WORDS[x] || x} in a row, Ana. My tail is doing the thing.` : `${WORDS[x] || x} in a row, ${n}. Misu's tail is doing the thing.`,
+      streak10: a ? "Ten in a row. I'm telling everyone." : "Ten in a row. Misu's telling everyone.",
+      miss3: a ? "I'm not judging. I'm a little judging." : "Misu isn't judging. Misu is a little judging.",
+      sumHigh: a ? "Even I'm impressed. And I'm a cat." : `Even Misu's impressed, ${n}.`,
+      sumMid: a ? "Solid round. I'd like a treat for this." : 'Solid round. Misu approves.',
+      sumLow: a ? 'Shake it off. Again?' : `Shake it off, ${n}. Again?`,
+      close: a ? `${x} seconds apart. I'm calling it a tie.` : `${x} seconds apart. Misu calls it a tie.`,
+      mpWin: a ? 'You won! I knew you would.' : `You won, ${n}! Misu knew it.`,
+    };
+    return L[kind];
+  }
+
+  go(phase, patch = {}) {
+    this.clearPrefix('p:');
+    if (!phase.startsWith('mp') && phase !== 'game') this.clearPrefix('m:');
+    if (phase !== 'game') { this.clearPrefix('g:'); this.stopAudio(); }
+    this.stopShelfAudio();
+    this.setState({ phase, enter: true, overlay: false, cardOpen: false, ...patch }, () => {
+      if (this.scrollRef.current) this.scrollRef.current.scrollTop = 0;
+      requestAnimationFrame(() => requestAnimationFrame(() => this.setState({ enter: false })));
+      this.onEnter(phase);
+    });
+  }
+  onEnter(p) {
+    const s = this.state;
+    if (p === 'menu' && !s.greeted) {
+      this.later('p:greet', this.ana() && this.props.birthday ? 1000 : 900, () => {
+        this.setState({ greeted: true });
+        // Ana's edition, on her birthday: the card opens by itself once per session (same as v0.3.0's 1 s auto-show).
+        if (this.ana() && this.props.birthday && !this.state.cardShown) this.setState({ cardOpen: true, cardShown: true });
+        else this.misu(this.line('greet'), { side: 'right' });
+      });
+    }
+    if (p === 'nickname' && !s.introShown) this.later('p:intro', 800, () => { this.setState({ introShown: true }); this.misu(this.line('intro'), { side: 'right', force: true, long: true }); });
+    if (p === 'nickname') this.later('p:focus', 400, () => this.inputRef.current && this.inputRef.current.focus());
+    if (p === 'eras' && s.catalog === 'error') this.loadCatalog(true);
+  }
+  onKey(e) {
+    const s = this.state, k = e.key, tag = (e.target && e.target.tagName) || '';
+    const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+    if (k === 'Escape') { if (s.cardOpen) return this.setState({ cardOpen: false }); if (s.dialog) return this.setState({ dialog: null }); if (s.updOpen) return this.setState({ updOpen: false }); if (s.misu) return this.hideMisu(); }
+    if (s.dialog || s.updOpen) return;
+    if (s.phase === 'game' && s.g) {
+      const g = s.g;
+      if (g.status === 'answered' && k === 'Enter') { e.preventDefault(); return this.next(); }
+      if (g.status !== 'playing' || typing) return;
+      if (k === ' ' && s.type === 'sound') { e.preventDefault(); return this.togglePlay(); }
+      const lol = s.type === 'lyrics' && s.lmode === 'lol';
+      if (lol && (k === 'r' || k === 'R')) return this.answer(true);
+      if (lol && (k === 'f' || k === 'F')) return this.answer(false);
+      if (!lol && s.diff !== 'hard' && /^[1-4]$/.test(k) && g.options[+k - 1]) return this.answer(g.options[+k - 1].id);
+    }
+    if (s.phase === 'mpGame' && s.mp && s.mp.stage === 'round' && !typing) {
+      const m = s.mp;
+      if (m.mode === 'lol' && (k === 'r' || k === 'R')) return this.mpAnswer(true);
+      if (m.mode === 'lol' && (k === 'f' || k === 'F')) return this.mpAnswer(false);
+      if (m.mode !== 'lol' && /^[1-4]$/.test(k) && m.options[+k - 1]) return this.mpAnswer(m.options[+k - 1].id);
+    }
+  }
+
+  // catalog
+  loadCatalog(force) {
+    const s = this.state;
+    if (!force && (s.catalog === 'loading' || s.catalog === 'ready')) return;
+    this.setState({ catalog: 'loading' });
+    const t0 = Date.now(), net = this.net(), min = net === 'slow' ? 3500 : 1100;
+    if (net === 'offline') { this.later('cat', 1600, () => { this.setState({ catalog: 'error' }); this.flushCat(false); }); return; }
+    Promise.all(AL.map((a) => jsonp(`${DZ}/album/${a.dz}`).catch(() => null))).then((res) => {
+      const albums = {}, seen = new Set();
+      res.forEach((d, i) => {
+        const a = AL[i];
+        const tracks = d && d.tracks && d.tracks.data
+          ? d.tracks.data.map((t, j) => ({ id: String(t.id), title: String(t.title_short || t.title).replace(/\s*[([](Taylor['’]s Version|From The Vault)[^)\]]*[)\]]/gi, '').trim(), preview: t.preview || null, pos: j + 1, album: a.key }))
+          : FALL[a.key].map((title, j) => ({ id: `${a.key}-${j}`, title, preview: null, pos: null, album: a.key }));
+        albums[a.key] = { cover: d ? d.cover_big || d.cover_medium : null, tracks: tracks.filter((t) => { const n = a.key + norm(t.title); if (seen.has(n)) return false; seen.add(n); return true; }) };
+      });
+      this.later('cat', Math.max(0, min - (Date.now() - t0)), () => { this.setState({ catalog: 'ready', albums }); this.flushCat(true); });
+    });
+  }
+  whenCatalog(ok, fail) {
+    const c = this.state.catalog;
+    if (c === 'ready') return ok();
+    if (c === 'error') return fail();
+    this._catWait.push([ok, fail]);
+    if (c === 'idle') this.loadCatalog();
+  }
+  flushCat(ok) { const w = this._catWait; this._catWait = []; w.forEach(([a, b]) => (ok ? a() : b())); }
+  cover(key) { const a = this.state.albums[key]; return a ? a.cover : null; }
+  tracksOf(keys) { const A = this.state.albums; return keys.flatMap((k) => (A[k] ? A[k].tracks : [])); }
+  tonight() { const d = new Date(), start = new Date(d.getFullYear(), 0, 0); return AL[Math.floor((d - start) / 864e5) % AL.length]; }
+  poolKeys() { const s = this.state; return s.source === 'era' ? [this.tonight().key] : s.source === 'eras' && s.selected.length ? s.selected : AL.map((a) => a.key); }
+  pool() { const p = this.tracksOf(this.poolKeys()); return p.length ? p : this.tracksOf(AL.map((a) => a.key)); }
+  options(track, pool) { const others = shuffle(pool.filter((t) => t.id !== track.id && norm(t.title) !== norm(track.title))); const extra = others.length >= 3 ? others : shuffle(this.tracksOf(AL.map((a) => a.key)).filter((t) => t.id !== track.id)); const seen = new Set([norm(track.title)]), out = [track]; for (const t of extra) { if (out.length === 4) break; if (!seen.has(norm(t.title))) { seen.add(norm(t.title)); out.push(t); } } return shuffle(out); }
+  pickTrack(pool) { const c = pool.filter((t) => !this._recent.includes(t.id)); const t = pick(c.length ? c : pool); this._recent = [...this._recent.slice(-10), t.id]; return t; }
+  // PROTOTYPE-ONLY data (SAMPLE lines). The fake-source rules (same album on Hard, nearby eras on Medium, distant eras on Easy) ARE the intended behaviour.
+  lyrFor(track, mode, diff) {
+    const n = mode === 'nts' ? { easy: 4, medium: 3, hard: 2 }[diff] : { easy: 3, medium: 2, hard: 1 }[diff];
+    const lines = shuffle(SAMPLE).slice(0, n);
+    if (mode !== 'lol') return { lines };
+    const isReal = Math.random() < 0.5;
+    const all = this.tracksOf(AL.map((a) => a.key)).filter((t) => t.id !== track.id);
+    const ai = ALK[track.album].i;
+    const src = diff === 'hard' ? all.filter((t) => t.album === track.album) : diff === 'medium' ? all.filter((t) => t.album !== track.album && Math.abs(ALK[t.album].i - ai) <= 2) : all.filter((t) => Math.abs(ALK[t.album].i - ai) >= 4);
+    return { lines, isReal, source: isReal ? null : pick(src.length ? src : all) };
+  }
+
+  // audio
+  stopAudio() { this.clear('g:tick'); this.clear('m:tick'); this.clear('g:audto'); if (this.au) { try { this.au.pause(); } catch (e) {} } this.au = null; if (this.state && this.state.audio && this.state.audio.status !== 'idle') this.setState({ audio: { status: 'idle', t: 0, dur: 10, stage: 0, offset: 0 } }); }
+  loadAudio(track, ready, pref = 'g') {
+    this.stopAudio();
+    this.setState({ audio: { status: 'loading', t: 0, dur: 10, stage: 0, offset: 0 } });
+    const slow = this.net() === 'slow' ? 1400 : 0;
+    if (!track.preview || this.net() === 'offline') { this.later(`${pref}:aud`, 700 + slow, () => { this.au = null; ready(); }); return; }
+    const au = new Audio(); let done = false;
+    const fin = (ok) => { if (done) return; done = true; this.clear(`${pref}:audto`); this.later(`${pref}:aud`, slow, () => { this.au = ok ? au : null; ready(); }); };
+    au.preload = 'auto'; au.volume = this.state.volume;
+    au.addEventListener('canplay', () => fin(true), { once: true });
+    au.addEventListener('error', () => fin(false), { once: true });
+    this.later(`${pref}:audto`, 6000, () => fin(false));
+    au.src = track.preview; au.load();
+  }
+  playSlice(stage, pref = 'g') {
+    const full = stage > SCHED.length, offset = full ? 0 : 8, dur = full ? 30 : SCHED[stage - 1];
+    this.setState({ audio: { status: 'playing', t: 0, dur, stage, offset } });
+    if (this.au) { try { this.au.currentTime = offset; this.au.volume = this.state.volume; const p = this.au.play(); p && p.catch(() => { this.au = null; }); } catch (e) { this.au = null; } }
+    this.every(`${pref}:tick`, 100, () => {
+      const a = this.state.audio; if (a.status !== 'playing') return;
+      const t = this.au ? this.au.currentTime - a.offset : a.t + 0.1;
+      if (t >= a.dur) { this.clear(`${pref}:tick`); if (this.au) this.au.pause(); this.setState({ audio: { ...a, t: a.dur, status: 'ended' } }); }
+      else this.setState({ audio: { ...a, t: Math.max(0, t) } });
+    });
+  }
+  togglePlay(pref = 'g') {
+    const a = this.state.audio;
+    if (a.status === 'playing') { this.clear(`${pref}:tick`); if (this.au) this.au.pause(); this.setState({ audio: { ...a, status: 'paused' } }); }
+    else if (a.status === 'paused') { if (this.au) this.au.play().catch(() => {}); this.setState({ audio: { ...a, status: 'playing' } }, () => this.resumeTick(pref)); }
+    else if (a.status === 'ended') this.playSlice(a.stage + 1, pref);
+    else if (a.status === 'idle') this.playSlice(1, pref);
+  }
+  resumeTick(pref) {
+    this.every(`${pref}:tick`, 100, () => {
+      const a = this.state.audio; if (a.status !== 'playing') return;
+      const t = this.au ? this.au.currentTime - a.offset : a.t + 0.1;
+      if (t >= a.dur) { this.clear(`${pref}:tick`); if (this.au) this.au.pause(); this.setState({ audio: { ...a, t: a.dur, status: 'ended' } }); } else this.setState({ audio: { ...a, t: Math.max(0, t) } });
+    });
+  }
+  // PROTOTYPE-ONLY: synthesized quack. The app plays assets/sounds/quack.mp3.
+  quackSound(level) {
+    try {
+      const C = this._ac || (this._ac = new (window.AudioContext || window.webkitAudioContext)());
+      const n = Math.min(level, 5);
+      for (let i = 0; i < n; i++) {
+        const t = C.currentTime + i * 0.13, o = C.createOscillator(), g = C.createGain(), f = C.createBiquadFilter();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(620 + i * 40, t); o.frequency.exponentialRampToValueAtTime(260, t + 0.16);
+        f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 3;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.001, this.state.volume * 0.5), t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        o.connect(f); f.connect(g); g.connect(C.destination); o.start(t); o.stop(t + 0.2);
+      }
+    } catch (e) {}
+  }
+
+  // solo game
+  timerSecs() { const s = this.state; return s.diff === 'medium' ? s.mediumTimer : s.diff === 'hard' ? s.hardTimer : 0; }
+  startSetup(source) { this.go('setup', { source }); }
+  quickRound() { this.setState({ source: 'era', type: 'sound', diff: 'medium' }, () => this.startGame(10)); }
+  startGame(total = null) {
+    const s = this.state;
+    this._recent = [];
+    const g = { n: 0, total, status: 'loading', results: [], track: null, options: [], lyr: null };
+    if (s.type === 'lyrics') { this.go('lyricsLoading', { g, streak: 0, beads: [], quack: 0, missRun: 0, lastMisuRound: -99, ll: { msg: 0, done: 0, total: 0, status: 'loading' } }); this.runLyricsLoading(); return; }
+    this.go('game', { g, streak: 0, beads: [], quack: 0, missRun: 0, lastMisuRound: -99 });
+    const t0 = Date.now();
+    this.whenCatalog(() => this.later('g:start', Math.max(0, 1300 - (Date.now() - t0)), () => this.beginRound(true)), () => this.setState({ g: { ...this.state.g, status: 'error' } }));
+  }
+  retryGame() { this.setState({ g: { ...this.state.g, status: 'loading' } }); this.loadCatalog(true); const t0 = Date.now(); this.whenCatalog(() => this.later('g:start', Math.max(0, 1300 - (Date.now() - t0)), () => this.beginRound(true)), () => this.setState({ g: { ...this.state.g, status: 'error' } })); }
+  runLyricsLoading() {
+    this.later('p:ll0', 30, () => {
+      const fail = () => this.setState({ ll: { ...this.state.ll, status: 'error' } });
+      this.whenCatalog(() => {
+        if (this.net() === 'offline') return fail();
+        const total = Math.min(40, this.pool().length), dur = this.net() === 'slow' ? 9000 : 4600;
+        this.setState({ ll: { msg: 0, done: 0, total, status: 'loading' } });
+        this.every('p:llmsg', 3000, () => this.setState((x) => ({ ll: { ...x.ll, msg: (x.ll.msg + 1) % LOADING_MSGS.length } })));
+        this.every('p:llprog', dur / total, () => {
+          const ll = this.state.ll; if (ll.done + 1 >= ll.total) { this.clearPrefix('p:ll'); this.setState({ ll: { ...ll, done: ll.total } }); this.later('p:llgo', 350, () => { this.go('game'); this.beginRound(true); }); }
+          else this.setState({ ll: { ...ll, done: ll.done + 1 } });
+        });
+      }, fail);
+    });
+  }
+  beginRound(first) {
+    const s = this.state, lyr = s.type === 'lyrics', pool = this.pool(), track = this.pickTrack(pool);
+    const g = { ...s.g, n: s.g.n + 1, status: first || lyr ? 'playing' : 'loading', track, options: this.options(track, pool), lyr: lyr ? this.lyrFor(track, s.lmode, s.diff) : null, pick: null, typed: '', correct: null, timeout: false, close: false, msg: '', nextReady: false, timeLeft: this.timerSecs(), startedAt: Date.now() };
+    this.clear('g:next');
+    if (lyr) { this.setState({ g, overlay: false }, () => this.startTimer()); return; }
+    const t0 = Date.now();
+    this.setState({ g, overlay: !first });
+    this.loadAudio(track, () => {
+      this.later('g:min', first ? 0 : Math.max(0, 450 - (Date.now() - t0)), () => {
+        this.setState({ g: { ...this.state.g, status: 'playing' }, overlay: false }, () => { this.playSlice(1); this.startTimer(); });
+      });
+    });
+  }
+  startTimer() {
+    const secs = this.timerSecs(), start = Date.now();
+    this.setState({ g: { ...this.state.g, startedAt: start, timeLeft: secs } });
+    if (!secs) return;
+    this.every('g:timer', 100, () => {
+      const g = this.state.g; if (!g || g.status !== 'playing') return;
+      const left = secs - (Date.now() - start) / 1000;
+      if (left <= 0) { this.clear('g:timer'); this.setState({ g: { ...g, timeLeft: 0 } }, () => this.answer(null, true)); }
+      else this.setState({ g: { ...g, timeLeft: left } });
+    });
+  }
+  answer(val, timeout = false) {
+    const s = this.state, g = s.g;
+    if (!g || g.status !== 'playing') return;
+    this.clear('g:timer');
+    const lyr = s.type === 'lyrics', lol = lyr && s.lmode === 'lol', usedFull = !lyr && s.audio.stage > SCHED.length;
+    this.stopAudio();
+    let correct = false, close = false;
+    if (!timeout) {
+      if (lol) correct = val === g.lyr.isReal;
+      else if (s.diff === 'hard') { const a = norm(val || ''), b = norm(g.track.title); correct = !!a && (a === b || lev(a, b) <= tol(b)); close = correct && a !== b; }
+      else correct = val === g.track.id;
+    }
+    const elapsed = (Date.now() - g.startedAt) / 1000;
+    const streak = correct ? s.streak + 1 : 0, quack = correct ? 0 : s.quack + 1, missRun = correct ? 0 : s.missRun + 1;
+    let stats = s.stats, session = s.session;
+    if (correct) {
+      const t = g.track, per = { ...stats.per, [t.album]: [...new Set([...(stats.per[t.album] || []), t.id])] };
+      stats = { ...stats, total: stats.total + 1, albums: stats.albums.includes(t.album) ? stats.albums : [...stats.albums, t.album], per, lyricsTotal: stats.lyricsTotal + (lyr ? 1 : 0), nts: stats.nts + (lyr && !lol ? 1 : 0), lol: stats.lol + (lol ? 1 : 0) };
+      session = { sound: session.sound + (lyr ? 0 : 1), lyrics: session.lyrics + (lyr ? 1 : 0) };
+    }
+    const bag = lyr ? LPOS : POS; let msg = pick(bag); if (msg === g.msg) msg = pick(bag);
+    const beads = correct ? [...s.beads, BEADS[s.beads.length % BEADS.length]] : [];
+    this.setState({ lastAlbum: g.track.album });
+    this.setState({ g: { ...g, status: 'answered', pick: val, typed: g.typed, correct, timeout, close, msg, results: [...g.results, { track: g.track, correct }] }, streak, quack, missRun, stats, session, beads, quackKey: correct ? s.quackKey : s.quackKey + 1 }, () => {
+      this.checkAch({ correct, streak, quack, elapsed, usedFull, lyr, track: g.track });
+      if (correct && streak >= 5 && streak % 5 === 0) this.misuGame(streak === 10 ? this.line('streak10') : this.line('streak5', streak));
+      if (!correct && missRun === 3) this.misuGame(this.line('miss3'));
+    });
+    if (!correct) this.quackSound(quack);
+    this.later('g:next', 2000, () => this.setState({ g: { ...this.state.g, nextReady: true } }));
+  }
+  next() {
+    const g = this.state.g; if (!g || !g.nextReady) return;
+    if (g.total && g.n >= g.total) return this.endQuick();
+    this.beginRound(false);
+  }
+  endQuick() {
+    const g = this.state.g, right = g.results.filter((r) => r.correct).length;
+    this.go('summary');
+    this.later('p:sum', 900, () => this.misu(this.line(right >= 8 ? 'sumHigh' : right >= 5 ? 'sumMid' : 'sumLow'), { side: 'right' }));
+  }
+  exitGame() { this.go('menu'); }
+  checkAch(c) {
+    const s = this.state, st = s.stats, diff = s.diff, lyr = c.lyr;
+    const cond = {
+      first_meow: st.total >= 1, getting_warmed_up: st.total >= 10, purrfect_streak: c.streak >= 10, album_explorer: st.albums.length >= 5,
+      album_completionist: Object.entries(st.per).some(([k, ids]) => s.albums[k] && s.albums[k].tracks.length > 0 && ids.length >= s.albums[k].tracks.length),
+      hard_mode_hero: diff === 'hard' && st.total >= 5, speed_demon: c.elapsed <= 3, persistent_listener: c.usedFull, all_ears: st.total >= 50,
+      lyric_lover: st.lyricsTotal >= 1, poet_laureate: st.nts >= 20, lie_detector: st.lol >= 15, dual_threat: s.session.sound >= 1 && s.session.lyrics >= 1, lyric_streak: lyr && c.streak >= 10,
+    };
+    const ids = ACH.filter((d) => !s.unlocked[d.id] && (d.id === 'quack_collector' ? !c.correct && c.quack >= 5 : c.correct && cond[d.id])).map((d) => d.id);
+    if (!ids.length) return;
+    const unlocked = { ...s.unlocked };
+    ids.forEach((id) => { unlocked[id] = { date: today(), song: c.track.title, album: c.track.album }; });
+    this.setState({ unlocked });
+    ids.forEach((id, i) => this.later(`ach:${id}`, i * 350, () => { const d = ACH.find((x) => x.id === id); this.toast({ kicker: 'New on your shelf', title: d.name, sub: `on ${c.track.title}`, album: c.track.album }); }));
+  }
+  toast(t) {
+    const key = `t${Date.now()}${Math.random()}`;
+    this.setState((x) => ({ toasts: [...x.toasts, { ...t, key, up: false }] }), () => requestAnimationFrame(() => requestAnimationFrame(() => this.setState((x) => ({ toasts: x.toasts.map((y) => (y.key === key ? { ...y, up: true } : y)) })))));
+    this.later(`toast:${key}`, 4000, () => this.dismissToast(key));
+  }
+  dismissToast(key) { this.clear(`toast:${key}`); this.setState((x) => ({ toasts: x.toasts.map((y) => (y.key === key ? { ...y, up: false, gone: true } : y)) })); this.later(`toast2:${key}`, 300, () => this.setState((x) => ({ toasts: x.toasts.filter((y) => y.key !== key) }))); }
+  misu(text, o = {}) {
+    if (!text || (this.state.misuFreq === 'off' && !o.force)) return;
+    this.clear('misu'); this.clear('misu2');
+    this.setState({ misu: { text, side: o.side || 'right', action: o.action || null, actionLabel: o.actionLabel || '', up: false } }, () => requestAnimationFrame(() => requestAnimationFrame(() => this.setState((x) => ({ misu: x.misu ? { ...x.misu, up: true } : null })))));
+    this.later('misu', o.long ? 7000 : 4200, () => this.hideMisu());
+  }
+  hideMisu() { this.clear('misu'); this.setState((x) => ({ misu: x.misu ? { ...x.misu, up: false } : null })); this.later('misu2', 420, () => this.setState({ misu: null })); }
+  misuGame(text) {
+    const s = this.state, gap = s.misuFreq === 'often' ? 2 : 5, n = s.g ? s.g.n : 0;
+    if (n - s.lastMisuRound < gap) return;
+    this.setState({ lastMisuRound: n });
+    this.misu(text, { side: 'left' });
+  }
+
+  // shelf hover audio
+  shelfPlay(id) {
+    const u = this.state.unlocked[id]; if (!u) return;
+    this.setState({ shelfHover: id });
+    const t = this.tracksOf([u.album]).find((x) => norm(x.title) === norm(u.song));
+    this.stopShelfAudio(true);
+    if (!t || !t.preview || this.net() === 'offline') return;
+    const au = new Audio(t.preview); au.volume = this.state.volume * 0.7; au.currentTime = 8;
+    au.play().catch(() => {}); this.shelfAu = au;
+    this.later('shelfau', 5000, () => this.stopShelfAudio());
+  }
+  stopShelfAudio(keep) { this.clear('shelfau'); if (this.shelfAu) { try { this.shelfAu.pause(); } catch (e) {} this.shelfAu = null; } if (!keep && this.state && this.state.shelfHover) this.setState({ shelfHover: null }); }
+
+  // updates
+  // PROTOTYPE-ONLY: simulated updater timings. The app uses lib/services/updater.
+  download() {
+    this.setState({ updState: 'downloading', dl: 0 });
+    this.every('dl', 110, () => { const d = this.state.dl + 3; if (d >= 100) { this.clear('dl'); this.setState({ dl: 100, updState: 'ready' }); } else this.setState({ dl: d }); });
+  }
+  install() {
+    this.setState({ updOpen: false, restarting: true });
+    this.later('restart', 1800, () => { this.setState({ restarting: false, updState: 'none', version: '0.3.1' }); this.go('menu'); this.later('rt', 500, () => this.toast({ kicker: 'Updated', title: 'Project Swiftie 0.3.1', sub: "You're on the latest version." })); });
+  }
+  checkNow() {
+    this.setState({ checking: true, checkMsg: '' });
+    this.later('chk', 1200, () => {
+      const u = this.props.update ?? 'none', net = this.net();
+      if (net === 'offline') return this.setState({ checking: false, updState: 'error', checkMsg: 'Could not reach the update server.' });
+      if ((u === 'available' || u === 'error') && this.state.version === '0.3.0') return this.setState({ checking: false, lastChecked: new Date(), updState: 'available', updOpen: true });
+      this.setState({ checking: false, lastChecked: new Date(), checkMsg: "You're up to date." });
+    });
+  }
+
+  // multiplayer
+  // PROTOTYPE-ONLY: simulated players. Real rooms come from the (not yet built) multiplayer service.
+  friends() { return this.ana() ? ['Satanshu', 'Maya', 'Leo'] : ['Jordan', 'Maya', 'Leo']; }
+  me() { return { id: 'me', name: this.name(), me: true, color: PCOLS[0], score: 0, beads: [], streak: 0, best: 0, status: '', at: null, ok: null }; }
+  bot(i) { return { id: `b${i}`, name: this.friends()[i], me: false, color: PCOLS[i + 1], score: 0, beads: [], streak: 0, best: 0, status: '', at: null, ok: null, acc: [0.72, 0.6, 0.5][i], joinedAt: Date.now() }; }
+  openRoom() {
+    if (this.net() === 'offline') return this.setState({ hostErr: "Couldn't open a room. Check your connection and try again." });
+    const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ', code = Array.from({ length: 4 }, () => pick(L.split(''))).join('');
+    this.go('mpLobby', { hostErr: '', mp: { ...this.state.mpCfg, role: 'host', code, host: this.name(), players: [this.me()], stage: 'lobby', round: 0, copied: false } });
+    [[1400, 0], [3600, 1], [6800, 2]].forEach(([ms, i]) => this.later(`m:join${i}`, ms, () => this.addBot(i)));
+  }
+  addBot(i) { const m = this.state.mp; if (!m || m.players.some((p) => p.id === `b${i}`)) return; this.setState({ mp: { ...m, players: [...m.players, this.bot(i)] } }); }
+  joinRoom() {
+    const code = this.state.joinCode.toUpperCase();
+    if (!/^[A-Z]{4}$/.test(code)) return this.setState({ joinErr: 'Room codes are 4 letters.' });
+    this.setState({ joining: true, joinErr: '' });
+    this.later('p:join', this.net() === 'slow' ? 2600 : 1100, () => {
+      if (this.net() === 'offline') return this.setState({ joining: false, joinErr: "Couldn't reach that room. Check the code and your connection." });
+      const host = this.bot(0), players = [host, this.bot(1), this.me()];
+      this.setState({ joining: false });
+      this.go('mpLobby', { mp: { mode: 'classic', rounds: 10, diff: 'medium', role: 'guest', code, host: host.name, players, stage: 'lobby', round: 0 } });
+      this.later('m:join2', 2200, () => this.addBot(2));
+      this.later('m:hoststart', 6500, () => this.startMp());
+    });
+  }
+  copyCode() { const m = this.state.mp; try { navigator.clipboard && navigator.clipboard.writeText(m.code); } catch (e) {} this.setState({ mp: { ...m, copied: true } }); this.later('m:copied', 1600, () => this.state.mp && this.setState({ mp: { ...this.state.mp, copied: false } })); }
+  mpLimit(m) { return { easy: 30, medium: 20, hard: 12 }[m.diff]; }
+  startMp() {
+    this.clearPrefix('m:join');
+    const m = this.state.mp;
+    const players = m.players.map((p) => ({ ...p, score: 0, beads: [], streak: 0, best: 0, fastest: null }));
+    this.go('mpGame', { mp: { ...m, players, round: 0, stage: 'countdown', count: 3, lastMisu: -9 } });
+    this.whenCatalog(() => this.nextMp(), () => this.setState({ mp: { ...this.state.mp, stage: 'error' } }));
+  }
+  nextMp() {
+    const m = this.state.mp, pool = this.tracksOf(AL.map((a) => a.key)), track = this.pickTrack(pool);
+    const lyr = m.mode === 'lol' ? this.lyrFor(track, 'lol', m.diff) : null;
+    const players = m.players.map((p) => ({ ...p, status: '', at: null, ok: null, pick: null, gain: 0 }));
+    this.stopAudio();
+    this.setState({ mp: { ...m, round: m.round + 1, stage: 'countdown', count: 3, track, options: this.options(track, pool), lyr, players, first: null, timeLeft: this.mpLimit(m) } });
+    if (m.mode !== 'lol') this.loadAudio(track, () => {}, 'm');
+    let c = 3;
+    this.every('m:cd', 800, () => {
+      c -= 1;
+      if (c > 0) return this.setState({ mp: { ...this.state.mp, count: c } });
+      this.clear('m:cd'); this.beginMpRound();
+    });
+  }
+  beginMpRound() {
+    const m = this.state.mp, limit = this.mpLimit(m), start = Date.now();
+    this.setState({ mp: { ...m, stage: 'round', startedAt: start, timeLeft: limit } });
+    if (m.mode !== 'lol') { if (this.state.audio.status === 'loading') this.later('m:wait', 900, () => this.state.mp.stage === 'round' && this.playSlice(1, 'm')); else this.playSlice(1, 'm'); }
+    m.players.filter((p) => !p.me).forEach((p) => {
+      const ok = Math.random() < p.acc, t = (m.mode === 'quick' ? 2.5 : 2) + Math.random() * limit * (m.mode === 'quick' ? 0.55 : 0.7);
+      this.later(`m:bot${p.id}`, t * 1000, () => this.mpBot(p.id, ok));
+    });
+    this.every('m:timer', 100, () => {
+      const x = this.state.mp; if (!x || x.stage !== 'round') return;
+      const left = limit - (Date.now() - start) / 1000;
+      if (left <= 0) { this.clear('m:timer'); this.endMp(); } else this.setState({ mp: { ...x, timeLeft: left } });
+    });
+  }
+  mpMark(id, patch) { const m = this.state.mp; const players = m.players.map((p) => (p.id === id ? { ...p, ...patch } : p)); return { ...m, players }; }
+  mpBot(id, ok) {
+    const m = this.state.mp; if (!m || m.stage !== 'round') return;
+    const at = (Date.now() - m.startedAt) / 1000;
+    const pickId = m.mode === 'lol' ? (ok ? m.lyr.isReal : !m.lyr.isReal) : ok ? m.track.id : pick(m.options.filter((o) => o.id !== m.track.id)).id;
+    let next = this.mpMark(id, { at, ok, pick: pickId, status: m.mode === 'quick' && !ok ? 'out' : 'answered' });
+    if (m.mode === 'quick' && ok && !m.first) { next = { ...next, first: id }; this.setState({ mp: next }); return this.endMp(); }
+    this.setState({ mp: next }, () => this.mpMaybeEnd());
+  }
+  mpAnswer(val) {
+    const m = this.state.mp; if (!m || m.stage !== 'round') return;
+    const me = m.players.find((p) => p.me); if (me.status) return;
+    const at = (Date.now() - m.startedAt) / 1000, ok = m.mode === 'lol' ? val === m.lyr.isReal : val === m.track.id;
+    let next = this.mpMark('me', { at, ok, pick: val, status: m.mode === 'quick' && !ok ? 'out' : 'answered' });
+    if (m.mode === 'quick' && ok && !m.first) { next = { ...next, first: 'me' }; this.setState({ mp: next }); return this.endMp(); }
+    if (!ok && m.mode === 'quick') this.quackSound(1);
+    this.setState({ mp: next }, () => this.mpMaybeEnd());
+  }
+  mpMaybeEnd() { const m = this.state.mp; if (m.players.every((p) => p.status)) this.later('m:end', 600, () => this.endMp()); }
+  endMp() {
+    this.clearPrefix('m:bot'); this.clear('m:timer'); this.clear('m:end'); this.stopAudio();
+    const m = this.state.mp; if (m.stage !== 'round') return;
+    const limit = this.mpLimit(m);
+    const players = m.players.map((p) => {
+      let gain = 0;
+      if (m.mode === 'quick') gain = m.first === p.id ? 100 : 0;
+      else if (p.ok) gain = m.mode === 'classic' ? 100 + Math.round(100 * Math.max(0, limit - p.at) / limit) : 100;
+      const won = gain > 0, streak = won ? p.streak + 1 : 0;
+      const fastest = won && p.at != null && (!p.fastest || p.at < p.fastest.t) ? { t: p.at, song: m.track.title } : p.fastest;
+      return { ...p, gain, score: p.score + gain, streak, best: Math.max(p.best, streak), beads: won ? [...p.beads, p.color] : p.beads, fastest };
+    });
+    this.setState({ mp: { ...m, players, stage: 'reveal', revealLeft: 6 }, lastAlbum: m.track.album });
+    const right = players.filter((p) => p.ok && p.at != null).sort((a, b) => a.at - b.at);
+    if (m.mode === 'classic' && right.length >= 2 && right[1].at - right[0].at < 0.5 && m.round - m.lastMisu >= 3) {
+      this.setState({ mp: { ...this.state.mp, lastMisu: m.round } });
+      this.misu(this.line('close', (right[1].at - right[0].at).toFixed(1)), { side: 'right' });
+    }
+    this.every('m:rev', 1000, () => {
+      const x = this.state.mp; const left = x.revealLeft - 1;
+      if (left > 0) return this.setState({ mp: { ...x, revealLeft: left } });
+      this.clear('m:rev'); this.mpAdvance();
+    });
+  }
+  mpAdvance() { this.clear('m:rev'); const m = this.state.mp; if (m.round >= m.rounds) { this.go('mpEnd'); const top = [...m.players].sort((a, b) => b.score - a.score)[0]; if (top.me) this.later('p:win', 900, () => this.misu(this.line('mpWin'), { side: 'right' })); } else this.nextMp(); }
+  leaveRoom() { this.setState({ dialog: { title: 'Leave the room?', message: 'You can join again with the same code while the room is open.', confirm: 'Leave', destructive: true, run: () => { this.clearPrefix('m:'); this.go('menu', { mp: null }); } } }); }
+  playAgain() { const m = this.state.mp; this.go('mpLobby', { mp: { ...m, stage: 'lobby', round: 0, players: m.players.map((p) => ({ ...p, score: 0, beads: [], streak: 0, best: 0, fastest: null })) } }); }
+
+  renderVals() {
+    const s = this.state, P = s.phase, ana = this.ana(), nm = this.name();
+    const themeSetting = s.themeSet ?? this.props.theme ?? 'dark';
+    const themeAttr = themeSetting === 'system' ? (s.sysDark ? 'dark' : 'light') : themeSetting;
+    const platform = this.props.platform ?? 'macos', isWin = platform === 'windows';
+    const [W, H] = { minimum: [686, 571], large: [1280, 900] }[this.props.windowSize] || [1024, 800];
+    const scale = Math.min(1, (s.w - 48) / W, (s.vh - 48) / H);
+    const narrow = W < 900, large = W >= 1200;
+    const px = (n) => `${Math.round(n)}px`;
+    const L = { padX: px(narrow ? 32 : large ? 72 : 56), h1: px(narrow ? 44 : large ? 64 : 56), rowT: px(narrow ? 30 : 38), leftCol: px(narrow ? 250 : large ? 460 : 380), gap: px(narrow ? 28 : 56) };
+    const cols = (n) => `repeat(${n},minmax(0,1fr))`;
+    const go = (p, patch) => () => this.go(p, patch);
+    const albumImg = (key) => this.cover(key);
+    const ph = (key) => (ALK[key] ? ALK[key].ph : 'var(--card)');
+
+    // record (main game)
+    const recS = narrow ? 200 : large ? 320 : 270;
+    const g = s.g, lyr = s.type === 'lyrics', lol = lyr && s.lmode === 'lol', easy = s.diff === 'easy', hard = s.diff === 'hard';
+    const answered = g && g.status === 'answered', playing = g && g.status === 'playing';
+    const recTrack = P === 'mpGame' && s.mp ? s.mp.track : g && g.track;
+    const recRevealed = P === 'mpGame' && s.mp ? s.mp.stage === 'reveal' || s.mp.diff === 'easy' : answered || easy;
+    const recCover = recTrack ? albumImg(recTrack.album) : null;
+    // The sleeve's back face keeps the LAST revealed album while flipping back, so the next song's cover is never visible on Medium/Hard.
+    const backKey = recRevealed && recTrack ? recTrack.album : s.lastAlbum;
+    const backCover = backKey ? albumImg(backKey) : null;
+    const rec = {
+      box: px(recS * 1.47), size: px(recS), disc: px(recS * 0.94), discTop: px(recS * 0.03),
+      discX: px(recS * ((P === 'mpGame' ? s.mp && s.mp.stage === 'reveal' : answered) ? 0.52 : 0.4)),
+      flip: recRevealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
+      hasBack: !!backCover, backSrc: backCover || '', backPh: backKey ? ph(backKey) : 'var(--sleeve)', labelSrc: recCover || '',
+      labelCover: recRevealed && !!recCover, label: px(recS * 0.33), hole: px(Math.max(6, recS * 0.03)),
+    };
+    const a = s.audio, clipPct = a.dur ? `${Math.min(100, (a.t / a.dur) * 100)}%` : '0%';
+    const transport = {
+      loading: a.status === 'loading', ready: a.status !== 'loading',
+      icon: a.status === 'playing' ? 'pause' : a.status === 'ended' ? 'again' : 'play',
+      isPause: a.status === 'playing', isPlay: a.status === 'paused' || a.status === 'idle' || a.status === 'loading', isAgain: a.status === 'ended',
+      pct: clipPct, time: `${Math.floor(a.t)}s / ${a.dur}s`,
+      caption: a.status === 'ended' ? (a.stage >= SCHED.length ? 'Play full clip (30s)' : `Listen again (${SCHED[a.stage] || 30}s)`) : a.status === 'paused' ? 'Paused' : a.status === 'loading' ? 'Loading the clip…' : 'Space to pause',
+      extended: a.stage >= 3,
+    };
+
+    // header bracelet
+    const beadList = (arr, max = 10) => arr.slice(-max).map((c, i, x) => ({ c, isNew: i === x.length - 1 }));
+    const timeLeft = g ? g.timeLeft : 0, secs = this.timerSecs();
+    const timerPct = secs && g ? `${Math.max(0, (timeLeft / secs) * 100)}%` : '0%';
+    const urgent = secs && timeLeft <= secs * 0.3;
+
+    // menu
+    const part = dayPart();
+    const greetPre = { morning: 'Good morning, ', afternoon: 'Good afternoon, ', evening: 'Good evening, ', night: 'Still up, ' }[part];
+    const greetPost = part === 'night' ? '?' : '.';
+    const greetSub = { morning: 'Coffee first, then a quiz.', afternoon: 'Perfect time for a quick round.', evening: "Long story short, it's a good night for a quiz.", night: 'Midnights, but make it a quiz.' }[part];
+    const tn = this.tonight();
+    const unlockedN = ACH.filter((d) => s.unlocked[d.id]).length;
+    const menuRows = [
+      { title: 'Shuffle everything', desc: 'Every song, every era.', primary: true, onTap: () => this.startSetup('all') },
+      { title: 'Pick your eras', desc: 'Stick to the albums you love most.', primary: false, onTap: go('eras', { source: 'eras' }) },
+      { title: 'Play together', desc: 'Host a room or join one.', primary: false, onTap: go('together') },
+    ].map((r) => ({ ...r, arrowBg: r.primary ? 'var(--coral)' : 'transparent', arrowFg: r.primary ? 'var(--onCoral)' : 'var(--fg)', arrowBorder: r.primary ? 'var(--coral)' : 'var(--line2)' }));
+    const menuLinks = [
+      { label: `Record shelf · ${unlockedN} of 15`, dot: false, onTap: go('shelf') },
+      { label: 'Settings', dot: false, onTap: go('settings') },
+    ];
+
+    // eras
+    const eraTiles = AL.map((al) => {
+      const sel = s.selected.includes(al.key), c = albumImg(al.key);
+      return { era: al.era, sub: al.sub, sel, cover: c || '', hasCover: !!c, ph: al.ph, discX: sel ? '34%' : '0%', ring: sel ? '0 0 0 2px var(--coral)' : '0 0 0 0 transparent', check: sel ? 1 : 0,
+        onTap: () => this.setState((x) => ({ selected: x.selected.includes(al.key) ? x.selected.filter((k) => k !== al.key) : [...x.selected, al.key] })) };
+    });
+    const selSongs = this.tracksOf(s.selected).length;
+
+    // setup
+    const srcTitle = s.source === 'era' ? tn.era : s.source === 'eras' && s.selected.length ? (s.selected.length === 1 ? ALK[s.selected[0]].era : `Your ${s.selected.length} eras`) : 'Shuffle everything';
+    const srcSub = s.source === 'eras' && s.selected.length ? `${this.tracksOf(s.selected).length || '—'} songs` : s.catalog === 'ready' ? `${this.tracksOf(AL.map((x) => x.key)).length} songs, every era` : 'Every song, every era';
+    const stackKeys = (s.source === 'eras' && s.selected.length ? s.selected : AL.map((x) => x.key)).slice(0, 5);
+    const stack = stackKeys.map((k, i) => ({ cover: albumImg(k) || '', hasCover: !!albumImg(k), ph: ph(k), x: px(i * (narrow ? 22 : 34)), z: 10 - i, rot: `${(i - 2) * 3}deg` }));
+    const choice = (on) => ({ ring: on ? 'var(--coral)' : 'var(--line2)', dot: on ? 1 : 0, bg: on ? 'var(--card)' : 'transparent' });
+    const typeRows = [['sound', 'Sound', 'Hear a clip, name the song.'], ['lyrics', 'Lyrics', 'Read the words, test what you know.']].map(([v, t, d]) => ({ title: t, desc: d, ...choice(s.type === v), onTap: () => this.setState({ type: v }) }));
+    const lmodeRows = [['nts', 'Name That Song', 'Read the lyrics, guess the title.'], ['lol', 'Lyrics or Lie', 'See a lyric, decide if it’s real.']].map(([v, t, d]) => ({ title: t, desc: d, ...choice(s.lmode === v), onTap: () => this.setState({ lmode: v }) }));
+    const mt = `${s.mediumTimer}-second timer`, ht = `${s.hardTimer}-second timer`;
+    const feats = !lyr ? { easy: ['Multiple choice', 'Album cover shown', 'No time limit'], medium: ['Multiple choice', 'No album hint', mt], hard: ['Type your answer', 'No hints', ht] }
+      : s.lmode === 'nts' ? { easy: ['4 lyric lines from the chorus', 'Album hint', 'Multiple choice'], medium: ['3 lyric lines', 'Multiple choice', mt], hard: ['2 lyric lines, no chorus', 'Type your answer', ht] }
+        : { easy: ['3 lyric lines', 'Album cover shown', 'Fakes from different eras', 'No time limit'], medium: ['2 lyric lines', 'No hints', 'Fakes from similar albums', mt], hard: ['1 lyric line', 'No hints', 'Fakes from the same album', ht] };
+    const diffTiles = [['easy', 'Easy', 'Quick warm-up'], ['medium', 'Medium', 'The real thing'], ['hard', 'Hard', 'For true Swifties']].map(([v, t, d]) => { const on = s.diff === v; return { title: t, desc: d, border: on ? 'var(--coral)' : 'var(--line2)', bg: on ? 'var(--card)' : 'transparent', tc: on ? 'var(--fg)' : 'var(--fg)', onTap: () => this.setState({ diff: v }) }; });
+
+    // game texts
+    const modeLabel = !lyr ? 'Name That Song' : lol ? 'Lyrics or Lie' : 'Lyrics · Name That Song';
+    const diffLabel = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }[s.diff];
+    const t = g && g.track, al = t ? ALK[t.album] : null;
+    const opts = g ? g.options.map((o, i) => {
+      let st = 'idle';
+      if (answered) st = o.id === t.id ? 'right' : o.id === g.pick ? 'wrong' : 'dim';
+      const S = { idle: ['transparent', 'var(--line2)', 'var(--fg)', 'var(--hover)', 'var(--mut)', String(i + 1), '1'], right: ['var(--coral)', 'var(--coral)', 'var(--onCoral)', 'rgba(26,21,20,.14)', 'var(--onCoral)', '✓', '1'], wrong: ['var(--roseBg)', 'var(--rose)', 'var(--rose)', 'transparent', 'var(--rose)', '✕', '1'], dim: ['transparent', 'var(--line)', 'var(--faint)', 'transparent', 'var(--faint)', String(i + 1), '.55'] }[st];
+      return { label: o.title, bg: S[0], border: S[1], color: S[2], numBg: S[3], numColor: S[4], num: S[5], op: S[6], weight: st === 'right' ? 600 : 400, hb: st === 'idle' ? 'var(--coral)' : S[1], hbg: st === 'idle' ? 'var(--card)' : S[0], onTap: () => this.answer(o.id) };
+    }) : [];
+    const ttl = (() => {
+      if (!g || !t) return { pre: '', song: '', post: '' };
+      if (lol) return answered ? { pre: g.correct ? 'Right.' : g.timeout ? "Time's up." : 'Not this time.', song: '', post: '' } : { pre: '', song: '', post: '' };
+      if (!answered) return { pre: lyr ? 'Name that song.' : "What's playing?", song: '', post: '' };
+      return { pre: g.timeout ? "Time's up. It was " : 'It was ', song: t.title, post: '.' };
+    })();
+    const subLine = (() => {
+      if (!g || !t) return '';
+      if (playing) return secs ? `${Math.ceil(timeLeft)} seconds left.` : easy ? 'Take your time. The cover is your hint.' : 'Take your time.';
+      if (!answered) return '';
+      if (lol) return g.lyr.isReal ? `It's a real line from ${t.title}.` : `It's a fake. That line is from ${g.lyr.source.title}.`;
+      if (g.correct) return g.close ? `Close enough. It's spelled “${t.title}”.` : g.msg;
+      return `${al.era}${t.pos ? ` · track ${t.pos}` : ''}`;
+    })();
+    const quackN = Math.min(s.quack, 5);
+    const quackWords = answered && !g.correct ? (quackN >= 5 ? Array.from({ length: 14 }, (_, i) => { const ang = (i / 14) * Math.PI * 2; return { x: px(Math.cos(ang) * (140 + (i % 3) * 30)), y: px(Math.sin(ang) * (90 + (i % 2) * 30)), r: `${(i % 5 - 2) * 12}deg`, d: `${i * 30}ms`, size: px(18 + (i % 3) * 6), key: s.quackKey * 100 + i }; }) : Array.from({ length: quackN }, (_, i) => ({ x: px(30 + i * 34), y: px(-34 - i * 10), r: `${(i - 1) * 8}deg`, d: `${i * 120}ms`, size: px(16 + i * 2), key: s.quackKey * 100 + i }))) : [];
+    const lolBtn = (v, label, key) => {
+      let st = 'idle';
+      if (answered) st = g.lyr.isReal === v ? 'right' : g.pick === v ? 'wrong' : 'dim';
+      const S = { idle: ['transparent', 'var(--line2)', 'var(--fg)'], right: ['var(--coral)', 'var(--coral)', 'var(--onCoral)'], wrong: ['var(--roseBg)', 'var(--rose)', 'var(--rose)'], dim: ['transparent', 'var(--line)', 'var(--faint)'] }[st];
+      return { label, key, bg: S[0], border: S[1], color: S[2], hb: st === 'idle' ? 'var(--coral)' : S[1], onTap: () => this.answer(v) };
+    };
+    const results = g ? g.results : [];
+    const right = results.filter((r) => r.correct).length;
+
+    // shelf
+    const shelf = ACH.map((d) => {
+      const u = s.unlocked[d.id], k = u && u.album, c = k ? albumImg(k) : null, hov = s.shelfHover === d.id;
+      return { name: d.name, desc: d.desc, on: !!u, off: !u, hint: d.hint, sub: u ? `on ${u.song} · ${shortDate(u.date)}` : '', cover: c || '', hasCover: !!c, ph: k ? ph(k) : 'var(--card)', discY: hov ? '-44%' : '-30%', discX: hov ? '30%' : '22%', enter: () => this.shelfPlay(d.id), leave: () => this.stopShelfAudio() };
+    });
+
+    // settings
+    const seg = (cur, list, set) => list.map(([v, label]) => ({ label, bg: cur === v ? 'var(--btn)' : 'transparent', color: cur === v ? 'var(--onBtn)' : 'var(--mut)', hc: cur === v ? 'var(--onBtn)' : 'var(--fg)', onTap: () => set(v) }));
+    const themeSeg = seg(themeSetting, [['dark', 'Dark'], ['light', 'Light'], ['system', 'System']], (v) => this.setState({ themeSet: v }));
+    const misuSeg = seg(s.misuFreq, [['often', 'Often'], ['sometimes', 'Now and then'], ['off', 'Off']], (v) => this.setState({ misuFreq: v }));
+    const backups = [['2026-10-05T15:24:31', 4.6], ['2026-10-04T21:10:02', 4.5], ['2026-10-02T18:47:55', 4.2]].map(([d, kb]) => ({ date: fmtDT(new Date(d)), size: `${kb.toFixed(1)} KB`, onRestore: () => this.setState({ dialog: { title: 'Restore this backup?', message: 'Your current save will be replaced with this one.', confirm: 'Restore', run: () => this.toast({ kicker: 'Backups', title: 'Backup restored', sub: fmtDT(new Date(d)) }) } }) }));
+
+    // update
+    const us = s.updState ?? this.props.update ?? 'none';
+    const newV = '0.3.1';
+    const badge = { available: [`Update available · ${newV}`, 'var(--coral)', 'var(--onCoral)'], downloading: [`Downloading · ${s.dl}%`, 'var(--btn)', 'var(--onBtn)'], ready: ['Restart to update', 'var(--coral)', 'var(--onCoral)'], error: ['Update issue', 'var(--roseBg)', 'var(--rose)'] }[us];
+    const act = (label, kind, run) => ({ label, primary: kind === 'p', secondary: kind === 's', quiet: kind === 'q', run });
+    const closeU = () => this.setState({ updOpen: false });
+    const modal = {
+      available: { title: `Version ${newV} is here`, notes: '• Records everywhere: every song now spins on its own vinyl.\n• Misu drops by now and then.\n• Play together with friends.\n• Fixes and polish.', actions: [act('Remind me later', 'q', () => this.setState({ updState: 'none', updOpen: false })), act('Skip this version', 's', () => this.setState({ updState: 'none', updOpen: false })), act('Download', 'p', () => this.download())] },
+      downloading: { title: `Downloading ${newV}`, progress: true, pct: `${s.dl}%`, para: `${s.dl}% of 18.4 MB`, actions: [act('Hide', 'q', closeU), act('Cancel download', 's', () => { this.clear('dl'); this.setState({ updState: 'available', dl: 0 }); })] },
+      ready: { title: `${newV} is ready`, para: 'Restart Project Swiftie to finish updating. Your progress is saved.', actions: [act('Later', 'q', closeU), act('Restart now', 'p', () => this.install())] },
+      error: { title: 'The update hit a snag', banner: s.checkMsg || 'Could not reach the update server.', actions: [act('Close', 'q', () => this.setState({ updOpen: false })), act('Try again', 'p', () => { this.setState({ updOpen: false }); this.checkNow(); })] },
+    }[us] || { title: 'No updates', para: "You're on the latest version.", actions: [act('Close', 'q', closeU)] };
+
+    // misu
+    const mz = s.misu;
+    const misuLeft = mz && mz.side === 'left';
+
+    // mp
+    const m = s.mp;
+    const mpPlayers = m ? m.players : [];
+    const ranked = [...mpPlayers].sort((x, y) => y.score - x.score || (x.me ? -1 : 1));
+    const rowH = 64;
+    const mpRows = mpPlayers.map((p) => {
+      const rank = ranked.indexOf(p);
+      const st = !m ? '' : m.stage === 'round' ? (p.status === 'out' ? 'Sitting out' : p.status ? (m.mode === 'quick' && m.first === p.id ? 'Got it first' : 'Answered') : 'Listening…') : m.stage === 'reveal' ? (m.mode === 'quick' ? (m.first === p.id ? 'Got it first' : p.status === 'out' ? 'Wrong guess' : '—') : p.ok ? `Right · ${p.at.toFixed(1)} s` : p.status ? 'Wrong' : 'No answer') : '';
+      return { name: p.me ? `${p.name} (you)` : p.name, init: p.name.charAt(0).toUpperCase(), color: p.color, score: String(p.score), gain: p.gain ? `+${p.gain}` : '', hasGain: !!p.gain, status: st, top: px(rank * rowH), rank: rank + 1, beads: beadList(p.beads, 8), border: p.me ? 'var(--line2)' : 'var(--line)', stColor: m && m.stage === 'reveal' && p.gain ? 'var(--coralT)' : 'var(--mut)' };
+    });
+    const lobbyRows = mpPlayers.map((p) => ({ name: p.me ? `${p.name} (you)` : p.name, init: p.name.charAt(0).toUpperCase(), color: p.color, tag: p.name === m.host ? 'Host' : '', hasTag: p.name === m.host }));
+    const mt2 = m ? MODES.find((x) => x.id === m.mode) : null;
+    const mpLimit = m ? this.mpLimit(m) : 20;
+    const mpOpts = m && m.options ? m.options.map((o, i) => {
+      const me = m.players.find((p) => p.me), rev = m.stage === 'reveal';
+      let st = me && me.pick === o.id ? (rev ? (o.id === m.track.id ? 'right' : 'wrong') : 'mine') : rev && o.id === m.track.id ? 'right' : rev ? 'dim' : me && me.status ? 'dim' : 'idle';
+      const S = { idle: ['transparent', 'var(--line2)', 'var(--fg)', String(i + 1)], mine: ['var(--card)', 'var(--coral)', 'var(--fg)', '•'], right: ['var(--coral)', 'var(--coral)', 'var(--onCoral)', '✓'], wrong: ['var(--roseBg)', 'var(--rose)', 'var(--rose)', '✕'], dim: ['transparent', 'var(--line)', 'var(--faint)', String(i + 1)] }[st];
+      return { label: o.title, bg: S[0], border: S[1], color: S[2], num: S[3], hb: st === 'idle' ? 'var(--coral)' : S[1], onTap: () => this.mpAnswer(o.id) };
+    }) : [];
+    const mpLol = (v, label, key) => {
+      const me = m && m.players.find((p) => p.me), rev = m && m.stage === 'reveal';
+      let st = me && me.pick === v ? (rev ? (v === m.lyr.isReal ? 'right' : 'wrong') : 'mine') : rev && m.lyr && v === m.lyr.isReal ? 'right' : rev || (me && me.status) ? 'dim' : 'idle';
+      const S = { idle: ['transparent', 'var(--line2)', 'var(--fg)'], mine: ['var(--card)', 'var(--coral)', 'var(--fg)'], right: ['var(--coral)', 'var(--coral)', 'var(--onCoral)'], wrong: ['var(--roseBg)', 'var(--rose)', 'var(--rose)'], dim: ['transparent', 'var(--line)', 'var(--faint)'] }[st];
+      return { label, key, bg: S[0], border: S[1], color: S[2], hb: st === 'idle' ? 'var(--coral)' : S[1], onTap: () => this.mpAnswer(v) };
+    };
+    const meP = m && m.players.find((p) => p.me);
+    const winner = ranked[0];
+    const allFast = mpPlayers.filter((p) => p.fastest).sort((x, y) => x.fastest.t - y.fastest.t)[0];
+    const longest = [...mpPlayers].sort((x, y) => y.best - x.best)[0];
+    const mpTitle = (() => {
+      if (!m || !m.track) return { pre: '', song: '', post: '' };
+      if (m.stage !== 'reveal') return { pre: m.mode === 'lol' ? 'Real, or a lie?' : "What's playing?", song: '', post: '' };
+      if (m.mode === 'lol') return { pre: m.lyr.isReal ? 'Real. From ' : 'A lie. That was ', song: m.lyr.isReal ? m.track.title : m.lyr.source.title, post: '.' };
+      return { pre: 'It was ', song: m.track.title, post: '.' };
+    })();
+    const mpSub = (() => {
+      if (!m || !m.track) return '';
+      if (m.stage === 'round') return meP && meP.status === 'out' ? "Wrong guess. You're sitting this one out." : meP && meP.status ? 'Locked in. Waiting for the others…' : `${Math.ceil(m.timeLeft)} seconds left.`;
+      if (m.stage === 'reveal') { const f = m.mode === 'quick' ? m.players.find((p) => p.id === m.first) : null; return m.mode === 'quick' ? (f ? `${f.me ? 'You' : f.name} got it first.` : 'Nobody got it this time.') : `${ALK[m.track.album].era}${m.track.pos ? ` · track ${m.track.pos}` : ''}`; }
+      return '';
+    })();
+
+    const dlg = s.dialog;
+    const closeDialog = () => this.setState({ dialog: null });
+
+    return {
+      themeAttr, screenLabel: SCREEN_LABELS[P] || P, scrollRef: this.scrollRef, spinRef: this.spinRef, inputRef: this.inputRef,
+      isMac: !isWin, isWin, deskBg: isWin ? 'linear-gradient(135deg,#1d2733 0%,#141a22 100%)' : 'radial-gradient(120% 90% at 50% 0%,#4A4A50 0%,#2A2A2E 60%,#1E1E21 100%)',
+      sizerW: px(W * scale), sizerH: px(H * scale), frameW: px(W), frameH: px(H), frameTransform: `scale(${scale})`, frameRadius: isWin ? '8px' : '10px',
+      frameShadow: isWin ? '0 0 0 1px rgba(0,0,0,.35),0 8px 32px rgba(0,0,0,.45)' : 'inset 0 0 0 .5px rgba(255,255,255,.18),0 0 0 .5px rgba(0,0,0,.6),0 22px 70px rgba(0,0,0,.55)',
+      winBarBg: s.sysDark ? '#202020' : '#F3F3F3', winBarFg: s.sysDark ? '#FFFFFF' : '#1A1A1A', winBtnHover: s.sysDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)',
+      enterOp: s.enter ? 0 : 1, enterTf: s.enter ? 'translateY(10px)' : 'none', enterTr: s.enter ? 'none' : 'opacity .28s ease, transform .4s cubic-bezier(.2,.8,.2,1)',
+      L, narrow, wide: !narrow, menuCols: narrow ? 'minmax(0,1fr)' : `${L.leftCol} minmax(0,1fr)`, twoCols: narrow ? 'minmax(0,1fr)' : 'minmax(0,1fr) minmax(0,1fr)',
+      gameCols: 'minmax(0,1fr) minmax(0,1fr)', eraCols: cols(narrow ? 3 : large ? 6 : 4), shelfCols: cols(narrow ? 3 : 5), noop: () => {}, stop: (e) => e.stopPropagation(),
+
+      // nickname
+      isNick: P === 'nickname', nickDraft: s.nickDraft, nickEmpty: !s.nickDraft.trim(), nickBtnOp: s.nickDraft.trim() ? 1 : 0.45,
+      onNick: (e) => this.setState({ nickDraft: e.target.value.slice(0, 20) }),
+      submitNick: () => { const v = s.nickDraft.trim(); if (v) this.go('menu', { nickname: v }); },
+      onNickKey: (e) => { if (e.key === 'Enter') { const v = s.nickDraft.trim(); if (v) this.go('menu', { nickname: v }); } },
+
+      // menu
+      isMenu: P === 'menu', greetPre, greetName: nm, greetPost, greetSub, tnEra: tn.era, tnCover: albumImg(tn.key) || '', tnHasCover: !!albumImg(tn.key), tnPh: tn.ph, quickRound: () => this.quickRound(), menuRows, menuLinks,
+
+      // eras
+      isEras: P === 'eras', catLoading: s.catalog === 'loading' || s.catalog === 'idle', catError: s.catalog === 'error', catReady: s.catalog === 'ready', retryCat: () => this.loadCatalog(true), eraTiles,
+      nSel: s.selected.length, selLabel: s.selected.length ? `${s.selected.length} era${s.selected.length > 1 ? 's' : ''} · ${selSongs} songs` : 'Pick at least one era', hasSel: s.selected.length > 0,
+      continueOp: s.selected.length ? 1 : 0.45, clearSel: () => this.setState({ selected: [] }), continueEras: () => { if (s.selected.length) this.go('setup', { source: 'eras' }); },
+      toMenu: go('menu'),
+
+      // setup
+      isSetup: P === 'setup', srcTitle, srcSub, stack, stackW: px((narrow ? 110 : 170) + (stack.length - 1) * (narrow ? 22 : 34)), stackS: px(narrow ? 110 : 170), typeRows, lmodeRows, showLmode: lyr, diffTiles, diffFeats: feats[s.diff],
+      setupBack: () => (s.source === 'eras' ? this.go('eras') : this.go('menu')), startGame: () => this.startGame(null),
+
+      // lyrics loading
+      isLL: P === 'lyricsLoading', llLoading: s.ll && s.ll.status === 'loading', llError: s.ll && s.ll.status === 'error', llMsg: s.ll ? LOADING_MSGS[s.ll.msg] : '', llProg: s.ll && s.ll.total ? `${s.ll.done} of ${s.ll.total} songs` : 'Getting the songs ready…', llPct: s.ll && s.ll.total ? `${(s.ll.done / s.ll.total) * 100}%` : '0%',
+      retryLyrics: () => { this.setState({ ll: { msg: 0, done: 0, total: 0, status: 'loading' } }); this.loadCatalog(true); this.runLyricsLoading(); },
+
+      // game
+      isGame: P === 'game', gLoading: !!g && g.status === 'loading' && g.n === 0, gError: !!g && g.status === 'error', gOn: !!g && !!t && g.status !== 'error',
+      exitGame: () => this.exitGame(), retryGame: () => this.retryGame(), modeLabel, diffLabel, roundLabel: g && g.total ? `Round ${g.n} of ${g.total}` : '', hasRound: !!(g && g.total),
+      beads: beadList(s.beads), streak: s.streak, hasStreak: s.streak > 0, noStreak: s.streak === 0,
+      showTimer: !!secs && !!g && !lyr || (!!secs && lyr), timerPct, timerColor: urgent ? 'var(--rose)' : 'var(--coral)', timerTr: playing ? 'width .1s linear' : 'width .3s ease',
+      rec, recSound: !lyr || lol, isSoundGame: !lyr && !answered, transport, togglePlay: () => this.togglePlay(), recCaption: answered || easy ? (t ? `${al.era}${t.pos ? ` · track ${t.pos}` : ''}` : '') : '',
+      hasRecCaption: !!(t && (answered || easy) && !lyr),
+      lineNts: lyr && !lol, liner: g && g.lyr ? g.lyr.lines : [], linerHint: easy && al ? `From ${al.era}` : '', hasLinerHint: lyr && !lol && easy, linerCover: al ? albumImg(t.album) || '' : '', linerHasCover: !!(al && albumImg(t.album)), linerPh: al ? al.ph : 'var(--card)',
+      linerRevealed: lyr && !lol && answered, linerSong: t ? t.title : '', linerEra: al ? al.era : '',
+      ttl, subLine, subColor: playing && urgent ? 'var(--rose)' : 'var(--mut)', showOpts: !lol && !hard, showInput: !lol && hard, opts,
+      typed: g ? g.typed : '', onTyped: (e) => this.setState({ g: { ...s.g, typed: e.target.value } }), onTypedKey: (e) => { if (e.key === 'Enter' && s.g.typed.trim()) this.answer(s.g.typed.trim()); },
+      submitTyped: () => { if (s.g.typed.trim()) this.answer(s.g.typed.trim()); }, submitOp: g && g.typed.trim() ? 1 : 0.45, inputLocked: !!answered, inputOpen: !!playing, typedNote: answered && !lol && hard && g.pick ? `You typed “${g.pick}”.` : '', hasTypedNote: !!(answered && !lol && hard && g.pick),
+      lolAsk: lol && !answered, showTtl: !(lol && !answered), isLol: lol, lolSong: t ? t.title : '', lolKicker: 'Is this lyric from', lolBtns: g && lol ? [lolBtn(true, 'Real', 'R'), lolBtn(false, 'Fake', 'F')] : [],
+      isAnswered: !!answered, nextOp: g && g.nextReady ? 1 : 0.45, nextLabel: g && g.total && g.n >= g.total ? 'See your round →' : 'Next song →', next: () => this.next(),
+      quackWords, hasQuack: quackWords.length > 0, showOverlay: P === 'game' && s.overlay,
+
+      // summary
+      isSummary: P === 'summary', sumScore: `${right} of ${results.length}`, sumEra: tn.era, sumBeads: results.map((r) => ({ c: r.correct ? 'var(--coral)' : 'transparent', b: r.correct ? 'var(--coral)' : 'var(--line2)' })),
+      sumRecords: results.filter((r) => r.correct).map((r) => ({ title: r.track.title, cover: albumImg(r.track.album) || '', hasCover: !!albumImg(r.track.album), ph: ph(r.track.album) })), hasSumRecords: right > 0,
+      sumLine: right >= 8 ? 'A near-perfect run.' : right >= 5 ? 'A solid round.' : right > 0 ? 'Every Swiftie has an off night.' : 'Not a single one. The vault stays locked.', againRound: () => this.quickRound(),
+
+      // shelf
+      isShelf: P === 'shelf', shelfTitle: `${nm}'s record shelf`, shelfCount: `${unlockedN} of 15`, shelf,
+
+      // settings
+      isSettings: P === 'settings', themeSeg, misuSeg, volume: s.volume, volumeLabel: `${Math.round(s.volume * 100)}%`, onVolume: (e) => this.setState({ volume: +e.target.value }),
+      mediumTimer: s.mediumTimer, hardTimer: s.hardTimer, mediumLabel: `${s.mediumTimer}s`, hardLabel: `${s.hardTimer}s`, onMedium: (e) => this.setState({ mediumTimer: +e.target.value }), onHard: (e) => this.setState({ hardTimer: +e.target.value }),
+      isOpen: !ana, nickname: s.nickname, onNickname: (e) => this.setState({ nickname: e.target.value.slice(0, 20) }),
+      versionLabel: `v${s.version}`, lastCheckedLabel: `Last checked ${fmtDT(s.lastChecked)}`, checking: s.checking, notChecking: !s.checking, checkMsg: s.checkMsg, hasCheckMsg: !!s.checkMsg, checkNow: () => this.checkNow(),
+      autoCheck: s.autoCheck, toggleAuto: () => this.setState({ autoCheck: !s.autoCheck }), autoKnobX: s.autoCheck ? '16px' : '0px', autoBg: s.autoCheck ? 'var(--coral)' : 'var(--line2)', backups,
+      askReset: () => this.setState({ dialog: { title: 'Reset all progress?', message: `This clears ${nm === 'you' ? 'your' : `${nm}'s`} record shelf and stats. Backups stay available.`, confirm: 'Reset progress', destructive: true, run: () => { this.setState({ unlocked: {}, stats: emptyStats() }); this.toast({ kicker: 'Progress', title: 'Progress reset', sub: 'Your shelf is empty, for now.' }); } } }),
+      aboutLine: ana ? 'Made for Ana by Satanshu' : 'Made by Satanshu',
+
+      // birthday card (Ana's edition only), opened from Misu on the menu
+      hasCardBtn: ana, cardOpen: s.cardOpen, openCard: () => this.setState({ cardOpen: true, catHover: false }), closeCard: () => this.setState({ cardOpen: false }),
+      catScale: s.catDown ? 0.95 : s.catHover ? 1.1 : 1, catTipOp: s.catHover ? 1 : 0, catTipY: s.catHover ? '4px' : '0px',
+      catEnter: () => this.setState({ catHover: true }), catLeave: () => this.setState({ catHover: false, catDown: false }), catDown: () => this.setState({ catDown: true }), catUp: () => this.setState({ catDown: false }),
+
+      // together
+      isTogether: P === 'together', isHost: P === 'mpHost', isJoin: P === 'mpJoin', isLobby: P === 'mpLobby' && !!m, isMpGame: P === 'mpGame' && !!m, isMpEnd: P === 'mpEnd' && !!m,
+      toHost: go('mpHost', { hostErr: '' }), toJoin: go('mpJoin', { joinCode: '', joinErr: '' }), toTogether: go('together'),
+      modeRows: MODES.map((x) => ({ ...x, ...choice(s.mpCfg.mode === x.id), onTap: () => this.setState({ mpCfg: { ...s.mpCfg, mode: x.id } }) })),
+      roundSeg: seg(s.mpCfg.rounds, [[5, '5'], [10, '10'], [15, '15']], (v) => this.setState({ mpCfg: { ...s.mpCfg, rounds: v } })),
+      mpDiffSeg: seg(s.mpCfg.diff, [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']], (v) => this.setState({ mpCfg: { ...s.mpCfg, diff: v } })),
+      mpDiffNote: { easy: 'Album cover shown · 30 seconds a round', medium: 'No hints · 20 seconds a round', hard: 'No hints · 12 seconds a round' }[s.mpCfg.diff],
+      openRoom: () => this.openRoom(), hostErr: s.hostErr, hasHostErr: !!s.hostErr,
+      joinCode: s.joinCode, onJoinCode: (e) => this.setState({ joinCode: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4), joinErr: '' }), onJoinKey: (e) => { if (e.key === 'Enter') this.joinRoom(); },
+      joinRoom: () => this.joinRoom(), joinErr: s.joinErr, hasJoinErr: !!s.joinErr, joining: s.joining, notJoining: !s.joining, joinOp: s.joinCode.length === 4 ? 1 : 0.45,
+      mpIsHost: !!m && m.role === 'host', mpIsGuest: !!m && m.role === 'guest', mpCode: m ? m.code : '', mpCodeLetters: m ? m.code.split('') : [], copyCode: () => this.copyCode(), copyLabel: m && m.copied ? 'Copied' : 'Copy code',
+      mpModeTitle: mt2 ? mt2.title : '', mpModeDesc: mt2 ? mt2.desc : '', mpMeta: m ? `${m.rounds} rounds · ${{ easy: 'Easy', medium: 'Medium', hard: 'Hard' }[m.diff]}` : '', mpHostName: m ? m.host : '',
+      lobbyRows, lobbyCount: `${mpPlayers.length} of 8 players`, canStart: mpPlayers.length >= 2, startOp: mpPlayers.length >= 2 ? 1 : 0.45, startMp: () => { if (mpPlayers.length >= 2) this.startMp(); }, leaveRoom: () => this.leaveRoom(),
+      mpCountdown: !!m && m.stage === 'countdown', mpC3: !!m && m.count === 3, mpC2: !!m && m.count === 2, mpC1: !!m && m.count === 1, mpRound: !!m && m.stage === 'round', mpReveal: !!m && m.stage === 'reveal', mpErr: !!m && m.stage === 'error', mpPlay: !!m && (m.stage === 'round' || m.stage === 'reveal'),
+      mpRoundLabel: m ? `Round ${Math.max(1, m.round)} of ${m.rounds} · ${mt2 ? mt2.title : ''}` : '', mpTimerPct: m && m.stage === 'round' ? `${Math.max(0, (m.timeLeft / mpLimit) * 100)}%` : m && m.stage === 'reveal' ? '0%' : '100%',
+      mpRows, mpRowsH: px(mpPlayers.length * rowH), mpIsSound: !!m && m.mode !== 'lol', mpIsLol: !!m && m.mode === 'lol', mpOpts, mpLolBtns: m && m.lyr ? [mpLol(true, 'Real', 'R'), mpLol(false, 'Fake', 'F')] : [], mpLines: m && m.lyr ? m.lyr.lines : [], mpLolSong: m && m.track ? m.track.title : '',
+      mpToggle: () => this.togglePlay('m'), mpTitle, mpSub, mpNext: m && m.round >= m.rounds ? `Final standings in ${m ? m.revealLeft : 0}` : `Next round in ${m ? m.revealLeft : 0}`, mpSkip: () => this.mpAdvance(), mpShowSkip: !!m && m.role === 'host' && m.stage === 'reveal',
+      winTitle: winner ? (winner.me ? (ana ? 'You take it, Ana.' : `You take it, ${nm}.`) : `${winner.name} takes it.`) : '', winSub: winner ? `${winner.score} points over ${m ? m.rounds : 0} rounds.` : '',
+      highlights: [allFast ? { k: 'Fastest answer', v: `${allFast.me ? 'You' : allFast.name} · ${allFast.fastest.t.toFixed(1)} s on ${allFast.fastest.song}` } : null, longest && longest.best ? { k: 'Longest streak', v: `${longest.me ? 'You' : longest.name} · ${longest.best} in a row` } : null].filter(Boolean),
+      playAgain: () => this.playAgain(), leaveEnd: () => { this.clearPrefix('m:'); this.go('menu', { mp: null }); },
+
+      // overlays
+      hasBadge: !!badge, badgeLabel: badge ? badge[0] : '', badgeBg: badge ? badge[1] : 'transparent', badgeFg: badge ? badge[2] : 'transparent', openUpdate: () => this.setState({ updOpen: true }),
+      updOpen: s.updOpen, closeUpdate: closeU, modal, modalHasNotes: !!modal.notes, modalHasProgress: !!modal.progress, modalHasPara: !!modal.para, modalHasBanner: !!modal.banner,
+      restarting: s.restarting,
+      hasMisu: !!mz, misuText: mz ? mz.text : '', misuUp: mz && mz.up ? 'translateY(0)' : 'translateY(110%)', misuBubbleOp: mz && mz.up ? 1 : 0, misuBubbleTf: mz && mz.up ? 'none' : 'translateY(8px) scale(.96)',
+      misuSide: misuLeft ? 'left:40px;' : '', misuLeftPos: misuLeft ? '40px' : 'auto', misuRightPos: misuLeft ? 'auto' : '48px', misuDir: misuLeft ? 'row' : 'row-reverse', tailLeft: misuLeft ? '-6px' : 'auto', tailRight: misuLeft ? 'auto' : '-6px',
+      misuHasAction: !!(mz && mz.action), misuActionLabel: mz ? mz.actionLabel : '', misuAction: () => mz && mz.action && mz.action(), hideMisu: () => this.hideMisu(),
+      toasts: s.toasts.map((x, i) => ({ ...x, top: px(16 + i * 84), tf: x.up ? 'none' : 'translateX(24px)', op: x.up ? 1 : 0, hasCover: !!(x.album && albumImg(x.album)), cover: x.album ? albumImg(x.album) || '' : '', hasAlbum: !!x.album, ph: x.album ? ph(x.album) : 'var(--card)', onDismiss: () => this.dismissToast(x.key) })),
+      hasDialog: !!dlg, dialogTitle: dlg ? dlg.title : '', dialogMsg: dlg ? dlg.message : '', dialogConfirm: dlg ? dlg.confirm : '', dialogBtnBg: dlg && dlg.destructive ? 'var(--rose)' : 'var(--coral)', dialogBtnFg: dlg && dlg.destructive ? 'var(--bg)' : 'var(--onCoral)',
+      closeDialog, confirmDialog: () => { const r = dlg && dlg.run; closeDialog(); r && r(); },
+    };
+  }
+}
+</script>
+</body>
+</html>
