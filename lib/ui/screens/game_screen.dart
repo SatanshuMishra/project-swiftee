@@ -294,6 +294,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   final TextEditingController _typed = TextEditingController();
   bool _tracksReady = false;
   bool _failed = false;
+  bool _redraw = false;
   String? _failure;
   List<Track> _allTracks = const [];
   SoundStage _stage = SoundStage.playing;
@@ -371,9 +372,11 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final random = ref.read(randomProvider);
     final draw = drawNextTrack(pool, _allTracks, random: random);
     final options = generateOptions(draw.track, _allTracks, random: random);
+    final redraw = _redraw;
+    _redraw = false;
     ref
         .read(gameControllerProvider.notifier)
-        .startRound(draw.track, draw.remaining, options);
+        .startRound(draw.track, draw.remaining, options, redraw: redraw);
     final game = ref.read(gameControllerProvider);
     _cancelLoaderTimers();
     resetRound(
@@ -599,6 +602,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   }
 
   void _retry() {
+    _redraw = true;
     ref.read(audioControllerProvider.notifier).reset();
     setState(() {
       _failed = false;
@@ -753,6 +757,9 @@ class _SoundTransport extends ConsumerWidget {
       elapsed: hasClip ? audio.progress * audio.clipDuration : 0,
       duration: hasClip ? audio.clipDuration : sliceDurationSeconds,
       onToggle: onToggle,
+      spaceToggles:
+          ref.watch(gameControllerProvider.select((game) => game.difficulty)) !=
+          Difficulty.hard,
     );
   }
 }
