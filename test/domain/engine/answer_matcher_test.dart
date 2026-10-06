@@ -21,6 +21,16 @@ void main() {
         expect(normalizeTitle('Enchanted'), 'enchanted');
       });
 
+      test('removes a dash suffix after the title', () {
+        expect(
+          normalizeTitle(
+            'All Too Well (Sad Girl Autumn Version) - Recorded at Long Pond Studios',
+          ),
+          'all too well',
+        );
+        expect(normalizeTitle('Anti-Hero'), 'anti hero');
+      });
+
       test('removes parenthetical suffixes', () {
         expect(normalizeTitle("Enchanted (Taylor's Version)"), 'enchanted');
         expect(
