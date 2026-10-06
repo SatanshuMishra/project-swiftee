@@ -125,7 +125,7 @@ class _MisuHostState extends ConsumerState<MisuHost> {
       (_, next) => _follow(next),
     );
     final visit = _visit;
-    if (visit == null) {
+    if (visit == null || ref.watch(modalStackProvider).isNotEmpty) {
       return const SizedBox.shrink();
     }
     final left = visit.side == MisuSide.left;
