@@ -450,7 +450,13 @@ void main() {
           .show('Welcome back! Your progress has been preserved.');
       await tester.pump();
 
-      expect(find.text('First Meow'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AchievementToasts),
+          matching: find.text('First Meow'),
+        ),
+        findsOneWidget,
+      );
       expect(
         find.text('Welcome back! Your progress has been preserved.'),
         findsOneWidget,
