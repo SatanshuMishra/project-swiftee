@@ -111,9 +111,6 @@ GamePhase phaseOf(ProviderContainer container) =>
 
 Finder tile(String eraKey) => find.byKey(ValueKey(eraKey));
 
-String barLabel(List<String> keys) =>
-    AlbumGrid.selectionLabel(keys.length, bundled.tracksFor(keys).length);
-
 Finder continueButton() => find.widgetWithText(PillButton, 'Continue →');
 
 double continueOpacity(WidgetTester tester) => tester
@@ -132,6 +129,12 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
 
 void main() {
   group('eras grid', () {
+    test('the selection bar counts eras and tracks in words', () {
+      expect(AlbumGrid.selectionLabel(0, 0), 'Pick at least one era');
+      expect(AlbumGrid.selectionLabel(1, 1), '1 era · 1 track');
+      expect(AlbumGrid.selectionLabel(3, 98), '3 eras · 98 tracks');
+    });
+
     testWidgets('the eras grid shows the twelve eras and the singles', (
       tester,
     ) async {
@@ -209,7 +212,7 @@ void main() {
       await tapAndSettle(tester, tile('red'));
       await tapAndSettle(tester, tile('folklore'));
       expect(selectedKeys(harness.container), ['red', 'folklore']);
-      expect(find.text(barLabel(['red', 'folklore'])), findsOneWidget);
+      expect(find.text('2 eras · 95 tracks'), findsOneWidget);
       expect(continueOpacity(tester), 1);
 
       await tapAndSettle(tester, find.text('Clear'));
@@ -223,7 +226,7 @@ void main() {
       expect(phaseOf(harness.container), GamePhase.albumSelect);
 
       await tapAndSettle(tester, tile('red'));
-      expect(find.text(barLabel(['red'])), findsOneWidget);
+      expect(find.text('1 era · 58 tracks'), findsOneWidget);
       await tapAndSettle(tester, find.text('Continue →'));
       expect(harness.game.setups, [GameMode.album]);
       expect(phaseOf(harness.container), GamePhase.setup);
@@ -234,13 +237,10 @@ void main() {
       await pumpAlbumGrid(tester);
 
       await tapAndSettle(tester, tile('ts'));
-      expect(
-        find.text('1 era · ${bundled.trackCount('ts')} tracks'),
-        findsOneWidget,
-      );
+      expect(find.text('1 era · 14 tracks'), findsOneWidget);
 
       await tapAndSettle(tester, tile('red'));
-      expect(find.text(barLabel(['ts', 'red'])), findsOneWidget);
+      expect(find.text('2 eras · 72 tracks'), findsOneWidget);
     });
 
     testWidgets('a chosen tile slides its disc out, rings it and checks it', (

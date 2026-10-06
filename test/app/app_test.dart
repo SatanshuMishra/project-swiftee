@@ -115,6 +115,13 @@ final class _IdleCatalog extends CatalogController {
   Future<CatalogTracks> loadTrackPool() => Completer<CatalogTracks>().future;
 }
 
+final class _CountingCatalog extends _IdleCatalog {
+  int releaseChecks = 0;
+
+  @override
+  Future<void> checkForNewReleases() async => releaseChecks += 1;
+}
+
 final class _BrokenCatalog extends CatalogController {
   @override
   CatalogState build() => throw StateError('catalog unavailable');
@@ -647,6 +654,20 @@ void main() {
 
       await tester.pump(updateCheckInterval);
       expect(harness.manifest.checkedVersions, ['0.3.0', '0.3.0']);
+    });
+
+    testWidgets('every update check also looks for new releases', (
+      tester,
+    ) async {
+      final catalog = _CountingCatalog();
+      final harness = _Harness(tester, catalog: () => catalog);
+      await harness.launch();
+
+      await tester.pump(const Duration(seconds: 60));
+      expect(catalog.releaseChecks, 1);
+
+      await tester.pump(updateCheckInterval);
+      expect(catalog.releaseChecks, 2);
     });
 
     testWidgets('the timers stop when the app is disposed', (tester) async {
