@@ -162,6 +162,7 @@ Section Install
 SectionEnd
 
 Function .onInstSuccess
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   ${If} $PassiveMode = 1
   ${OrIf} ${Silent}
     ${GetOptions} $CMDLINE "/R" $R0
