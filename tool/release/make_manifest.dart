@@ -16,13 +16,15 @@ const manifestOptions = {
   'mac-sig',
   'win-exe',
   'win-sig',
+  'win-open-exe',
+  'win-open-sig',
   'out',
 };
 const usage =
     'usage: dart run tool/release/make_manifest.dart --version <x.y.z> '
     '--notes-file <file> --pub-date <rfc3339> --base-url <url> '
     '--mac-tar <file> --mac-sig <file> --win-exe <file> --win-sig <file> '
-    '--out <latest.json>';
+    '--win-open-exe <file> --win-open-sig <file> --out <latest.json>';
 
 final rfc3339 = RegExp(
   r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$',
@@ -45,6 +47,9 @@ final class SignedArtifact {
 }
 
 Map<String, String> platformEntry(String baseUrl, SignedArtifact artifact) {
+  if (artifact.fileName.trim().isEmpty) {
+    throw const FormatException('An artifact has no file name');
+  }
   final signature = artifact.signature.trim();
   if (signature.isEmpty) {
     throw FormatException('The signature for ${artifact.fileName} is empty');
@@ -65,6 +70,7 @@ Map<String, Object> buildManifest({
   required String baseUrl,
   required SignedArtifact macArchive,
   required SignedArtifact windowsInstaller,
+  required SignedArtifact windowsOpenInstaller,
 }) {
   if (version.trim().isEmpty) {
     throw const FormatException('The version is empty');
@@ -72,8 +78,15 @@ Map<String, Object> buildManifest({
   if (!rfc3339.hasMatch(pubDate)) {
     throw FormatException('pub_date "$pubDate" is not an RFC 3339 timestamp');
   }
+  if (windowsOpenInstaller.fileName == windowsInstaller.fileName) {
+    throw FormatException(
+      'The Open installer ${windowsOpenInstaller.fileName} is the Ana '
+      'installer',
+    );
+  }
   final macEntry = platformEntry(baseUrl, macArchive);
   final windowsEntry = platformEntry(baseUrl, windowsInstaller);
+  final windowsOpenEntry = platformEntry(baseUrl, windowsOpenInstaller);
   return Map.unmodifiable({
     'version': version,
     'notes': notes,
@@ -81,6 +94,7 @@ Map<String, Object> buildManifest({
     'platforms': Map<String, Map<String, String>>.unmodifiable({
       for (final platform in macPlatforms) platform: macEntry,
       for (final platform in windowsPlatforms) platform: windowsEntry,
+      UpdatePlatform.windowsOpen.manifestKey: windowsOpenEntry,
     }),
   });
 }
@@ -145,6 +159,7 @@ Future<int> runMakeManifest(
     String read(String option) => File(options[option]!).readAsStringSync();
     final macSignature = read('mac-sig');
     final windowsSignature = read('win-sig');
+    final windowsOpenSignature = read('win-open-sig');
     await verifyArtifact(
       artifactPath: options['mac-tar']!,
       signature: macSignature,
@@ -153,6 +168,11 @@ Future<int> runMakeManifest(
     await verifyArtifact(
       artifactPath: options['win-exe']!,
       signature: windowsSignature,
+      publicKey: publicKey,
+    );
+    await verifyArtifact(
+      artifactPath: options['win-open-exe']!,
+      signature: windowsOpenSignature,
       publicKey: publicKey,
     );
     final manifest = buildManifest(
@@ -167,6 +187,10 @@ Future<int> runMakeManifest(
       windowsInstaller: SignedArtifact(
         fileName: p.basename(options['win-exe']!),
         signature: windowsSignature,
+      ),
+      windowsOpenInstaller: SignedArtifact(
+        fileName: p.basename(options['win-open-exe']!),
+        signature: windowsOpenSignature,
       ),
     );
     File(options['out']!).writeAsStringSync(encodeManifest(manifest));

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/data/http_identity.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/services/updater/update_config.dart';
 import 'package:swiftie_quiz/services/updater/update_manifest_client.dart';
@@ -85,16 +86,53 @@ void main() {
       );
     });
 
-    test('maps the running operating system to its platform key', () {
-      expect(
-        UpdatePlatform.forOperatingSystem('macos')?.manifestKey,
-        'darwin-aarch64',
-      );
-      expect(
-        UpdatePlatform.forOperatingSystem('windows')?.manifestKey,
-        'windows-x86_64',
-      );
-      expect(UpdatePlatform.forOperatingSystem('linux'), isNull);
+    test('each build reads its own manifest key', () async {
+      const openEntry = {
+        'signature': 'windows-open-signature',
+        'url':
+            'https://github.com/SatanshuMishra/project-swiftee/releases/'
+            'download/v0.3.0/Project%20Swiftie%20Open_0.3.0_x64-setup.exe',
+      };
+      final manifest = _manifestWith({
+        'platforms': {
+          'darwin-aarch64': _platformEntry('darwin-aarch64'),
+          'windows-x86_64': _platformEntry('windows-x86_64'),
+          'windows-x86_64-open': openEntry,
+        },
+      });
+      final builds = {
+        ('macos', Edition.ana): 'darwin-aarch64',
+        ('macos', Edition.open): 'darwin-aarch64',
+        ('windows', Edition.ana): 'windows-x86_64',
+        ('windows', Edition.open): 'windows-x86_64-open',
+      };
+
+      for (final MapEntry(key: (system, edition), value: key)
+          in builds.entries) {
+        final platform = UpdatePlatform.forBuild(system, edition);
+        final entry =
+            (manifest['platforms']! as Map<String, Object?>)[key]!
+                as Map<String, Object?>;
+
+        expect(platform?.manifestKey, key, reason: '$system $edition');
+        final update = await _clientFor(
+          _serving(manifest),
+          platform: platform!,
+        ).check('0.2.0');
+        expect(
+          update?.url,
+          Uri.parse(entry['url']! as String),
+          reason: '$system $edition',
+        );
+        expect(
+          update?.signature,
+          entry['signature'],
+          reason: '$system $edition',
+        );
+      }
+      for (final edition in Edition.values) {
+        expect(UpdatePlatform.forBuild('linux', edition), isNull);
+      }
     });
 
     test(

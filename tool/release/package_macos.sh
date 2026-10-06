@@ -9,11 +9,11 @@ fi
 version="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 release_dir="$root/build/macos/Build/Products/Release"
-app_name="Swiftie Quiz.app"
+app_name="Project Swiftie.app"
 app="$release_dir/$app_name"
 out_dir="$root/build/release"
-dmg="$out_dir/Swiftie Quiz_${version}_aarch64.dmg"
-archive="$out_dir/Swiftie Quiz.app.tar.gz"
+dmg="$out_dir/Project Swiftie_${version}_aarch64.dmg"
+archive="$out_dir/Project Swiftie.app.tar.gz"
 
 if [ ! -d "$app" ]; then
   echo "error: $app is missing; run flutter build macos --release first" >&2
@@ -30,7 +30,7 @@ ln -s /Applications "$staging/Applications"
 
 rm -f "$dmg"
 for attempt in 1 2 3; do
-  if hdiutil create -volname "Swiftie Quiz" -srcfolder "$staging" -ov -format UDZO "$dmg"; then
+  if hdiutil create -volname "Project Swiftie" -srcfolder "$staging" -ov -format UDZO "$dmg"; then
     break
   fi
   if [ "$attempt" -eq 3 ]; then

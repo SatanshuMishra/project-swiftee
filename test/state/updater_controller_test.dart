@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
+import 'package:swiftie_quiz/services/updater/update_config.dart';
 import 'package:swiftie_quiz/services/updater/update_downloader.dart';
 import 'package:swiftie_quiz/services/updater/update_installer.dart';
 import 'package:swiftie_quiz/services/updater/update_manifest_client.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
@@ -737,5 +741,21 @@ void main() {
       expect(installer.calls, ['install', 'install', 'relaunch']);
       expect(manifestClient.calls, 1);
     });
+  });
+
+  group('update platform', () {
+    for (final edition in Edition.values) {
+      test('the ${edition.name} edition reads the manifest key of its '
+          'build', () {
+        final container = ProviderContainer.test(
+          overrides: [editionProvider.overrideWithValue(edition)],
+        );
+
+        expect(
+          container.read(updatePlatformProvider),
+          UpdatePlatform.forBuild(Platform.operatingSystem, edition),
+        );
+      });
+    }
   });
 }

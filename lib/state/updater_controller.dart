@@ -8,6 +8,7 @@ import 'package:swiftie_quiz/services/updater/update_config.dart';
 import 'package:swiftie_quiz/services/updater/update_downloader.dart';
 import 'package:swiftie_quiz/services/updater/update_installer.dart';
 import 'package:swiftie_quiz/services/updater/update_manifest_client.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
@@ -25,7 +26,10 @@ final RegExp _signatureFailurePattern = RegExp(
 );
 
 final updatePlatformProvider = Provider<UpdatePlatform?>(
-  (ref) => UpdatePlatform.forOperatingSystem(Platform.operatingSystem),
+  (ref) => UpdatePlatform.forBuild(
+    Platform.operatingSystem,
+    ref.watch(editionProvider),
+  ),
 );
 
 final updateManifestClientProvider = FutureProvider<UpdateManifestClient?>((
