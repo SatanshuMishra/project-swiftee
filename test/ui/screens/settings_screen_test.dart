@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/save/save_error.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/domain/models/updater.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
+import 'package:swiftie_quiz/state/toast_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/kit/confirm_dialog.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
-
-const String restorePrompt =
-    'Restore this backup? Your current save will be replaced.';
+import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 class FakePersistence extends PersistenceController {
-  FakePersistence({this.backups = const [], this.listError, this.restoreError});
+  FakePersistence({this.backups = const [], this.restoreError});
 
   final List<BackupEntry> backups;
-  final Object? listError;
   final Object? restoreError;
   final List<int> restored = [];
 
@@ -28,12 +31,7 @@ class FakePersistence extends PersistenceController {
   PersistenceStatus build() => PersistenceStatus.loaded;
 
   @override
-  Future<List<BackupEntry>> listBackups() async {
-    if (listError case final error?) {
-      throw error;
-    }
-    return backups;
-  }
+  Future<List<BackupEntry>> listBackups() async => backups;
 
   @override
   Future<void> restoreBackup(int timestamp) async {
@@ -61,19 +59,18 @@ typedef SettingsHarness = ({
 
 Future<SettingsHarness> pumpSettings(
   WidgetTester tester, {
+  Edition edition = Edition.open,
   FakePersistence? persistence,
-  GameProgress Function(GameProgress progress)? progress,
-  Locale locale = const Locale('en', 'US'),
+  void Function(ProviderContainer container)? setup,
 }) async {
   tester.view.physicalSize = const Size(1024, 800);
   tester.view.devicePixelRatio = 1;
-  tester.platformDispatcher.localeTestValue = locale;
   addTearDown(tester.view.reset);
-  addTearDown(tester.platformDispatcher.clearLocaleTestValue);
   final fakePersistence = persistence ?? FakePersistence();
   late final FakeUpdater fakeUpdater;
   final container = ProviderContainer.test(
     overrides: [
+      editionProvider.overrideWithValue(edition),
       persistenceControllerProvider.overrideWith(() => fakePersistence),
       updaterControllerProvider.overrideWith(
         (ref) => fakeUpdater = FakeUpdater(ref),
@@ -81,10 +78,7 @@ Future<SettingsHarness> pumpSettings(
       appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
     ],
   );
-  if (progress != null) {
-    final game = container.read(gameControllerProvider.notifier);
-    game.setProgress(progress(container.read(gameControllerProvider).progress));
-  }
+  setup?.call(container);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       key: ObjectKey(container),
@@ -107,12 +101,70 @@ GameProgress progressOf(ProviderContainer container) =>
 GameSettings settingsOf(ProviderContainer container) =>
     progressOf(container).settings;
 
-Finder sliderInRowOf(String label) => find
+GameController gameOf(ProviderContainer container) =>
+    container.read(gameControllerProvider.notifier);
+
+void withStats(ProviderContainer container) {
+  final progress = progressOf(container);
+  gameOf(container).setProgress(
+    progress.copyWith(
+      stats: progress.stats.copyWith(totalCorrect: 7),
+      achievements: {
+        ...progress.achievements,
+        'first_meow': const AchievementState(
+          unlocked: true,
+          unlockedAt: '2026-10-01T12:00:00.000Z',
+        ),
+      },
+    ),
+  );
+}
+
+int unixSeconds(DateTime local) => local.millisecondsSinceEpoch ~/ 1000;
+
+final DateTime newest = DateTime(2026, 10, 5, 15, 24, 31);
+final DateTime middle = DateTime(2026, 10, 4, 21, 10, 2);
+final DateTime oldest = DateTime(2026, 10, 2, 18, 47, 55);
+final DateTime oldestOfAll = DateTime(2026, 9, 30, 9, 5, 12);
+
+List<BackupEntry> fourBackups() => [
+  BackupEntry(timestamp: unixSeconds(middle), path: '/b', sizeBytes: 4608),
+  BackupEntry(timestamp: unixSeconds(oldestOfAll), path: '/d', sizeBytes: 1),
+  BackupEntry(timestamp: unixSeconds(newest), path: '/a', sizeBytes: 4710),
+  BackupEntry(timestamp: unixSeconds(oldest), path: '/c', sizeBytes: 4300),
+];
+
+Finder sliderInRow(String title) => find
     .descendant(
-      of: find.ancestor(of: find.text(label), matching: find.byType(Row)),
+      of: find.ancestor(of: find.text(title), matching: find.byType(Wrap)),
       matching: find.byType(Slider),
     )
     .first;
+
+Finder inDialog(String text) =>
+    find.descendant(of: find.byType(ConfirmDialog), matching: find.text(text));
+
+Finder restoreFor(String date) => find.descendant(
+  of: find.ancestor(of: find.text(date), matching: find.byType(Row)).first,
+  matching: find.text('Restore'),
+);
+
+Finder spinnerBeside(String label) => find.descendant(
+  of: find.ancestor(of: find.text(label), matching: find.byType(Row)).first,
+  matching: find.byType(RotationTransition),
+);
+
+Color? switchColor(WidgetTester tester) {
+  final track = find.descendant(
+    of: find.ancestor(
+      of: find.text('Check for updates automatically'),
+      matching: find.byType(Pressable),
+    ),
+    matching: find.byType(AnimatedContainer),
+  );
+  return (tester.widget<AnimatedContainer>(track).decoration! as BoxDecoration)
+      .color;
+}
 
 Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
@@ -132,317 +184,502 @@ Future<void> dragAndSettle(
   await tester.pumpAndSettle();
 }
 
-String twoDigits(int value) => value.toString().padLeft(2, '0');
-
-String usDate(DateTime local) => '${local.month}/${local.day}/${local.year}';
-
-String usDateTime(DateTime local) {
-  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
-  final period = local.hour < 12 ? 'AM' : 'PM';
-  return '${usDate(local)}, $hour:${twoDigits(local.minute)}:'
-      '${twoDigits(local.second)} $period';
+void expectSections() {
+  for (final label in [
+    'Look and sound',
+    'Theme',
+    'System follows your computer.',
+    'Volume',
+    'Misu visits',
+    'Timers',
+    'Medium',
+    'Hard',
+    'Updates',
+    'Check now',
+    'Check for updates automatically',
+    'Sends only a standard request to GitHub. No analytics or tracking.',
+    'Backups',
+    'The three most recent automatic backups are kept.',
+    'Progress',
+    'Reset…',
+    'Project Swiftie',
+    'Settings',
+    'Saved as you go.',
+  ]) {
+    expect(find.text(label), findsOneWidget, reason: label);
+  }
+  for (final option in ['Dark', 'Light', 'System']) {
+    expect(find.text(option), findsOneWidget, reason: option);
+  }
+  for (final option in ['Often', 'Now and then', 'Off']) {
+    expect(find.text(option), findsOneWidget, reason: option);
+  }
+  final icon = find.byType(SvgPicture);
+  expect(icon, findsOneWidget);
+  final svg = icon.evaluate().single.widget as SvgPicture;
+  expect((svg.width, svg.height), (40.0, 40.0));
 }
 
 void main() {
-  group('settings parity', () {
-    testWidgets('appearance buttons set dark, light and system themes', (
+  group('settings screen', () {
+    testWidgets("settings shows every section with the edition's rows", (
       tester,
     ) async {
-      final harness = await pumpSettings(tester);
-      expect(settingsOf(harness.container).theme, ThemeSetting.dark);
+      await pumpSettings(tester, edition: Edition.ana);
+      expectSections();
+      expect(find.text('Nickname'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('Made for Ana by Satanshu'), findsOneWidget);
+      expect(find.text('Made by Satanshu'), findsNothing);
+
+      final open = await pumpSettings(
+        tester,
+        setup: (container) => gameOf(container).setNickname('Sam'),
+      );
+      expectSections();
+      expect(find.text('Nickname'), findsOneWidget);
+      expect(find.text('Made by Satanshu'), findsOneWidget);
+      expect(find.text('Made for Ana by Satanshu'), findsNothing);
+      final field = find.byType(TextField);
+      expect(field, findsOneWidget);
+      expect(
+        find.descendant(of: field, matching: find.text('Sam')),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(field);
+      await tester.enterText(field, 'Taylor');
+      await tester.pumpAndSettle();
+      expect(settingsOf(open.container).nickname, 'Taylor');
+
+      await tester.enterText(field, 'Taylor Alison Swift Ana');
+      await tester.pumpAndSettle();
+      expect(settingsOf(open.container).nickname, 'Taylor Alison Swift');
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        'Taylor Alison Swift ',
+      );
 
       await tapAndSettle(tester, find.text('Light'));
-      expect(settingsOf(harness.container).theme, ThemeSetting.light);
-
+      expect(settingsOf(open.container).theme, ThemeSetting.light);
       await tapAndSettle(tester, find.text('System'));
-      expect(settingsOf(harness.container).theme, ThemeSetting.system);
-
+      expect(settingsOf(open.container).theme, ThemeSetting.system);
       await tapAndSettle(tester, find.text('Dark'));
-      expect(settingsOf(harness.container).theme, ThemeSetting.dark);
-    });
+      expect(settingsOf(open.container).theme, ThemeSetting.dark);
 
-    testWidgets('volume slider runs from 0 to 1 in steps of 0.01', (
-      tester,
-    ) async {
-      final harness = await pumpSettings(tester);
-      final volume = sliderInRowOf('Volume');
-      final slider = tester.widget<Slider>(volume);
-      expect((slider.min, slider.max, slider.divisions), (0.0, 1.0, 100));
+      expect(settingsOf(open.container).misuVisits, MisuVisits.sometimes);
+      await tapAndSettle(tester, find.text('Often'));
+      expect(settingsOf(open.container).misuVisits, MisuVisits.often);
+      await tapAndSettle(tester, find.text('Off'));
+      expect(settingsOf(open.container).misuVisits, MisuVisits.off);
+      await tapAndSettle(tester, find.text('Now and then'));
+      expect(settingsOf(open.container).misuVisits, MisuVisits.sometimes);
+
+      final volume = sliderInRow('Volume');
+      final volumeSlider = tester.widget<Slider>(volume);
+      expect(
+        (volumeSlider.min, volumeSlider.max, volumeSlider.divisions),
+        (0.0, 1.0, 100),
+      );
       expect(find.text('80%'), findsOneWidget);
-
       await tapAndSettle(tester, volume);
-      expect(settingsOf(harness.container).volume, 0.5);
+      expect(settingsOf(open.container).volume, 0.5);
       expect(find.text('50%'), findsOneWidget);
-
       await dragAndSettle(tester, volume, const Offset(500, 0));
-      expect(settingsOf(harness.container).volume, 1.0);
+      expect(settingsOf(open.container).volume, 1.0);
       expect(find.text('100%'), findsOneWidget);
 
-      await dragAndSettle(tester, volume, const Offset(-500, 0));
-      expect(settingsOf(harness.container).volume, 0.0);
-      expect(find.text('0%'), findsOneWidget);
-    });
-
-    testWidgets('medium and hard timers run from 10 to 40 s in steps of 5', (
-      tester,
-    ) async {
-      final harness = await pumpSettings(tester);
-      expect(find.text('30s'), findsOneWidget);
-      expect(find.text('20s'), findsOneWidget);
-
-      for (final label in ['Medium', 'Hard']) {
-        final slider = tester.widget<Slider>(sliderInRowOf(label));
+      for (final title in ['Medium', 'Hard']) {
+        final slider = tester.widget<Slider>(sliderInRow(title));
         expect((slider.min, slider.max, slider.divisions), (10.0, 40.0, 6));
       }
-
-      await tapAndSettle(tester, sliderInRowOf('Medium'));
-      expect(settingsOf(harness.container).mediumTimer, 25);
+      expect(find.text('30s'), findsOneWidget);
+      expect(find.text('20s'), findsOneWidget);
+      await tapAndSettle(tester, sliderInRow('Medium'));
+      expect(settingsOf(open.container).mediumTimer, 25);
       expect(find.text('25s'), findsOneWidget);
-
-      await dragAndSettle(tester, sliderInRowOf('Hard'), const Offset(500, 0));
-      expect(settingsOf(harness.container).hardTimer, 40);
+      await dragAndSettle(tester, sliderInRow('Hard'), const Offset(500, 0));
+      expect(settingsOf(open.container).hardTimer, 40);
       expect(find.text('40s'), findsOneWidget);
-
-      await dragAndSettle(
-        tester,
-        sliderInRowOf('Medium'),
-        const Offset(-500, 0),
-      );
-      expect(settingsOf(harness.container).mediumTimer, 10);
+      await dragAndSettle(tester, sliderInRow('Medium'), const Offset(-500, 0));
+      expect(settingsOf(open.container).mediumTimer, 10);
       expect(find.text('10s'), findsOneWidget);
     });
 
-    testWidgets('reset needs a second confirming step', (tester) async {
+    testWidgets('reset and restore ask before acting', (tester) async {
       final harness = await pumpSettings(
         tester,
-        progress: (progress) =>
-            progress.copyWith(stats: progress.stats.copyWith(totalCorrect: 7)),
+        edition: Edition.ana,
+        persistence: FakePersistence(backups: fourBackups()),
+        setup: (container) {
+          withStats(container);
+          gameOf(container).setVolume(0.4);
+        },
       );
+      final before = progressOf(harness.container);
 
-      await tapAndSettle(tester, find.text('Reset'));
-      expect(progressOf(harness.container).stats.totalCorrect, 7);
-      expect(find.text('Confirm Reset'), findsOneWidget);
-
-      await tapAndSettle(tester, find.text('Confirm Reset'));
-      expect(progressOf(harness.container), defaultProgress);
-      expect(find.text('Confirm Reset'), findsNothing);
-    });
-
-    testWidgets('cancelling the reset keeps progress', (tester) async {
-      final harness = await pumpSettings(
-        tester,
-        progress: (progress) =>
-            progress.copyWith(stats: progress.stats.copyWith(totalCorrect: 7)),
-      );
-
-      await tapAndSettle(tester, find.text('Reset'));
-      await tapAndSettle(tester, find.text('Cancel'));
-
-      expect(find.text('Confirm Reset'), findsNothing);
-      expect(progressOf(harness.container).stats.totalCorrect, 7);
-    });
-
-    testWidgets('updates card shows the build version and never checked', (
-      tester,
-    ) async {
-      await pumpSettings(tester);
-
+      await tapAndSettle(tester, find.text('Reset…'));
+      expect(inDialog('Reset all progress?'), findsOneWidget);
       expect(
-        find.text('Current version: v0.3.0', findRichText: true),
-        findsOneWidget,
-      );
-      expect(find.text('Last checked: Never'), findsOneWidget);
-    });
-
-    testWidgets('last checked shows the local date and time', (tester) async {
-      const checkedAt = '2026-10-05T14:30:15.000Z';
-      await pumpSettings(
-        tester,
-        progress: (progress) => progress.copyWith(
-          updater: progress.updater.copyWith(lastCheckedAt: checkedAt),
-        ),
-      );
-
-      final local = DateTime.parse(checkedAt).toLocal();
-      expect(find.text('Last checked: ${usDateTime(local)}'), findsOneWidget);
-    });
-
-    testWidgets('Check now runs a manual update check', (tester) async {
-      final harness = await pumpSettings(tester);
-
-      await tapAndSettle(tester, find.text('Check now'));
-
-      expect(harness.updater.checks, [true]);
-    });
-
-    testWidgets('the auto-check box toggles autoCheckEnabled', (tester) async {
-      final harness = await pumpSettings(tester);
-      bool autoCheck() =>
-          progressOf(harness.container).updater.autoCheckEnabled;
-      expect(autoCheck(), isTrue);
-      expect(
-        find.text(
-          'Sends only the standard HTTP request to GitHub. No analytics, no '
-          'install identifiers, no telemetry.',
+        inDialog(
+          "This clears Ana's record shelf and stats. Backups stay available.",
         ),
         findsOneWidget,
       );
+      await tapAndSettle(tester, inDialog('Cancel'));
+      expect(find.byType(ConfirmDialog), findsNothing);
+      expect(progressOf(harness.container), before);
 
-      await tapAndSettle(tester, find.text('Automatically check for updates'));
-      expect(autoCheck(), isFalse);
-      expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isFalse);
+      await tapAndSettle(tester, find.text('Reset…'));
+      await tapAndSettle(tester, inDialog('Reset progress'));
+      expect(find.byType(ConfirmDialog), findsNothing);
+      final reset = progressOf(harness.container);
+      expect(reset.stats, defaultProgress.stats);
+      expect(reset.achievements, defaultProgress.achievements);
+      expect(reset.settings, before.settings);
 
-      await tapAndSettle(tester, find.byType(Checkbox));
-      expect(autoCheck(), isTrue);
-    });
-
-    testWidgets('lists backups with their time and size', (tester) async {
-      const timestamp = 1759674615;
-      await pumpSettings(
-        tester,
-        persistence: FakePersistence(
-          backups: const [
-            BackupEntry(timestamp: timestamp, path: '/a', sizeBytes: 2048),
-            BackupEntry(timestamp: 1759588215, path: '/b', sizeBytes: 1587),
-          ],
-        ),
+      final restore = restoreFor('Oct 4, 2026 at 9:10 PM');
+      await tapAndSettle(tester, restore);
+      expect(inDialog('Restore this backup?'), findsOneWidget);
+      expect(
+        inDialog('Your current save will be replaced with this one.'),
+        findsOneWidget,
       );
-
-      final local = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-      expect(find.text(usDateTime(local)), findsOneWidget);
-      expect(find.text('2.0 KB'), findsOneWidget);
-      expect(find.text('1.5 KB'), findsOneWidget);
-      expect(find.text('Restore'), findsNWidgets(2));
-      expect(find.text('No backups yet.'), findsNothing);
-    });
-
-    testWidgets('shows no backups when there are none or listing fails', (
-      tester,
-    ) async {
-      await pumpSettings(tester);
-      expect(find.text('No backups yet.'), findsOneWidget);
-
-      await pumpSettings(
-        tester,
-        persistence: FakePersistence(listError: const SaveFileError('denied')),
-      );
-      expect(find.text('No backups yet.'), findsOneWidget);
-    });
-
-    testWidgets('restore asks first, then restores through the store', (
-      tester,
-    ) async {
-      final harness = await pumpSettings(
-        tester,
-        persistence: FakePersistence(
-          backups: const [
-            BackupEntry(timestamp: 1759674615, path: '/a', sizeBytes: 2048),
-          ],
-        ),
-      );
-
-      await tapAndSettle(tester, find.text('Restore'));
-      expect(find.text(restorePrompt), findsOneWidget);
+      await tapAndSettle(tester, inDialog('Cancel'));
+      expect(find.byType(ConfirmDialog), findsNothing);
       expect(harness.persistence.restored, isEmpty);
+      expect(progressOf(harness.container), reset);
 
-      await tapAndSettle(tester, find.text('OK'));
-      expect(harness.persistence.restored, [1759674615]);
-      expect(find.text(restorePrompt), findsNothing);
+      await tapAndSettle(tester, restore);
+      await tapAndSettle(tester, inDialog('Restore'));
+      expect(find.byType(ConfirmDialog), findsNothing);
+      expect(harness.persistence.restored, [unixSeconds(middle)]);
+      await tester.pump(ToastController.displayDuration);
     });
 
-    testWidgets('restore prompt confirms with Enter', (tester) async {
+    testWidgets('a confirmed reset or restore says so in a toast', (
+      tester,
+    ) async {
       final harness = await pumpSettings(
         tester,
-        persistence: FakePersistence(
-          backups: const [
-            BackupEntry(timestamp: 1759674615, path: '/a', sizeBytes: 2048),
-          ],
-        ),
+        persistence: FakePersistence(backups: fourBackups()),
       );
+      String? toast() => harness.container.read(toastControllerProvider);
 
-      await tapAndSettle(tester, find.text('Restore'));
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tapAndSettle(tester, find.text('Reset…'));
+      await tapAndSettle(tester, inDialog('Cancel'));
+      expect(toast(), isNull);
+
+      await tapAndSettle(tester, find.text('Reset…'));
+      await tapAndSettle(tester, inDialog('Reset progress'));
+      expect(toast(), 'Progress reset');
+
+      await tapAndSettle(tester, restoreFor('Oct 5, 2026 at 3:24 PM'));
+      await tapAndSettle(tester, inDialog('Restore'));
+      expect(toast(), 'Backup restored');
+
+      await tester.pump(ToastController.displayDuration);
+      expect(toast(), isNull);
+    });
+
+    testWidgets('the nickname field shows the stored name', (tester) async {
+      final harness = await pumpSettings(
+        tester,
+        setup: (container) => gameOf(container).setNickname('Sam'),
+      );
+      final field = find.byType(TextField);
+      String shown() => tester.widget<TextField>(field).controller!.text;
+
+      await tester.ensureVisible(field);
+      await tester.enterText(field, '   ');
       await tester.pumpAndSettle();
+      expect(settingsOf(harness.container).nickname, 'Sam');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(shown(), 'Sam');
 
-      expect(harness.persistence.restored, [1759674615]);
-      expect(find.text(restorePrompt), findsNothing);
-    });
-
-    testWidgets('declining the restore prompt restores nothing', (
-      tester,
-    ) async {
-      final harness = await pumpSettings(
-        tester,
-        persistence: FakePersistence(
-          backups: const [
-            BackupEntry(timestamp: 1759674615, path: '/a', sizeBytes: 2048),
-          ],
+      final progress = progressOf(harness.container);
+      gameOf(harness.container).setProgress(
+        progress.copyWith(
+          settings: progress.settings.copyWith(nickname: 'Robin'),
         ),
       );
-
-      await tapAndSettle(tester, find.text('Restore'));
-      await tapAndSettle(tester, find.text('Cancel'));
-
-      expect(harness.persistence.restored, isEmpty);
-      expect(find.text(restorePrompt), findsNothing);
+      await tester.pumpAndSettle();
+      expect(shown(), 'Robin');
     });
 
-    testWidgets('a failed restore shows the error message in the app', (
+    testWidgets('sliders and the nickname field carry their row names', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pumpSettings(tester);
+
+      for (final (title, value) in [
+        ('Volume', '80%'),
+        ('Medium', '30 seconds'),
+        ('Hard', '20 seconds'),
+      ]) {
+        expect(
+          tester.getSemantics(sliderInRow(title)),
+          isSemantics(label: title, value: value, isSlider: true),
+          reason: title,
+        );
+      }
+      expect(
+        tester.getSemantics(find.byType(TextField)),
+        isSemantics(label: 'Nickname', isTextField: true),
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('reset names the player or says your', (tester) async {
+      await pumpSettings(
+        tester,
+        setup: (container) => gameOf(container).setNickname('Sam'),
+      );
+      await tapAndSettle(tester, find.text('Reset…'));
+      expect(
+        inDialog(
+          "This clears Sam's record shelf and stats. Backups stay available.",
+        ),
+        findsOneWidget,
+      );
+      await tapAndSettle(tester, inDialog('Cancel'));
+
+      await pumpSettings(tester);
+      await tapAndSettle(tester, find.text('Reset…'));
+      expect(
+        inDialog(
+          'This clears your record shelf and stats. Backups stay available.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('backups list the newest three with their date and size', (
       tester,
     ) async {
       await pumpSettings(
         tester,
+        persistence: FakePersistence(backups: fourBackups()),
+      );
+
+      for (final (date, size) in [
+        ('Oct 5, 2026 at 3:24 PM', '4.6 KB'),
+        ('Oct 4, 2026 at 9:10 PM', '4.5 KB'),
+        ('Oct 2, 2026 at 6:47 PM', '4.2 KB'),
+      ]) {
+        expect(find.text(date), findsOneWidget, reason: date);
+        expect(find.text(size), findsOneWidget, reason: size);
+      }
+      expect(find.text('Sep 30, 2026 at 9:05 AM'), findsNothing);
+      expect(find.text('Restore'), findsNWidgets(3));
+      final dates = [
+        for (final date in [
+          'Oct 5, 2026 at 3:24 PM',
+          'Oct 4, 2026 at 9:10 PM',
+          'Oct 2, 2026 at 6:47 PM',
+        ])
+          tester.getTopLeft(find.text(date)).dy,
+      ];
+      expect(dates, orderedEquals([...dates]..sort()));
+    });
+
+    testWidgets('no backups shows only the note', (tester) async {
+      await pumpSettings(tester);
+
+      expect(
+        find.text('The three most recent automatic backups are kept.'),
+        findsOneWidget,
+      );
+      expect(find.text('Restore'), findsNothing);
+    });
+
+    testWidgets('a failed restore shows the error', (tester) async {
+      final harness = await pumpSettings(
+        tester,
         persistence: FakePersistence(
-          backups: const [
-            BackupEntry(timestamp: 1759674615, path: '/a', sizeBytes: 2048),
+          backups: [
+            BackupEntry(
+              timestamp: unixSeconds(newest),
+              path: '/a',
+              sizeBytes: 2048,
+            ),
           ],
           restoreError: const SaveFileError('backup file does not exist'),
         ),
       );
 
       await tapAndSettle(tester, find.text('Restore'));
-      await tapAndSettle(tester, find.text('OK'));
+      await tapAndSettle(tester, inDialog('Restore'));
 
-      const failure =
-          'Could not restore backup: File error: backup file does not exist';
-      expect(find.text(failure), findsOneWidget);
+      expect(
+        harness.container.read(toastControllerProvider),
+        'Could not restore backup: File error: backup file does not exist',
+      );
 
-      await tapAndSettle(tester, find.text('OK'));
-      expect(find.text(failure), findsNothing);
+      await tester.pump(ToastController.displayDuration);
+      expect(harness.container.read(toastControllerProvider), isNull);
     });
 
-    testWidgets('dates follow the system locale', (tester) async {
-      const timestamp = 1759674615;
+    testWidgets('updates show the version and when it last checked', (
+      tester,
+    ) async {
       await pumpSettings(
         tester,
-        locale: const Locale('de', 'DE'),
-        persistence: FakePersistence(
-          backups: const [
-            BackupEntry(timestamp: timestamp, path: '/a', sizeBytes: 2048),
-          ],
-        ),
+        setup: (container) {
+          final progress = progressOf(container);
+          gameOf(container).setProgress(
+            progress.copyWith(
+              updater: progress.updater.copyWith(
+                lastCheckedAt: DateTime(
+                  2026,
+                  10,
+                  5,
+                  14,
+                  30,
+                ).toUtc().toIso8601String(),
+              ),
+            ),
+          );
+        },
       );
 
-      final local = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
       expect(
-        find.text(
-          '${local.day}.${local.month}.${local.year}, '
-          '${twoDigits(local.hour)}:${twoDigits(local.minute)}:'
-          '${twoDigits(local.second)}',
-        ),
+        find.text('Project Swiftie v0.3.0', findRichText: true),
         findsOneWidget,
+      );
+      expect(find.text('Last checked Oct 5, 2026 at 2:30 PM'), findsOneWidget);
+    });
+
+    testWidgets('Check now spins while checking and then shows the result', (
+      tester,
+    ) async {
+      final harness = await pumpSettings(tester);
+      final game = gameOf(harness.container);
+      game.setUpdaterState(const UpdaterUpToDate());
+      await tester.pumpAndSettle();
+      expect(find.text("You're up to date."), findsNothing);
+
+      await tester.ensureVisible(find.text('Check now'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Check now'));
+      game.setUpdaterState(const UpdaterChecking());
+      await tester.pump();
+      expect(harness.updater.checks, [true]);
+      expect(find.text('Checking…'), findsOneWidget);
+      expect(find.text('Check now'), findsNothing);
+      expect(spinnerBeside('Checking…'), findsOneWidget);
+
+      await tester.tap(find.text('Checking…'));
+      await tester.pump();
+      expect(harness.updater.checks, [true]);
+
+      game.setUpdaterState(const UpdaterUpToDate());
+      await tester.pumpAndSettle();
+      expect(find.text('Check now'), findsOneWidget);
+      expect(spinnerBeside('Check now'), findsNothing);
+      expect(find.text("You're up to date."), findsOneWidget);
+
+      await tester.tap(find.text('Check now'));
+      game.setUpdaterState(const UpdaterChecking());
+      await tester.pump();
+      expect(find.text("You're up to date."), findsNothing);
+
+      game.setUpdaterState(
+        const UpdaterError(
+          subtype: UpdaterErrorSubtype.check,
+          message: 'Could not reach the update server.',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Could not reach the update server.'), findsOneWidget);
+      expect(harness.updater.checks, [true, true]);
+    });
+
+    testWidgets('the automatic check row toggles autoCheckEnabled', (
+      tester,
+    ) async {
+      final harness = await pumpSettings(tester);
+      bool autoCheck() =>
+          progressOf(harness.container).updater.autoCheckEnabled;
+      expect(autoCheck(), isTrue);
+      expect(switchColor(tester), AppTokens.dark.coral);
+
+      await tapAndSettle(tester, find.text('Check for updates automatically'));
+      expect(autoCheck(), isFalse);
+      expect(switchColor(tester), AppTokens.dark.line2);
+
+      await tapAndSettle(
+        tester,
+        find.text(
+          'Sends only a standard request to GitHub. No analytics or tracking.',
+        ),
+      );
+      expect(autoCheck(), isTrue);
+      expect(switchColor(tester), AppTokens.dark.coral);
+    });
+
+    testWidgets('Back returns to the menu', (tester) async {
+      final harness = await pumpSettings(
+        tester,
+        setup: (container) => gameOf(container).setPhase(GamePhase.settings),
+      );
+
+      await tapAndSettle(tester, find.text('Back'));
+
+      expect(
+        harness.container.read(gameControllerProvider).phase,
+        GamePhase.menu,
       );
     });
 
-    testWidgets('about shows the app name and author', (tester) async {
-      await pumpSettings(tester);
-
-      expect(find.text('Swiftie Quiz'), findsOneWidget);
-      expect(find.text('Made by Satanshu'), findsOneWidget);
-      expect(
-        find.text('The 3 most recent automatic save backups are kept.'),
-        findsOneWidget,
+    testWidgets('reduced motion makes every change instant', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
       );
+      tester.view.physicalSize = const Size(1024, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final container = ProviderContainer.test(
+        overrides: [
+          editionProvider.overrideWithValue(Edition.open),
+          persistenceControllerProvider.overrideWith(FakePersistence.new),
+          appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
+        ],
+      );
+      gameOf(container).setUpdaterState(const UpdaterChecking());
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark,
+            home: const SettingsScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.hasRunningAnimations, isFalse);
+      expect(find.text('Checking…'), findsOneWidget);
+      expect(spinnerBeside('Checking…'), findsOneWidget);
+
+      for (final target in [
+        find.text('Light'),
+        sliderInRow('Medium'),
+        find.text('Check for updates automatically'),
+      ]) {
+        await tester.ensureVisible(target);
+        await tester.pump();
+        await tester.tap(target);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(tester.hasRunningAnimations, isFalse);
+      }
+      expect(settingsOf(container).theme, ThemeSetting.light);
+      expect(settingsOf(container).mediumTimer, 25);
+      expect(progressOf(container).updater.autoCheckEnabled, isFalse);
     });
   });
 }
