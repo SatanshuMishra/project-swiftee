@@ -76,17 +76,20 @@ final class FakeDeezer {
     client = DeezerClient(
       client: MockClient(_handle),
       userAgent: appUserAgent('0.3.0'),
-      now: () => start,
+      now: () => _now,
     );
   }
 
   late final DeezerClient client;
+  DateTime _now = start;
   final List<http.Request> requests = [];
   final Map<String, List<http.Response>> _routes = {};
 
   List<String> get urls => [
     for (final request in requests) request.url.toString(),
   ];
+
+  void advance(Duration elapsed) => _now = _now.add(elapsed);
 
   void on(String url, List<http.Response> responses) {
     _routes[url] = [...responses];
@@ -434,6 +437,23 @@ void main() {
           album: showgirl,
         ),
       );
+    });
+
+    test('50 requests fill the window and the next waits 60 s', () async {
+      for (var i = 0; i < 50; i++) {
+        await fake.client.refreshTrack(3579685431);
+      }
+
+      await expectLater(
+        fake.client.refreshTrack(3579685431),
+        throwsCatalogError(const RateLimited()),
+      );
+      expect(fake.requests, hasLength(50));
+
+      fake.advance(const Duration(seconds: 60));
+      await fake.client.refreshTrack(3579685431);
+
+      expect(fake.requests, hasLength(51));
     });
 
     test('each call requests /track/{id} again', () async {
