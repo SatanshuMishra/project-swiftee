@@ -43,6 +43,7 @@ import 'package:swiftie_quiz/ui/screens/record_shelf_screen.dart';
 import 'package:swiftie_quiz/ui/screens/round_summary_screen.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
 import 'package:swiftie_quiz/ui/screens/setup_screen.dart';
+import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 final DateTime _outsideBirthdayPeriod = DateTime(2026, 10, 5, 12);
@@ -298,7 +299,8 @@ final class _Harness {
     expect(find.byType(AppTitleBar), findsOneWidget);
   }
 
-  void expectTheme(Brightness brightness) {
+  Future<void> expectTheme(Brightness brightness) async {
+    await tester.pump(AppMotion.themeFade);
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(
       app.themeMode,
@@ -309,8 +311,8 @@ final class _Harness {
         ? AppTokens.dark
         : AppTokens.light;
     expect(Theme.of(context).brightness, brightness);
-    expect(AppTokens.of(context).background, tokens.background);
-    expect(AppTokens.of(context).foreground, tokens.foreground);
+    expect(AppTokens.of(context).bg, tokens.bg);
+    expect(AppTokens.of(context).fg, tokens.fg);
   }
 }
 
@@ -478,20 +480,20 @@ void main() {
       final harness = _Harness(tester)..platformBrightness = Brightness.light;
       await harness.launch();
 
-      harness.expectTheme(Brightness.dark);
+      await harness.expectTheme(Brightness.dark);
 
       harness.game.setTheme(ThemeSetting.light);
       await tester.pump();
-      harness.expectTheme(Brightness.light);
+      await harness.expectTheme(Brightness.light);
 
       harness.platformBrightness = Brightness.dark;
       harness.game.setTheme(ThemeSetting.light);
       await tester.pump();
-      harness.expectTheme(Brightness.light);
+      await harness.expectTheme(Brightness.light);
 
       harness.game.setTheme(ThemeSetting.dark);
       await tester.pump();
-      harness.expectTheme(Brightness.dark);
+      await harness.expectTheme(Brightness.dark);
     });
 
     testWidgets('the window chrome follows the resolved theme', (tester) async {
@@ -531,7 +533,7 @@ void main() {
       await harness.launch();
       await tester.pump();
 
-      harness.expectTheme(Brightness.light);
+      await harness.expectTheme(Brightness.light);
     });
 
     testWidgets(
@@ -542,22 +544,22 @@ void main() {
 
         harness.game.setTheme(ThemeSetting.system);
         await tester.pump();
-        harness.expectTheme(Brightness.light);
+        await harness.expectTheme(Brightness.light);
 
         harness.platformBrightness = Brightness.dark;
         harness.game
           ..setVolume(0.4)
           ..setTheme(ThemeSetting.system);
         await harness.show(GamePhase.settings);
-        harness.expectTheme(Brightness.light);
+        await harness.expectTheme(Brightness.light);
 
         harness.game.setTheme(ThemeSetting.light);
         await tester.pump();
-        harness.expectTheme(Brightness.light);
+        await harness.expectTheme(Brightness.light);
 
         harness.game.setTheme(ThemeSetting.system);
         await tester.pump();
-        harness.expectTheme(Brightness.dark);
+        await harness.expectTheme(Brightness.dark);
       },
     );
   });
