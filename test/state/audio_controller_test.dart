@@ -885,6 +885,23 @@ void main() {
       });
     });
 
+    test('a play replaced before its link is asked for never asks', () {
+      fakeAsync((async) {
+        final harness = _Harness();
+        harness.respond = (request) async => switch ('${request.url}') {
+          _previewUrl => _bytes(_previewBytes),
+          _ => _json({'error': 'unexpected'}, 404),
+        };
+
+        unawaited(harness.audio.play(_enchanted.copyWith(preview: '')));
+        unawaited(harness.audio.play(_enchanted));
+        async.flushMicrotasks();
+
+        expect(harness.requestedUrls, [_previewUrl]);
+        expect(harness.engine.loaded, [_previewBytes]);
+      });
+    });
+
     test('a play replaced while its link is fetched downloads nothing', () {
       fakeAsync((async) {
         final harness = _Harness();

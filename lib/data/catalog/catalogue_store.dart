@@ -23,13 +23,24 @@ final class CatalogueStore {
 
   Future<List<RawRelease>> load() async {
     final bundled = decodeCatalogue(await _loadBundled());
+    final bundledIds = {for (final release in bundled) release.id};
     final updates = await _readUpdates();
-    final updatedIds = {for (final release in updates) release.id};
-    return List.unmodifiable([
-      for (final release in bundled)
-        if (!updatedIds.contains(release.id)) release,
-      ...updates,
-    ]);
+    final unbundled = [
+      for (final release in updates)
+        if (!bundledIds.contains(release.id)) release,
+    ];
+    if (unbundled.length != updates.length) {
+      await _pruneUpdates(unbundled);
+    }
+    return List.unmodifiable([...bundled, ...unbundled]);
+  }
+
+  Future<void> _pruneUpdates(List<RawRelease> unbundled) async {
+    try {
+      await _writeUpdates(unbundled);
+    } on FileSystemException {
+      return;
+    }
   }
 
   Future<List<RawRelease>> addNewReleases(

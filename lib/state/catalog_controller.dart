@@ -92,17 +92,19 @@ final catalogControllerProvider =
     NotifierProvider<CatalogController, CatalogState>(CatalogController.new);
 
 class CatalogController extends Notifier<CatalogState> {
-  int _trackPoolRequest = 0;
   Future<void>? _loading;
-  bool _checkedForNewReleases = false;
+  Future<void>? _releaseCheck;
 
   @override
-  CatalogState build() => CatalogState.initial;
+  CatalogState build() {
+    _loading = null;
+    _releaseCheck = null;
+    return CatalogState.initial;
+  }
 
   Future<void> loadCatalogue() => _loading ??= _load();
 
   Future<CatalogTracks> loadTrackPool() async {
-    final request = ++_trackPoolRequest;
     await loadCatalogue();
     final game = ref.read(gameControllerProvider);
     final tracks = tracksForGame(
@@ -111,9 +113,7 @@ class CatalogController extends Notifier<CatalogState> {
       ref.read(clockProvider)(),
     );
     final pool = createTrackPool(tracks, random: ref.read(randomProvider));
-    if (ref.mounted &&
-        request == _trackPoolRequest &&
-        sameTrackSelection(game, ref.read(gameControllerProvider))) {
+    if (ref.mounted) {
       ref.read(gameControllerProvider.notifier).setTrackPool(pool);
     }
     return (allTracks: tracks, pool: pool);
@@ -141,13 +141,16 @@ class CatalogController extends Notifier<CatalogState> {
     }
   }
 
-  Future<void> checkForNewReleases() async {
-    if (_checkedForNewReleases) {
+  Future<void> checkForNewReleases() =>
+      _releaseCheck ??= _checkForNewReleases();
+
+  Future<void> _checkForNewReleases() async {
+    await loadCatalogue();
+    if (!ref.mounted) {
       return;
     }
-    _checkedForNewReleases = true;
-    await loadCatalogue();
-    if (!ref.mounted || state.catalogue.isEmpty) {
+    if (state.catalogue.isEmpty) {
+      _releaseCheck = null;
       return;
     }
     try {
@@ -160,7 +163,7 @@ class CatalogController extends Notifier<CatalogState> {
         _apply(buildCatalogue([...current.sources, ...added]));
       }
     } on Object {
-      return;
+      _releaseCheck = null;
     }
   }
 

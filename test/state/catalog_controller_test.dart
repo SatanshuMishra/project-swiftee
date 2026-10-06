@@ -25,10 +25,12 @@ http.Response _json(Object body) => http.Response.bytes(
 void main() {
   late Directory folder;
   late List<String> requested;
+  late bool offline;
 
   setUp(() {
     folder = Directory.systemTemp.createTempSync('catalogue');
     requested = [];
+    offline = false;
   });
   tearDown(() => folder.deleteSync(recursive: true));
 
@@ -42,8 +44,12 @@ void main() {
         deezerClientProvider.overrideWith(
           (ref) async => DeezerClient(
             userAgent: 'test',
+            now: () => _october6,
             client: MockClient((request) async {
               requested.add(request.url.path);
+              if (offline) {
+                return http.Response('', 503);
+              }
               return switch (request.url.path) {
                 '/artist/12246/albums' => _json({
                   'data': [
@@ -191,15 +197,68 @@ void main() {
       },
     );
 
+    test('a release check that failed is tried again', () async {
+      final scope = container();
+      final catalog = scope.read(catalogControllerProvider.notifier);
+      offline = true;
+
+      await catalog.checkForNewReleases();
+      offline = false;
+      await catalog.checkForNewReleases();
+      await catalog.checkForNewReleases();
+
+      expect(
+        scope.read(catalogControllerProvider).catalogue.eraOf(2001)?.key,
+        'showgirl',
+      );
+      expect(requested, [
+        '/artist/12246/albums',
+        '/artist/12246/albums',
+        '/album/2001/tracks',
+      ]);
+    });
+
+    test('a pool follows the picks made while it loaded', () async {
+      final scope = container();
+      final game = scope.read(gameControllerProvider.notifier)
+        ..toggleEra('showgirl')
+        ..beginSetup(GameMode.album);
+
+      final loading = scope
+          .read(catalogControllerProvider.notifier)
+          .loadTrackPool();
+      game.toggleEra('red');
+      final tracks = await loading;
+
+      final catalogue = scope.read(catalogControllerProvider).catalogue;
+      expect(
+        tracks.allTracks,
+        unorderedEquals(catalogue.tracksFor(['showgirl', 'red'])),
+      );
+      expect(scope.read(gameControllerProvider).trackPool, tracks.pool);
+    });
+
+    test('a rebuilt catalogue loads again', () async {
+      final scope = container();
+      await scope.read(catalogControllerProvider.notifier).loadCatalogue();
+      scope.invalidate(catalogControllerProvider);
+
+      await scope.read(catalogControllerProvider.notifier).loadCatalogue();
+
+      expect(scope.read(catalogControllerProvider).catalogue.isEmpty, isFalse);
+    });
+
     test('a failed release check leaves the catalogue as it was', () async {
       final scope = ProviderContainer.test(
         overrides: [
           catalogueStoreProvider.overrideWithValue(
             fixtureCatalogueStore(folder: folder),
           ),
+          clockProvider.overrideWithValue(() => _october6),
           deezerClientProvider.overrideWith(
             (ref) async => DeezerClient(
               userAgent: 'test',
+              now: () => _october6,
               client: MockClient((request) async => http.Response('', 500)),
             ),
           ),

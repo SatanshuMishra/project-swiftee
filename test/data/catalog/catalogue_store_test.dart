@@ -67,6 +67,29 @@ void main() {
       expect(await store().load(), bundled);
     });
 
+    test(
+      'a release the app now bundles replaces the copy kept on disk',
+      () async {
+        final updates = File('${folder.path}/$catalogueUpdatesFileName');
+        final stale = fixtureReleases.first.copyWith(
+          tracks: [
+            rawTrack(1, 'State Of Grace', isrc: 'RED01', preview: false),
+          ],
+        );
+        final newer = rawRelease(1103662682, 'The Encore', '2026-09-25', [
+          rawTrack(72, 'Babylon', isrc: 'SG02'),
+        ]);
+        updates.writeAsStringSync(
+          encodeCatalogue([stale, newer], fetchedAt: '2026-10-01T00:00:00Z'),
+        );
+
+        final loaded = await store().load();
+
+        expect(loaded, [...bundled, newer]);
+        expect(decodeCatalogue(updates.readAsStringSync()), [newer]);
+      },
+    );
+
     test('fetches only releases it has not seen and keeps them', () async {
       final requested = <String>[];
       final client = DeezerClient(
