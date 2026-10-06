@@ -69,7 +69,7 @@ String trackCaption(Track track) {
   final position = track.trackPosition;
   return [
     eraNameOf(track),
-    ?versionLabel(track.title),
+    ?versionLabel(track.title, shown: songTitle(track)),
     if (position != null && eraOfTrack(track)?.key != singlesEra.key)
       'track $position',
   ].join(' · ');

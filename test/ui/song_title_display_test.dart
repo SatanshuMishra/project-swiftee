@@ -42,17 +42,18 @@ void main() {
   });
 
   test('reveal lines name the era, the version and the track number', () {
-    Track recording(String title, String era, int? position) => Track(
-      id: 1,
-      title: title,
-      titleShort: title,
-      duration: 200,
-      preview: '',
-      artist: const Artist(id: 12246, name: 'Taylor Swift'),
-      album: const Album(id: 5, title: 'Release', coverMedium: null),
-      trackPosition: position,
-      eraKey: era,
-    );
+    Track recording(String title, String era, int? position, {String? short}) =>
+        Track(
+          id: 1,
+          title: title,
+          titleShort: short ?? title,
+          duration: 200,
+          preview: '',
+          artist: const Artist(id: 12246, name: 'Taylor Swift'),
+          album: const Album(id: 5, title: 'Release', coverMedium: null),
+          trackPosition: position,
+          eraKey: era,
+        );
     expect(
       trackCaption(recording("Red (Taylor's Version)", 'red', 2)),
       "Red · Taylor's Version · track 2",
@@ -70,9 +71,35 @@ void main() {
     );
     expect(
       trackCaption(
-        recording('Cruel Summer (Live from The Eras Tour)', 'lover', 2),
+        recording(
+          'Cruel Summer (Live from The Eras Tour)',
+          'lover',
+          2,
+          short: 'Cruel Summer',
+        ),
       ),
-      'Lover · Live · track 2',
+      'Lover · Live from The Eras Tour · track 2',
+    );
+    expect(
+      trackCaption(
+        recording(
+          'Ruin The Friendship (My Advice Version)',
+          'showgirl',
+          17,
+          short: 'Ruin The Friendship',
+        ),
+      ),
+      'The Life of a Showgirl · My Advice Version · track 17',
+    );
+    expect(
+      trackCaption(
+        recording(
+          "State Of Grace (Acoustic Version) (Taylor's Version)",
+          'red',
+          21,
+        ),
+      ),
+      "Red · Taylor's Version · track 21",
     );
     expect(
       trackCaption(

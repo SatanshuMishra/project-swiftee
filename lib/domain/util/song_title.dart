@@ -8,29 +8,35 @@ final RegExp _whitespace = RegExp(r'\s+');
 String displaySongTitle(String title) =>
     title.replaceAll(_versionLabel, '').replaceAll(_whitespace, ' ').trim();
 
-final RegExp _livePattern = RegExp(r'\blive\b', caseSensitive: false);
-final RegExp _acousticPattern = RegExp(
-  r'acoustic|piano|voice/|strings|orchestral',
+final RegExp _titlePart = RegExp(r'[(\[]([^)\]]*)[)\]]|\s+-\s+(.*)$');
+final RegExp _taylorsVersion = RegExp(
+  r"^taylor['’]s version$",
   caseSensitive: false,
 );
-final RegExp _demoPattern = RegExp(
-  r'demo|first draft|phone memo',
-  caseSensitive: false,
-);
+final RegExp _fromTheVault = RegExp(r'^from the vault$', caseSensitive: false);
 
-String? versionLabel(String title) {
-  final lower = title.toLowerCase().replaceAll('’', "'");
+List<String> _titleParts(String title) => [
+  for (final match in _titlePart.allMatches(title))
+    if ((match[1] ?? match[2] ?? '').trim() case final part
+        when part.isNotEmpty)
+      part,
+];
+
+String? versionLabel(String title, {required String shown}) {
+  final parts = _titleParts(title);
+  final shownParts = {
+    for (final part in _titleParts(shown)) part.toLowerCase(),
+  };
   final labels = [
-    if (lower.contains('from the vault'))
+    if (parts.any(_fromTheVault.hasMatch))
       'From The Vault'
-    else if (lower.contains("taylor's version"))
+    else if (parts.any(_taylorsVersion.hasMatch))
       "Taylor's Version",
-    if (lower.contains('long pond'))
-      'Long Pond Studio Sessions'
-    else if (_livePattern.hasMatch(lower))
-      'Live',
-    if (_acousticPattern.hasMatch(lower)) 'Acoustic',
-    if (_demoPattern.hasMatch(lower)) 'Demo',
+    for (final part in parts)
+      if (!_fromTheVault.hasMatch(part) &&
+          !_taylorsVersion.hasMatch(part) &&
+          !shownParts.contains(part.toLowerCase()))
+        part,
   ];
   return labels.isEmpty ? null : labels.join(' · ');
 }
