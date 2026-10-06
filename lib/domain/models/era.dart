@@ -127,6 +127,19 @@ int dayOfYear(DateTime moment) {
   return day.difference(yearStart).inDays + 1;
 }
 
+const Era singlesEra = Era(
+  key: 'singles',
+  deezerAlbumId: 0,
+  eraName: 'Singles & soundtracks',
+  subLabel: 'Beyond the albums',
+  placeholderArgb: 0xFF5C5450,
+);
+
+const List<Era> eraGroups = [...curatedEras, singlesEra];
+
+Era? eraByKey(String key) =>
+    eraGroups.firstWhereOrNull((era) => era.key == key);
+
 Era tonightsEra(DateTime now) =>
     curatedEras[dayOfYear(now) % curatedEras.length];
 

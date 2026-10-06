@@ -4,10 +4,12 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
 import 'package:swiftie_quiz/data/catalog/catalog_error.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/data/catalog/deezer_json.dart';
 import 'package:swiftie_quiz/data/catalog/rate_limiter.dart';
 import 'package:swiftie_quiz/data/catalog/response_cache.dart';
 import 'package:swiftie_quiz/data/catalog/track_filter.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 
 final class DeezerClient {
@@ -41,9 +43,10 @@ final class DeezerClient {
       return cached;
     }
     final albums = List<Album>.unmodifiable(
-      await _albumPagesFrom(
+      await _pagesFrom(
         _endpoint('/artist/$artistId/albums?limit=100'),
         const {},
+        parseAlbum,
       ),
     );
     _cache.put(_albumsKey, albums);
@@ -87,16 +90,41 @@ final class DeezerClient {
     return tracks;
   }
 
+  Future<List<RawRelease>> fetchReleaseSummaries() async => List.unmodifiable(
+    await _pagesFrom(
+      _endpoint('/artist/$artistId/albums?limit=100'),
+      const {},
+      parseReleaseSummary,
+    ),
+  );
+
+  Future<List<RawTrack>> fetchReleaseTracks(int releaseId) async {
+    if (releaseId <= 0) {
+      throw const ApiError('Invalid album ID');
+    }
+    return List.unmodifiable(
+      await _pagesFrom(
+        _endpoint('/album/$releaseId/tracks?limit=100'),
+        const {},
+        parseRawTrack,
+      ),
+    );
+  }
+
   Future<Track> refreshTrack(int trackId) async =>
       parseDeezerTrack(await _getJson(_endpoint('/track/$trackId'))).track;
 
-  Future<List<Album>> _albumPagesFrom(Uri page, Set<Uri> requested) async {
-    final body = parseDeezerPage(await _getJson(page), parseAlbum);
+  Future<List<T>> _pagesFrom<T>(
+    Uri page,
+    Set<Uri> requested,
+    T Function(Object? item) parseItem,
+  ) async {
+    final body = parseDeezerPage(await _getJson(page), parseItem);
     final seen = {...requested, page};
     final next = _followableNext(body.next, seen);
     return next == null
         ? body.data
-        : [...body.data, ...await _albumPagesFrom(next, seen)];
+        : [...body.data, ...await _pagesFrom(next, seen, parseItem)];
   }
 
   Iterable<Track> _playableSongs(Iterable<DeezerTrack> candidates) => [

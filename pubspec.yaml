@@ -34,6 +34,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/
+    - assets/catalog/
     - assets/cat/
     - assets/cats/
     - assets/icons/
