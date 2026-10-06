@@ -276,7 +276,20 @@ final class _Harness {
 
   void expectOverlaysAbove(Type screen) {
     expect(find.byType(AchievementToasts), findsOneWidget);
-    expect(find.byType(UpdateBadge), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AppTitleBar),
+        matching: find.byType(UpdateBadge),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(UpdateOverlay),
+        matching: find.byType(UpdateBadge),
+      ),
+      findsNothing,
+    );
     expect(find.byType(UpdateModal), findsOneWidget);
     expect(find.byType(ToastHost), findsOneWidget);
     final layers = tester
@@ -456,7 +469,7 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Update available (0.3.1)'));
+      await tester.tap(find.text('Update available · 0.3.1'));
       await tester.pumpAndSettle();
 
       expect(find.text('Version 0.3.1 available'), findsOneWidget);
@@ -500,19 +513,16 @@ void main() {
       final harness = _Harness(tester)..platformBrightness = Brightness.light;
       await harness.launch();
 
-      expect(harness.chrome, [(Brightness.dark, AppTokens.dark.background)]);
+      expect(harness.chrome, [(Brightness.dark, AppTokens.dark.bg)]);
 
       harness.game.setTheme(ThemeSetting.light);
       await tester.pump();
-      expect(harness.chrome.last, (
-        Brightness.light,
-        AppTokens.light.background,
-      ));
+      expect(harness.chrome.last, (Brightness.light, AppTokens.light.bg));
 
       harness.platformBrightness = Brightness.dark;
       harness.game.setTheme(ThemeSetting.system);
       await tester.pump();
-      expect(harness.chrome.last, (Brightness.dark, AppTokens.dark.background));
+      expect(harness.chrome.last, (Brightness.dark, AppTokens.dark.bg));
 
       harness.game.setVolume(0.4);
       await tester.pump();

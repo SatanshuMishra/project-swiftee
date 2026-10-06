@@ -9,343 +9,294 @@ import 'package:swiftie_quiz/ui/overlays/update_badge.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/widgets/above_app_chrome.dart';
-import 'package:swiftie_quiz/ui/widgets/app_icon.dart';
 
-const Size surface = Size(800, 600);
 const UpdateManifest manifest = UpdateManifest(
   version: '0.3.0',
   notes: '',
   pubDate: '',
 );
 
+const List<UpdaterMachineState> quietStates = [
+  UpdaterIdle(),
+  UpdaterChecking(),
+  UpdaterUpToDate(),
+  UpdaterInstalling(),
+  UpdaterInstalled(manifest: manifest),
+];
+
 void main() {
-  group('update badge parity', () {
-    late ProviderContainer container;
-    late int clicks;
+  late ProviderContainer container;
 
-    setUp(() {
-      container = ProviderContainer.test();
-      clicks = 0;
-    });
+  setUp(() => container = ProviderContainer.test());
 
-    void setState(UpdaterMachineState state) =>
-        container.read(gameControllerProvider.notifier).setUpdaterState(state);
+  void setUpdater(UpdaterMachineState state) =>
+      container.read(gameControllerProvider.notifier).setUpdaterState(state);
 
-    Future<void> pumpBadge(WidgetTester tester, UpdaterMachineState state) {
-      setState(state);
-      return tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.dark,
-            home: Stack(children: [UpdateBadge(onPressed: () => clicks++)]),
+  bool dialogOpen() => container.read(updateDialogOpenProvider);
+
+  Future<void> pumpShell(
+    WidgetTester tester, {
+    UpdateBadgeSize size = UpdateBadgeSize.mac,
+    ThemeData? theme,
+    Widget? screen,
+    Widget? belowDialog,
+  }) => tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: theme ?? AppTheme.dark,
+        home: Material(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              UpdateBadge(size: size),
+              Expanded(
+                child: UpdateOverlay(screen: screen, belowDialog: belowDialog),
+              ),
+            ],
           ),
         ),
-      );
-    }
-
-    Finder badgeText() => find.descendant(
-      of: find.byType(UpdateBadge),
-      matching: find.byType(Text),
-    );
-
-    Finder badgeBox() => find.descendant(
-      of: find.byType(UpdateBadge),
-      matching: find.byWidgetPredicate(
-        (widget) =>
-            widget is DecoratedBox && widget.decoration is ShapeDecoration,
       ),
+    ),
+  );
+
+  Finder pill() => find.descendant(
+    of: find.byType(UpdateBadge),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).borderRadius ==
+              UpdateBadge.radius &&
+          (widget.decoration as BoxDecoration).color != null,
+    ),
+  );
+
+  Finder dot() => find.descendant(
+    of: find.byType(UpdateBadge),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+    ),
+  );
+
+  Finder focusRing() => find.descendant(
+    of: find.byType(UpdateBadge),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox &&
+          widget.position == DecorationPosition.foreground &&
+          (widget.decoration as BoxDecoration).border != null,
+    ),
+  );
+
+  Color pillColor(WidgetTester tester) =>
+      (tester.widget<DecoratedBox>(pill()).decoration as BoxDecoration).color!;
+
+  group('update badge in the title bar', () {
+    testWidgets(
+      'the title bar badge reads the design copy for each updater state',
+      (tester) async {
+        for (final tokens in [AppTokens.dark, AppTokens.light]) {
+          final looks = [
+            UpdateBadge.lookFor(
+              const UpdaterAvailable(
+                manifest: UpdateManifest(
+                  version: '0.3.1',
+                  notes: '',
+                  pubDate: '',
+                ),
+              ),
+              tokens,
+            ),
+            UpdateBadge.lookFor(
+              const UpdaterDownloading(manifest: manifest, progress: 47),
+              tokens,
+            ),
+            UpdateBadge.lookFor(const UpdaterReady(manifest: manifest), tokens),
+            UpdateBadge.lookFor(
+              const UpdaterError(
+                subtype: UpdaterErrorSubtype.download,
+                message: 'network',
+              ),
+              tokens,
+            ),
+          ];
+          expect(looks, [
+            (
+              label: 'Update available · 0.3.1',
+              background: tokens.coral,
+              foreground: tokens.onCoral,
+            ),
+            (
+              label: 'Downloading · 47%',
+              background: tokens.btn,
+              foreground: tokens.onBtn,
+            ),
+            (
+              label: 'Restart to update',
+              background: tokens.coral,
+              foreground: tokens.onCoral,
+            ),
+            (
+              label: 'Update issue',
+              background: tokens.roseBg,
+              foreground: tokens.rose,
+            ),
+          ]);
+          for (final state in quietStates) {
+            expect(
+              UpdateBadge.lookFor(state, tokens),
+              isNull,
+              reason: '$state',
+            );
+          }
+        }
+
+        setUpdater(const UpdaterAvailable(manifest: manifest));
+        await pumpShell(tester);
+        expect(find.text('Update available · 0.3.0'), findsOneWidget);
+        expect(pillColor(tester), AppTokens.dark.coral);
+        expect(dialogOpen(), isFalse);
+        expect(find.text('Version 0.3.0 available'), findsNothing);
+
+        await tester.tap(find.text('Update available · 0.3.0'));
+        await tester.pumpAndSettle();
+
+        expect(dialogOpen(), isTrue);
+        expect(find.text('Version 0.3.0 available'), findsOneWidget);
+      },
     );
 
-    String accessibleLabel(WidgetTester tester) =>
-        tester.getSemantics(badgeBox()).label;
-
-    void expectRendersNothing(WidgetTester tester) {
-      expect(tester.getSize(find.byType(UpdateBadge)), Size.zero);
-      expect(badgeText(), findsNothing);
-      expect(
-        find.semantics.byPredicate(
-          (node) => node.getSemanticsData().flagsCollection.isButton,
-        ),
-        findsNothing,
-      );
-    }
-
-    testWidgets('renders nothing when state is idle', (tester) async {
-      await pumpBadge(tester, const UpdaterIdle());
-      expectRendersNothing(tester);
-    });
-
-    testWidgets('renders nothing when state is checking', (tester) async {
-      await pumpBadge(tester, const UpdaterChecking());
-      expectRendersNothing(tester);
-    });
-
-    testWidgets('renders nothing when state is up-to-date', (tester) async {
-      await pumpBadge(tester, const UpdaterUpToDate());
-      expectRendersNothing(tester);
-    });
-
-    testWidgets("renders 'Update available' text when state is available", (
+    testWidgets('no badge shows while no update needs attention', (
       tester,
     ) async {
-      await pumpBadge(tester, const UpdaterAvailable(manifest: manifest));
+      for (final state in quietStates) {
+        setUpdater(state);
+        await pumpShell(tester);
 
-      expect(
-        find.textContaining(RegExp('update available', caseSensitive: false)),
-        findsOneWidget,
-      );
-      expect(find.textContaining(RegExp(r'0\.3\.0')), findsOneWidget);
-    });
-
-    testWidgets('renders progress percentage when downloading', (tester) async {
-      await pumpBadge(
-        tester,
-        const UpdaterDownloading(manifest: manifest, progress: 47),
-      );
-
-      expect(find.textContaining('47'), findsOneWidget);
-    });
-
-    testWidgets("renders 'Restart to install' when ready", (tester) async {
-      await pumpBadge(tester, const UpdaterReady(manifest: manifest));
-
-      expect(
-        find.textContaining(RegExp('restart to install', caseSensitive: false)),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('renders an issue label when state is error', (tester) async {
-      await pumpBadge(
-        tester,
-        const UpdaterError(
-          subtype: UpdaterErrorSubtype.download,
-          message: 'network',
-        ),
-      );
-
-      expect(
-        find.textContaining(RegExp('issue', caseSensitive: false)),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('renders nothing when state is installing', (tester) async {
-      await pumpBadge(tester, const UpdaterInstalling());
-      expectRendersNothing(tester);
-    });
-
-    testWidgets('renders nothing when state is installed', (tester) async {
-      await pumpBadge(tester, const UpdaterInstalled(manifest: manifest));
-      expectRendersNothing(tester);
-    });
-
-    testWidgets('calls onClick when clicked', (tester) async {
-      await pumpBadge(tester, const UpdaterAvailable(manifest: manifest));
-
-      await tester.tap(badgeBox());
-
-      expect(clicks, 1);
-    });
-
-    testWidgets('has an accessible label per state', (tester) async {
-      await pumpBadge(tester, const UpdaterAvailable(manifest: manifest));
-
-      final node = tester.getSemantics(badgeBox());
-      expect(node.getSemanticsData().flagsCollection.isButton, isTrue);
-      expect(node.label, matches(RegExp('update', caseSensitive: false)));
-    });
-
-    testWidgets("shows today's label, colour and icon for each visible state", (
-      tester,
-    ) async {
-      final cases = <(UpdaterMachineState, String, Color, LucideGlyph)>[
-        (
-          const UpdaterAvailable(manifest: manifest),
-          'Update available (0.3.0)',
-          const Color(0xFF7F22FE),
-          LucideGlyph.download,
-        ),
-        (
-          const UpdaterDownloading(manifest: manifest, progress: 47),
-          'Downloading update… 47%',
-          const Color(0xFF155DFC),
-          LucideGlyph.loaderCircle,
-        ),
-        (
-          const UpdaterReady(manifest: manifest),
-          'Restart to install 0.3.0',
-          const Color(0xFF009966),
-          LucideGlyph.refreshCcw,
-        ),
-        (
-          const UpdaterError(
-            subtype: UpdaterErrorSubtype.check,
-            message: 'offline',
+        expect(tester.getSize(find.byType(UpdateBadge)), Size.zero);
+        expect(pill(), findsNothing);
+        expect(
+          find.semantics.byPredicate(
+            (node) => node.getSemanticsData().flagsCollection.isButton,
           ),
-          'Update issue — click for details',
-          const Color(0xFFD08700),
-          LucideGlyph.circleAlert,
-        ),
-      ];
-      for (final (state, label, color, glyph) in cases) {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await pumpBadge(tester, state);
-
-        expect(find.text(label), findsOneWidget, reason: label);
-        expect(accessibleLabel(tester), label);
-        final decoration =
-            tester.widget<DecoratedBox>(badgeBox()).decoration
-                as ShapeDecoration;
-        expect(decoration.color, color, reason: label);
-        expect(decoration.shape, const StadiumBorder());
-        expect(decoration.shadows, AppShadows.lg);
-        final icon = tester.widget<AppIcon>(find.byType(AppIcon));
-        expect(icon.glyph, glyph, reason: label);
-        expect(icon.size, 16);
-        expect(icon.color, AppPalette.white);
-        final text = tester.widget<Text>(find.text(label)).style!;
-        expect(text.fontSize, 14);
-        expect(text.color, AppPalette.white);
+          findsNothing,
+          reason: '$state',
+        );
       }
     });
 
-    testWidgets('sits 24 px from the bottom right as a 36 px pill', (
+    testWidgets('the macos pill is 20 px tall at 11/20 weight 600', (
       tester,
     ) async {
-      await pumpBadge(tester, const UpdaterAvailable(manifest: manifest));
+      setUpdater(const UpdaterReady(manifest: manifest));
+      await pumpShell(tester);
 
-      final rect = tester.getRect(badgeBox());
-      expect(rect.right, surface.width - UpdateBadge.inset);
-      expect(rect.bottom, surface.height - UpdateBadge.inset);
-      expect(rect.height, 36);
-      expect(tester.getTopLeft(find.byType(AppIcon)).dx - rect.left, 16);
+      final pillRect = tester.getRect(pill());
+      expect(pillRect.height, 20);
+      final text = tester.widget<Text>(find.text('Restart to update')).style!;
+      expect(text.fontSize, 11);
+      expect(text.height! * text.fontSize!, 20);
+      expect(text.fontWeight, FontWeight.w600);
+      expect(text.color, AppTokens.dark.onCoral);
+      final dotRect = tester.getRect(dot());
+      expect(dotRect.size, const Size.square(6));
+      expect(dotRect.left - pillRect.left, 10);
+      expect(dotRect.center.dy, pillRect.center.dy);
       expect(
-        tester.getTopLeft(badgeText()).dx -
-            tester.getTopRight(find.byType(AppIcon)).dx,
-        8,
+        tester.getTopLeft(find.text('Restart to update')).dx - dotRect.right,
+        6,
+      );
+      expect(
+        pillRect.right - tester.getTopRight(find.text('Restart to update')).dx,
+        10,
+      );
+      expect(
+        (tester.widget<DecoratedBox>(dot()).decoration as BoxDecoration).color,
+        AppTokens.dark.onCoral.withValues(alpha: 0.8),
       );
     });
 
-    testWidgets('fades between state colours over 150 ms', (tester) async {
-      await pumpBadge(tester, const UpdaterAvailable(manifest: manifest));
-      setState(const UpdaterDownloading(manifest: manifest, progress: 0));
+    testWidgets('the windows pill is 22 px tall at 12/22 weight 600', (
+      tester,
+    ) async {
+      setUpdater(const UpdaterDownloading(manifest: manifest, progress: 12));
+      await pumpShell(tester, size: UpdateBadgeSize.windows);
+
+      expect(tester.getRect(pill()).height, 22);
+      final text = tester.widget<Text>(find.text('Downloading · 12%')).style!;
+      expect(text.fontSize, 12);
+      expect(text.height! * text.fontSize!, 22);
+      expect(text.fontWeight, FontWeight.w600);
+      expect(text.color, AppTokens.dark.onBtn);
+      expect(pillColor(tester), AppTokens.dark.btn);
+    });
+
+    testWidgets('the badge colours follow the light theme', (tester) async {
+      setUpdater(
+        const UpdaterError(subtype: UpdaterErrorSubtype.check, message: ''),
+      );
+      await pumpShell(tester, theme: AppTheme.light);
+
+      expect(pillColor(tester), AppTokens.light.roseBg);
+      expect(
+        tester.widget<Text>(find.text('Update issue')).style!.color,
+        AppTokens.light.rose,
+      );
+    });
+
+    testWidgets('the badge is a labelled button with a 24 px tall target', (
+      tester,
+    ) async {
+      setUpdater(const UpdaterAvailable(manifest: manifest));
+      await pumpShell(tester);
+
+      final node = tester.getSemantics(pill());
+      expect(node.getSemanticsData().flagsCollection.isButton, isTrue);
+      expect(node.label, 'Update available · 0.3.0');
+      expect(tester.getSize(find.byType(UpdateBadge)).height, 24);
+
+      await tester.tapAt(tester.getRect(pill()).topCenter - const Offset(0, 1));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 75));
-
-      Color badgeColor() =>
-          (tester.widget<DecoratedBox>(badgeBox()).decoration
-                  as ShapeDecoration)
-              .color!;
-      expect(badgeColor(), isNot(AppPalette.violet600));
-      expect(badgeColor(), isNot(AppPalette.blue600));
-
-      await tester.pump(const Duration(milliseconds: 75));
-      expect(badgeColor(), AppPalette.blue600);
+      expect(dialogOpen(), isTrue);
     });
 
-    testWidgets('the downloading spinner turns once a second', (tester) async {
-      await pumpBadge(
-        tester,
-        const UpdaterDownloading(manifest: manifest, progress: 10),
-      );
-      final spinner = find.ancestor(
-        of: find.byType(AppIcon),
-        matching: find.byType(RotationTransition),
+    testWidgets('the keyboard reaches the badge, rings it and opens the '
+        'dialog', (tester) async {
+      setUpdater(const UpdaterAvailable(manifest: manifest));
+      await pumpShell(tester);
+      expect(focusRing(), findsNothing);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(focusRing(), findsOneWidget);
+      expect(
+        (tester.widget<DecoratedBox>(focusRing()).decoration as BoxDecoration)
+            .border!
+            .top
+            .color,
+        AppTokens.dark.coral,
       );
 
-      expect(spinner, findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 250));
-      expect(
-        tester.widget<RotationTransition>(spinner).turns.value,
-        moreOrLessEquals(0.25),
-      );
-      await tester.pump(const Duration(milliseconds: 750));
-      expect(
-        tester.widget<RotationTransition>(spinner).turns.value,
-        moreOrLessEquals(0, epsilon: 1e-6),
-      );
-
-      setState(const UpdaterReady(manifest: manifest));
-      await tester.pump(const Duration(milliseconds: 150));
-      expect(spinner, findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(dialogOpen(), isTrue);
+      expect(find.text('Version 0.3.0 available'), findsOneWidget);
     });
+  });
 
-    testWidgets('the spinner stands still when the platform reduces motion', (
+  group('the update overlay hosts the dialog', () {
+    testWidgets('the dialog opens and closes only through the provider', (
       tester,
     ) async {
-      tester.platformDispatcher.accessibilityFeaturesTestValue =
-          const FakeAccessibilityFeatures(disableAnimations: true);
-      addTearDown(
-        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
-      );
-      await pumpBadge(
-        tester,
-        const UpdaterDownloading(manifest: manifest, progress: 10),
-      );
-
-      expect(
-        find.ancestor(
-          of: find.byType(AppIcon),
-          matching: find.byType(RotationTransition),
-        ),
-        findsNothing,
-      );
-      expect(
-        tester.widget<AppIcon>(find.byType(AppIcon)).glyph,
-        LucideGlyph.loaderCircle,
-      );
-    });
-
-    testWidgets('clicks elsewhere reach the screen beneath', (tester) async {
-      var screenTaps = 0;
-      setState(const UpdaterAvailable(manifest: manifest));
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.dark,
-            home: Stack(
-              children: [
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => screenTaps++,
-                  ),
-                ),
-                UpdateBadge(onPressed: () => clicks++),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      await tester.tapAt(const Offset(20, 20));
-      await tester.tapAt(const Offset(780, 590));
-      await tester.tap(badgeBox());
-
-      expect(screenTaps, 2);
-      expect(clicks, 1);
-    });
-
-    testWidgets('tapping the badge opens the update dialog; Escape closes it', (
-      tester,
-    ) async {
-      setState(const UpdaterAvailable(manifest: manifest));
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.dark,
-            home: const Stack(children: [UpdateOverlay()]),
-          ),
-        ),
-      );
-
+      setUpdater(const UpdaterAvailable(manifest: manifest));
+      await pumpShell(tester);
       expect(find.text('Version 0.3.0 available'), findsNothing);
 
-      await tester.tap(badgeBox());
+      container.read(updateDialogOpenProvider.notifier).open();
       await tester.pumpAndSettle();
       expect(find.text('Version 0.3.0 available'), findsOneWidget);
       expect(
@@ -355,106 +306,57 @@ void main() {
         findsOne,
       );
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      container.read(updateDialogOpenProvider.notifier).close();
       await tester.pumpAndSettle();
       expect(find.text('Version 0.3.0 available'), findsNothing);
-      expect(find.text('Update available (0.3.0)'), findsOneWidget);
     });
 
-    testWidgets(
-      'a screen layer floated above the app chrome covers the badge but not the toasts',
-      (tester) async {
-        var coverTaps = 0;
-        var toastTaps = 0;
-        setState(const UpdaterAvailable(manifest: manifest));
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              theme: AppTheme.dark,
-              home: Stack(
-                children: [
-                  UpdateOverlay(
-                    screen: Stack(
-                      children: [
-                        AboveAppChrome(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => coverTaps++,
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    belowDialog: Align(
-                      alignment: Alignment.topLeft,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => toastTaps++,
-                        child: const SizedBox(width: 60, height: 60),
-                      ),
-                    ),
-                  ),
-                ],
+    testWidgets('Escape closes the dialog and the badge stays', (tester) async {
+      setUpdater(const UpdaterAvailable(manifest: manifest));
+      await pumpShell(tester);
+      await tester.tap(find.text('Update available · 0.3.0'));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(dialogOpen(), isFalse);
+      expect(find.text('Version 0.3.0 available'), findsNothing);
+      expect(find.text('Update available · 0.3.0'), findsOneWidget);
+    });
+
+    testWidgets('a screen layer floated above the app chrome stays below the '
+        'toasts', (tester) async {
+      var coverTaps = 0;
+      var toastTaps = 0;
+      await pumpShell(
+        tester,
+        screen: Stack(
+          children: [
+            AboveAppChrome(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => coverTaps++,
+                child: const SizedBox.expand(),
               ),
             ),
-          ),
-        );
-
-        await tester.tap(badgeBox(), warnIfMissed: false);
-        await tester.pumpAndSettle();
-        expect(coverTaps, 1);
-        expect(find.text('Version 0.3.0 available'), findsNothing);
-
-        await tester.tapAt(const Offset(30, 30));
-        await tester.pumpAndSettle();
-        expect(toastTaps, 1);
-        expect(coverTaps, 1);
-      },
-    );
-
-    testWidgets('a layer below the dialog sits above the badge', (
-      tester,
-    ) async {
-      var layerTaps = 0;
-      setState(const UpdaterAvailable(manifest: manifest));
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.dark,
-            home: Stack(
-              children: [
-                UpdateOverlay(
-                  belowDialog: Align(
-                    alignment: Alignment.bottomRight,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => layerTaps++,
-                      child: const SizedBox(width: 60, height: 60),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          ],
+        ),
+        belowDialog: Align(
+          alignment: Alignment.topLeft,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => toastTaps++,
+            child: const SizedBox(width: 60, height: 60),
           ),
         ),
       );
-      final badge = tester.getRect(badgeBox());
 
-      await tester.tapAt(badge.centerRight - const Offset(4, 0));
-      await tester.pumpAndSettle();
-      expect(layerTaps, 1);
-      expect(find.text('Version 0.3.0 available'), findsNothing);
+      await tester.tapAt(const Offset(400, 300));
+      await tester.tapAt(const Offset(30, 30));
 
-      await tester.tapAt(badge.centerLeft + const Offset(4, 0));
-      await tester.pumpAndSettle();
-      expect(find.text('Version 0.3.0 available'), findsOneWidget);
-
-      await tester.tapAt(badge.centerRight - const Offset(4, 0));
-      await tester.pumpAndSettle();
-      expect(layerTaps, 1);
-      expect(find.text('Version 0.3.0 available'), findsNothing);
+      expect(coverTaps, 1);
+      expect(toastTaps, 1);
     });
   });
 }

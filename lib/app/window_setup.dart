@@ -15,7 +15,8 @@ const WindowOptions windowOptions = WindowOptions(
   size: Size(1024, 800),
   minimumSize: Size(686, 571),
   center: true,
-  title: 'Swiftie Quiz',
+  title: 'Project Swiftie',
+  titleBarStyle: TitleBarStyle.hidden,
 );
 
 const Brightness launchBrightness = Brightness.dark;
@@ -52,8 +53,8 @@ void _logChromeFailure(Object error, StackTrace stackTrace) => developer.log(
 
 Future<void> applyWindowChrome(WindowChrome chrome, Brightness brightness) =>
     chrome(brightness, switch (brightness) {
-      Brightness.dark => AppTokens.dark.background,
-      Brightness.light => AppTokens.light.background,
+      Brightness.dark => AppTokens.dark.bg,
+      Brightness.light => AppTokens.light.bg,
     });
 
 Future<void> keepTitleBarOnScreen() async {

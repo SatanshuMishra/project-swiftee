@@ -1,61 +1,79 @@
-import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/overlays/update_modal.dart';
-import 'package:swiftie_quiz/ui/theme/app_motion.dart';
-import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
-import 'package:swiftie_quiz/ui/widgets/app_icon.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
 
-typedef UpdateBadgeLook = ({
-  String label,
-  Color color,
-  LucideGlyph glyph,
-  bool spinning,
-});
+typedef UpdateBadgeLook = ({String label, Color background, Color foreground});
+
+final updateDialogOpenProvider = NotifierProvider<UpdateDialogOpen, bool>(
+  UpdateDialogOpen.new,
+);
+
+class UpdateDialogOpen extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void open() => state = true;
+
+  void close() => state = false;
+}
+
+enum UpdateBadgeSize {
+  mac(height: 20, fontSize: 11),
+  windows(height: 22, fontSize: 12);
+
+  const UpdateBadgeSize({required this.height, required this.fontSize});
+
+  final double height;
+  final double fontSize;
+}
 
 class UpdateBadge extends ConsumerWidget {
-  const UpdateBadge({super.key, required this.onPressed});
+  const UpdateBadge({
+    super.key,
+    this.size = UpdateBadgeSize.mac,
+    this.margin = EdgeInsets.zero,
+  });
 
-  static const double inset = 24;
-  static const double iconSize = 16;
-  static const double gap = 8;
-  static const EdgeInsets padding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 8,
-  );
-  static const Color foreground = AppPalette.white;
-  static const Duration spinPeriod = Duration(seconds: 1);
+  static const double paddingX = 10;
+  static const double gap = 6;
+  static const double dotSize = 6;
+  static const double dotOpacity = 0.8;
+  static const double minTarget = 24;
+  static const BorderRadius radius = BorderRadius.all(Radius.circular(999));
 
-  final VoidCallback onPressed;
+  final UpdateBadgeSize size;
+  final EdgeInsets margin;
 
-  static UpdateBadgeLook? lookFor(UpdaterMachineState state) => switch (state) {
+  static UpdateBadgeLook? lookFor(
+    UpdaterMachineState state,
+    AppTokens tokens,
+  ) => switch (state) {
     UpdaterAvailable(:final manifest) => (
-      label: 'Update available (${manifest.version})',
-      color: AppPalette.violet600,
-      glyph: LucideGlyph.download,
-      spinning: false,
+      label: 'Update available · ${manifest.version}',
+      background: tokens.coral,
+      foreground: tokens.onCoral,
     ),
     UpdaterDownloading(:final progress) => (
-      label: 'Downloading update… $progress%',
-      color: AppPalette.blue600,
-      glyph: LucideGlyph.loaderCircle,
-      spinning: true,
+      label: 'Downloading · $progress%',
+      background: tokens.btn,
+      foreground: tokens.onBtn,
     ),
-    UpdaterReady(:final manifest) => (
-      label: 'Restart to install ${manifest.version}',
-      color: AppPalette.emerald600,
-      glyph: LucideGlyph.refreshCcw,
-      spinning: false,
+    UpdaterReady() => (
+      label: 'Restart to update',
+      background: tokens.coral,
+      foreground: tokens.onCoral,
     ),
     UpdaterError() => (
-      label: 'Update issue — click for details',
-      color: AppPalette.yellow600,
-      glyph: LucideGlyph.circleAlert,
-      spinning: false,
+      label: 'Update issue',
+      background: tokens.roseBg,
+      foreground: tokens.rose,
     ),
     UpdaterIdle() ||
     UpdaterChecking() ||
@@ -66,73 +84,34 @@ class UpdateBadge extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final look = lookFor(ref.watch(updaterStateProvider));
+    final look = lookFor(
+      ref.watch(updaterStateProvider),
+      AppTokens.of(context),
+    );
     if (look == null) {
       return const SizedBox.shrink();
     }
-    return Align(
-      alignment: Alignment.bottomRight,
-      child: Padding(
-        padding: const EdgeInsets.only(right: inset, bottom: inset),
-        child: _BadgeButton(look: look, onPressed: onPressed),
-      ),
-    );
-  }
-}
-
-class _BadgeButton extends StatelessWidget {
-  const _BadgeButton({required this.look, required this.onPressed});
-
-  final UpdateBadgeLook look;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      button: true,
-      label: look.label,
-      child: FocusableActionDetector(
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              onPressed();
-              return null;
-            },
-          ),
-        },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onPressed,
-          child: ExcludeSemantics(
-            child: TweenAnimationBuilder<Color>(
-              tween: _OklabColorTween(end: look.color),
-              duration: AppMotion.cssTransitionDuration,
-              curve: AppMotion.cssTransitionCurve,
-              builder: (context, color, child) => DecoratedBox(
-                decoration: ShapeDecoration(
-                  color: color,
-                  shape: const StadiumBorder(),
-                  shadows: AppShadows.lg,
-                ),
-                child: child,
-              ),
-              child: Padding(
-                padding: UpdateBadge.padding,
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: UpdateBadge.gap,
-                    children: [
-                      _BadgeIcon(glyph: look.glyph, spinning: look.spinning),
-                      Text(
-                        look.label,
-                        style: AppText.sm.copyWith(
-                          color: UpdateBadge.foreground,
-                        ),
-                      ),
-                    ],
+    void open() => ref.read(updateDialogOpenProvider.notifier).open();
+    return Padding(
+      padding: margin,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        excludeFromSemantics: true,
+        onTap: open,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: SizedBox(
+            height: math.max(minTarget, size.height),
+            child: Center(
+              widthFactor: 1,
+              child: Semantics(
+                container: true,
+                child: Pressable(
+                  onPressed: open,
+                  focusRadius: radius,
+                  semanticLabel: look.label,
+                  builder: (context, _) => ExcludeSemantics(
+                    child: _BadgePill(look: look, size: size),
                   ),
                 ),
               ),
@@ -144,99 +123,68 @@ class _BadgeButton extends StatelessWidget {
   }
 }
 
-class _BadgeIcon extends StatelessWidget {
-  const _BadgeIcon({required this.glyph, required this.spinning});
+class _BadgePill extends StatelessWidget {
+  const _BadgePill({required this.look, required this.size});
 
-  final LucideGlyph glyph;
-  final bool spinning;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = AppIcon(
-      glyph,
-      size: UpdateBadge.iconSize,
-      color: UpdateBadge.foreground,
-    );
-    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (!spinning || reduceMotion) {
-      return icon;
-    }
-    return _Spinner(child: icon);
-  }
-}
-
-class _Spinner extends StatefulWidget {
-  const _Spinner({required this.child});
-
-  final Widget child;
+  final UpdateBadgeLook look;
+  final UpdateBadgeSize size;
 
   @override
-  State<_Spinner> createState() => _SpinnerState();
-}
-
-class _SpinnerState extends State<_Spinner>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _turns = AnimationController(
-    vsync: this,
-    duration: UpdateBadge.spinPeriod,
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: look.background,
+      borderRadius: UpdateBadge.radius,
+    ),
+    child: SizedBox(
+      height: size.height,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: UpdateBadge.paddingX),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: UpdateBadge.gap,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: look.foreground.withValues(
+                  alpha: look.foreground.a * UpdateBadge.dotOpacity,
+                ),
+              ),
+              child: const SizedBox.square(dimension: UpdateBadge.dotSize),
+            ),
+            Text(
+              look.label,
+              maxLines: 1,
+              softWrap: false,
+              style: AppType.sized(
+                size.fontSize,
+                size.height,
+                weight: FontWeight.w600,
+              ).copyWith(color: look.foreground),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_turns.repeat());
-  }
-
-  @override
-  void dispose() {
-    _turns.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      RotationTransition(turns: _turns, child: widget.child);
 }
 
-class _OklabColorTween extends Tween<Color> {
-  _OklabColorTween({required Color end}) : super(end: end);
-
-  @override
-  Color lerp(double t) => Oklab.mix(begin!, end!, t);
-}
-
-class UpdateOverlay extends StatefulWidget {
+class UpdateOverlay extends ConsumerWidget {
   const UpdateOverlay({super.key, this.screen, this.belowDialog});
 
   final Widget? screen;
   final Widget? belowDialog;
 
   @override
-  State<UpdateOverlay> createState() => _UpdateOverlayState();
-}
-
-class _UpdateOverlayState extends State<UpdateOverlay> {
-  bool _dialogOpen = false;
-
-  void _setDialogOpen(bool open) => setState(() => _dialogOpen = open);
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Overlay.wrap(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ?widget.screen,
-              UpdateBadge(onPressed: () => _setDialogOpen(true)),
-            ],
-          ),
-        ),
-        ?widget.belowDialog,
-        UpdateModal(isOpen: _dialogOpen, onClose: () => _setDialogOpen(false)),
-      ],
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => Stack(
+    fit: StackFit.expand,
+    children: [
+      Overlay.wrap(child: screen ?? const SizedBox.shrink()),
+      ?belowDialog,
+      UpdateModal(
+        isOpen: ref.watch(updateDialogOpenProvider),
+        onClose: () => ref.read(updateDialogOpenProvider.notifier).close(),
+      ),
+    ],
+  );
 }
