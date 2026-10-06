@@ -16,10 +16,13 @@ import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/screens/lyrics_loading_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
+import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 const int _songCount = 8;
+const String _lostTitle = 'The lyric sheets got lost.';
 
 Map<String, Object?> _deezerTrack(int id) => {
   'id': id,
@@ -50,13 +53,13 @@ http.Response _json(Object body, [int status = 200]) => http.Response.bytes(
 );
 
 final class _HeldLyrics extends LyricsController {
-  _HeldLyrics(super.ref, {required this.holdSource});
+  _HeldLyrics(super.ref, {required this.source});
 
-  final bool holdSource;
+  final Completer<List<Track>>? source;
 
   @override
   Future<List<Track>> loadSourceTracks() =>
-      holdSource ? Completer<List<Track>>().future : super.loadSourceTracks();
+      source?.future ?? super.loadSourceTracks();
 
   @override
   Future<List<TrackWithLyrics>> preFetchInitial(
@@ -69,13 +72,16 @@ final class _Harness {
   _Harness(this.tester);
 
   final WidgetTester tester;
+  final Completer<List<Track>> source = Completer<List<Track>>();
   Set<int> songsWithLyrics = {1, 2, 3, 4, 5};
   http.Response Function() topTracks = () => _json({
     'data': [for (var id = 1; id <= _songCount; id++) _deezerTrack(id)],
     'total': _songCount,
   });
+  Duration topTracksDelay = Duration.zero;
   int albumStatus = 200;
   bool? holdSource;
+  bool reducedMotion = false;
 
   List<Override> get _overrides => [
     appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
@@ -84,13 +90,16 @@ final class _Harness {
     httpClientProvider.overrideWithValue(MockClient(_respond)),
     if (holdSource case final hold?)
       lyricsControllerProvider.overrideWith(
-        (ref) => _HeldLyrics(ref, holdSource: hold),
+        (ref) => _HeldLyrics(ref, source: hold ? source : null),
       ),
   ];
 
   Future<http.Response> _respond(http.Request request) async {
     final url = request.url;
     if (url.host == 'api.deezer.com' && url.path == '/artist/12246/top') {
+      if (topTracksDelay > Duration.zero) {
+        await Future<void>.delayed(topTracksDelay);
+      }
       return topTracks();
     }
     if (url.host == 'api.deezer.com' && url.path.startsWith('/album/')) {
@@ -114,6 +123,10 @@ final class _Harness {
     overrides: _overrides,
     child: MaterialApp(
       theme: AppTheme.dark,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(disableAnimations: reducedMotion),
+        child: child!,
+      ),
       home: Scaffold(body: child),
     ),
   );
@@ -123,16 +136,26 @@ final class _Harness {
 
   GameState get state => container.read(gameControllerProvider);
 
+  GameController get game => container.read(gameControllerProvider.notifier);
+
+  Size get bar =>
+      tester.getSize(find.byKey(LyricsLoadingScreen.progressBarKey));
+
+  Size get fill =>
+      tester.getSize(find.byKey(LyricsLoadingScreen.progressFillKey));
+
   Future<void> open({
     GameMode mode = GameMode.random,
     List<int> albums = const [],
+    LyricsFetchProgress? progress,
   }) async {
     await tester.pumpWidget(_app(const SizedBox()));
-    final game = container.read(gameControllerProvider.notifier)
+    game
       ..setMode(mode)
       ..setQuizType(QuizType.lyrics)
       ..setLyricsMode(LyricsMode.nameThatSong)
-      ..setPhase(GamePhase.lyricsLoading);
+      ..setPhase(GamePhase.lyricsLoading)
+      ..setLyricsFetchProgress(progress);
     for (final album in albums) {
       game.toggleAlbum(album);
     }
@@ -144,21 +167,74 @@ final class _Harness {
       await tester.pump();
     }
   }
+
+  void expectLost(String message) {
+    expect(find.text(_lostTitle), findsOneWidget);
+    expect(find.text(message), findsOneWidget);
+    expect(find.widgetWithText(PillButton, 'Try again'), findsOneWidget);
+    expect(find.widgetWithText(PillButton, 'Back to menu'), findsOneWidget);
+    expect(find.byType(CatLoader), findsNothing);
+  }
 }
 
 void main() {
   group('lyrics loading screen', () {
-    testWidgets('rotates the ten messages every 3 s under the large cat', (
+    testWidgets('lyrics loading shows progress and the lost sheets error', (
+      tester,
+    ) async {
+      final harness = _Harness(tester)..holdSource = true;
+      await harness.open(progress: (fetched: 3, total: 40));
+      const messages = LyricsLoadingScreen.loadingMessages;
+
+      expect(find.text('3 of 40 songs'), findsOneWidget);
+      expect(harness.bar, const Size(220, 2));
+      expect(harness.fill.height, 2);
+      expect(harness.fill.width, moreOrLessEquals(220 * 0.075));
+      expect(
+        tester
+            .widget<ColoredBox>(find.byKey(LyricsLoadingScreen.progressFillKey))
+            .color,
+        AppTokens.dark.coral,
+      );
+      expect(find.text(messages.first), findsOneWidget);
+
+      await tester.pump(LyricsLoadingScreen.messageInterval);
+      expect(find.text(messages.first), findsNothing);
+      expect(find.text(messages[1]), findsOneWidget);
+
+      harness.source.completeError(StateError('offline'));
+      await tester.pump();
+      await tester.pump();
+
+      harness.expectLost(
+        "We couldn't fetch lyrics from LRCLIB. "
+        'Check your connection and try again.',
+      );
+      expect(find.text('3 of 40 songs'), findsNothing);
+    });
+
+    testWidgets('rotates the ten design messages every 3 s under the cat', (
       tester,
     ) async {
       final harness = _Harness(tester)..holdSource = true;
       await harness.open();
       const messages = LyricsLoadingScreen.loadingMessages;
 
-      expect(messages, hasLength(10));
-      expect(find.text(messages.first), findsOneWidget);
+      expect(messages, const [
+        'Fetching lyrics...',
+        'Digging through the vault...',
+        'Long story short, almost ready...',
+        'Shaking it off...',
+        'Gathering all the easter eggs...',
+        'In your wildest dreams...',
+        'This is me trying...',
+        'Almost out of the woods...',
+        "It's a love story, just wait...",
+        'Finding the bridge...',
+      ]);
       final loader = tester.widget<CatLoader>(find.byType(CatLoader));
       expect(loader.size, CatLoaderSize.lg);
+      expect(loader.px, 220);
       expect(loader.label, messages.first);
 
       await tester.pump(const Duration(milliseconds: 2999));
@@ -174,6 +250,47 @@ void main() {
 
       await tester.pump(LyricsLoadingScreen.messageInterval);
       expect(find.text(messages.first), findsOneWidget);
+    });
+
+    testWidgets('reads Getting the songs ready… until the total is known', (
+      tester,
+    ) async {
+      final harness = _Harness(tester)..holdSource = true;
+      await harness.open();
+
+      expect(find.text('Getting the songs ready…'), findsOneWidget);
+      expect(harness.fill.width, 0);
+
+      harness.game.setLyricsFetchProgress((fetched: 0, total: 8));
+      await tester.pump();
+
+      expect(find.text('0 of 8 songs'), findsOneWidget);
+      expect(find.text('Getting the songs ready…'), findsNothing);
+    });
+
+    testWidgets('the bar eases to a new count over 300 ms', (tester) async {
+      final harness = _Harness(tester)..holdSource = true;
+      await harness.open(progress: (fetched: 0, total: 8));
+
+      harness.game.setLyricsFetchProgress((fetched: 4, total: 8));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(harness.fill.width, inExclusiveRange(0, 110));
+
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(harness.fill.width, moreOrLessEquals(110));
+    });
+
+    testWidgets('the bar fills instantly under reduced motion', (tester) async {
+      final harness = _Harness(tester)
+        ..holdSource = true
+        ..reducedMotion = true;
+      await harness.open(progress: (fetched: 0, total: 8));
+
+      harness.game.setLyricsFetchProgress((fetched: 4, total: 8));
+      await tester.pump();
+
+      expect(harness.fill.width, moreOrLessEquals(110));
     });
 
     testWidgets('starts the game once five songs have lyrics', (tester) async {
@@ -193,38 +310,39 @@ void main() {
       await harness.settle();
 
       expect(harness.state.phase, GamePhase.lyricsLoading);
-      expect(
-        find.text(
-          'Not enough songs with lyrics available. Try a different mode or add more albums.',
-        ),
-        findsOneWidget,
+      harness.expectLost(
+        'Not enough songs with lyrics available. Try a different mode or add more albums.',
       );
-      expect(find.byType(CatLoader), findsNothing);
 
-      await tester.tap(find.text('Back to Mode Select'));
+      await tester.tap(find.text('Back to menu'));
       await tester.pump();
 
       expect(harness.state.phase, GamePhase.setup);
+      expect(harness.state.quizType, QuizType.lyrics);
     });
 
     testWidgets('gives up after 30 s', (tester) async {
       final harness = _Harness(tester)..holdSource = false;
       await harness.open();
       await harness.settle();
+      harness.game.setLyricsFetchProgress((fetched: 0, total: 8));
 
       await tester.pump(
         LyricsLoadingScreen.fetchTimeout - const Duration(milliseconds: 1),
       );
       expect(find.byType(CatLoader), findsOneWidget);
+      expect(find.text('0 of 8 songs'), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
 
-      expect(
-        find.text('Lyrics loading timed out. Please try again.'),
-        findsOneWidget,
-      );
-      expect(find.text('Back to Mode Select'), findsOneWidget);
+      harness.expectLost('Lyrics loading timed out. Please try again.');
+
+      await tester.tap(find.text('Back to menu'));
+      await tester.pump();
+
+      expect(harness.state.phase, GamePhase.setup);
+      expect(harness.state.lyricsFetchProgress, isNull);
     });
 
     testWidgets('albums that all fail show the album error', (tester) async {
@@ -232,25 +350,8 @@ void main() {
       await harness.open(mode: GameMode.album, albums: const [10, 20]);
       await harness.settle();
 
-      expect(
-        find.text(
-          'Could not load tracks for the selected albums. Please try again.',
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('a failed catalog shows the generic lyrics error', (
-      tester,
-    ) async {
-      final harness = _Harness(tester)
-        ..topTracks = () => http.Response('', 500);
-      await harness.open();
-      await harness.settle();
-
-      expect(
-        find.text('Failed to load lyrics. Please try again.'),
-        findsOneWidget,
+      harness.expectLost(
+        'Could not load tracks for the selected albums. Please try again.',
       );
     });
 
@@ -266,18 +367,54 @@ void main() {
       await harness.open();
       await harness.settle();
 
-      expect(
-        find.text('Taking a breather — try again in a moment.'),
-        findsOneWidget,
-      );
+      harness.expectLost('Taking a breather — try again in a moment.');
     });
 
-    testWidgets('Back to Menu resets the game', (tester) async {
+    testWidgets('Try again restarts loading from the first message', (
+      tester,
+    ) async {
+      final harness = _Harness(tester)
+        ..topTracksDelay = const Duration(seconds: 4)
+        ..topTracks = () => http.Response('', 500);
+      const messages = LyricsLoadingScreen.loadingMessages;
+      await harness.open();
+      harness.game.setLyricsFetchProgress((fetched: 3, total: 8));
+      await tester.pump(LyricsLoadingScreen.messageInterval);
+      expect(find.text(messages[1]), findsOneWidget);
+      expect(find.text('3 of 8 songs'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
+      await harness.settle();
+      harness.expectLost(
+        "We couldn't fetch lyrics from LRCLIB. "
+        'Check your connection and try again.',
+      );
+
+      harness
+        ..topTracksDelay = const Duration(seconds: 1)
+        ..topTracks = () => _json({
+          'data': [for (var id = 1; id <= _songCount; id++) _deezerTrack(id)],
+          'total': _songCount,
+        });
+      await tester.tap(find.text('Try again'));
+      await tester.pump();
+
+      expect(find.text(_lostTitle), findsNothing);
+      expect(find.text(messages.first), findsOneWidget);
+      expect(find.text('Getting the songs ready…'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
+      await harness.settle();
+      expect(harness.state.phase, GamePhase.playing);
+      expect(harness.state.lyricsPool, hasLength(5));
+    });
+
+    testWidgets('Back to menu while loading resets the game', (tester) async {
       final harness = _Harness(tester)..holdSource = true;
       await harness.open();
       await tester.pump(const Duration(seconds: 1));
 
-      await tester.tap(find.text('Back to Menu'));
+      await tester.tap(find.text('← Back to menu'));
       await tester.pump();
 
       expect(harness.state.phase, GamePhase.menu);
