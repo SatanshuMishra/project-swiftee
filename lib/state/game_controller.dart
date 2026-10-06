@@ -1,11 +1,13 @@
 import 'package:flutter/widgets.dart' show StringCharacters;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
 final gameControllerProvider = NotifierProvider<GameController, GameState>(
@@ -216,6 +218,19 @@ class GameController extends Notifier<GameState> {
   void setLyricsPool(List<TrackWithLyrics> pool) =>
       state = state.copyWith(lyricsPool: pool, lyricsPoolIndex: 0);
 
+  void appendLyricsPool(List<TrackWithLyrics> fresh) {
+    final pool = state.lyricsPool;
+    final ids = {for (final entry in pool) entry.track.id};
+    final songs = {for (final entry in pool) songKey(entry.track)};
+    final added = [
+      for (final entry in fresh)
+        if (ids.add(entry.track.id) && songs.add(songKey(entry.track))) entry,
+    ];
+    if (added.isNotEmpty) {
+      state = state.copyWith(lyricsPool: [...pool, ...added]);
+    }
+  }
+
   void addToDecoyPool(int trackId, TrackLyrics lyrics) =>
       state = state.copyWith(decoyPool: {...state.decoyPool, trackId: lyrics});
 
@@ -227,8 +242,18 @@ class GameController extends Notifier<GameState> {
     final index = state.lyricsPoolIndex;
     final roundNumber = state.roundNumber + 1;
     if (index >= pool.length) {
-      state = state.copyWith(lyricsPoolIndex: 1, roundNumber: roundNumber);
-      return pool.first;
+      final replay = lyricsReplay(
+        pool,
+        track: (entry) => entry.track,
+        read: ref.read(playHistoryProvider).read,
+        random: ref.read(randomProvider),
+      );
+      state = state.copyWith(
+        lyricsPool: replay,
+        lyricsPoolIndex: 1,
+        roundNumber: roundNumber,
+      );
+      return replay.first;
     }
     state = state.copyWith(
       lyricsPoolIndex: index + 1,

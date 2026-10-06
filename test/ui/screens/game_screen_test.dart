@@ -22,6 +22,7 @@ import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
 import 'package:swiftie_quiz/ui/game/answer_list.dart';
@@ -423,6 +424,24 @@ void main() {
       },
     );
 
+    testWidgets('every song played is remembered for the session', (
+      tester,
+    ) async {
+      final harness = _Harness(tester);
+      await harness.open(difficulty: Difficulty.medium);
+      await harness.settle();
+      final first = harness.current;
+
+      await harness.press(LogicalKeyboardKey.digit1);
+      await tester.pump(const Duration(seconds: 2));
+      await harness.press(LogicalKeyboardKey.enter);
+
+      expect(harness.container.read(playHistoryProvider).heard, [
+        first,
+        harness.current,
+      ]);
+    });
+
     testWidgets('a wrong answer shows the era and track and quacks', (
       tester,
     ) async {
@@ -536,6 +555,40 @@ void main() {
       expect(harness.current, _loveStory);
       expect(harness.state.roundNumber, 1);
       expect(harness.deezerRequests, contains('/track/7'));
+    });
+
+    testWidgets('a song that could not play is not remembered as heard', (
+      tester,
+    ) async {
+      final gone = _song(7, 'Gone Song', 'red', 4).copyWith(preview: '');
+      final harness = _Harness(tester, pool: [gone, ..._songs])
+        ..withdrawn = {7};
+      await harness.open();
+      await harness.settle();
+      await tester.pump(GameScreen.roundLoaderMinimum);
+      await harness.settle();
+
+      expect(harness.container.read(playHistoryProvider).heard, [_loveStory]);
+    });
+
+    testWidgets("the next pass's first song is fetched while the last plays", (
+      tester,
+    ) async {
+      final unlinked = [
+        for (final song in _songs.skip(1)) song.copyWith(preview: ''),
+      ];
+      final harness = _Harness(
+        tester,
+        load: () async =>
+            (allTracks: [_loveStory, ...unlinked], pool: [_loveStory]),
+      );
+      await harness.open();
+      await harness.settle();
+
+      final upcoming = harness.state.trackPool;
+      expect(upcoming, isNotEmpty);
+      expect(upcoming.first, isNot(_loveStory));
+      expect(harness.deezerRequests, ['/track/${upcoming.first.id}']);
     });
 
     testWidgets('after three missing songs in a row the round gives up', (

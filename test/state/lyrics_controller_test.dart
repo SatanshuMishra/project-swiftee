@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -14,6 +15,7 @@ import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
 import '../fixtures/catalogue_fixture.dart';
@@ -254,7 +256,7 @@ void main() {
     });
 
     test(
-      'extending the pool appends new songs and restarts the index',
+      'extending the pool appends new songs and keeps the place in it',
       () async {
         songsWithLyrics = {1, 2, 3, 4, 5, 6, 8};
         game()
@@ -273,24 +275,106 @@ void main() {
         expect(read().lyricsPool, [
           for (final id in [1, 2, 3, 4, 5, 6, 8]) _entry(id),
         ]);
-        expect(read().lyricsPoolIndex, 0);
+        expect(read().lyricsPoolIndex, 2);
+      },
+    );
+
+    test('two extensions at once fetch each song only once', () async {
+      songsWithLyrics = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+      game()
+        ..setLyricsAvailableTracks(
+          _tracks(List.generate(10, (index) => index + 1)),
+        )
+        ..setLyricsPool([
+          for (final id in [1, 2, 3, 4, 5]) _entry(id),
+        ]);
+
+      await Future.wait([lyrics().extendPool(), lyrics().extendPool()]);
+
+      expect(lyricsLookups, unorderedEquals([6, 7, 8, 9, 10]));
+      expect(read().lyricsPool, [for (var id = 1; id <= 10; id++) _entry(id)]);
+    });
+
+    test(
+      'an extension from the last game adds nothing to the next one',
+      () async {
+        final release = Completer<void>();
+        heldReplies = release.future;
+        heldSongs = {6, 7, 8, 9, 10};
+        songsWithLyrics = {for (var id = 1; id <= 20; id++) id};
+        game()
+          ..setLyricsAvailableTracks(
+            _tracks([for (var id = 1; id <= 10; id++) id]),
+          )
+          ..setLyricsPool([for (var id = 1; id <= 5; id++) _entry(id)]);
+        final lastGame = lyrics().extendPool();
+        await pumpEventQueue();
+
+        await lyrics().preFetchInitial(_tracks([11, 12, 13, 14, 15]));
+        game().setLyricsAvailableTracks(
+          _tracks([for (var id = 11; id <= 20; id++) id]),
+        );
+        await lyrics().extendPool();
+        release.complete();
+        await lastGame;
+
+        expect(read().lyricsPool, [
+          for (var id = 11; id <= 20; id++) _entry(id),
+        ]);
       },
     );
 
     test(
-      'shuffle reads every recording in the catalogue in a random order',
+      'songs with no lyrics are tried once so the pool keeps growing',
+      () async {
+        songsWithLyrics = {1, 2, 3, 4, 5, 11, 12, 13, 14, 15};
+        await lyrics().preFetchInitial(_tracks([1, 2, 3, 4, 5]));
+        game().setLyricsAvailableTracks(
+          _tracks([for (var id = 1; id <= 15; id++) id]),
+        );
+
+        await lyrics().extendPool();
+        await lyrics().extendPool();
+
+        expect(read().lyricsPool, [
+          for (final id in [1, 2, 3, 4, 5, 11, 12, 13, 14, 15]) _entry(id),
+        ]);
+      },
+    );
+
+    test(
+      'shuffle reads one recording of every song in a random order',
       () async {
         game().setMode(GameMode.random);
 
         final tracks = await lyrics().loadSourceTracks();
 
         final catalogue = container.read(catalogControllerProvider).catalogue;
+        final songs = {for (final track in catalogue.allTracks) songKey(track)};
         expect(catalogRequests, isEmpty);
-        expect(tracks, unorderedEquals(catalogue.allTracks));
-        expect(tracks, isNot(orderedEquals(catalogue.allTracks)));
+        expect(tracks.map(songKey), unorderedEquals(songs));
+        expect(tracks.length, lessThan(catalogue.allTracks.length));
         expect(read().lyricsAvailableTracks, tracks);
       },
     );
+
+    test('songs read earlier this session wait at the back', () async {
+      game().setMode(GameMode.random);
+      final first = await lyrics().loadSourceTracks();
+      for (final track in first.take(5)) {
+        container.read(playHistoryProvider.notifier).read(track, const []);
+      }
+
+      final next = await lyrics().loadSourceTracks();
+
+      final readSongs = {for (final track in first.take(5)) songKey(track)};
+      expect(
+        next
+            .take(next.length - 5)
+            .where((track) => readSongs.contains(songKey(track))),
+        isEmpty,
+      );
+    });
 
     test('picked eras read only their own recordings', () async {
       game()
@@ -302,12 +386,7 @@ void main() {
 
       expect(
         [for (final track in tracks) track.title],
-        unorderedEquals([
-          'Cruel Summer',
-          'Cruel Summer (Live from The Eras Tour)',
-          'The Life of a Showgirl',
-          'Babylon',
-        ]),
+        unorderedEquals(['Cruel Summer', 'The Life of a Showgirl', 'Babylon']),
       );
       expect(read().lyricsAvailableTracks, tracks);
     });

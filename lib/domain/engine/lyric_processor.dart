@@ -36,6 +36,69 @@ String _normalizeLine(String line) => line
     .replaceAll(_whitespaceRun, ' ')
     .trim();
 
+String lyricLineKey(String line) => _normalizeLine(line);
+
+List<List<int>> _chorusBlocks(List<ChorusRegion> regions, int lineCount) => [
+  for (final region in regions)
+    for (
+      var start = region.start;
+      start + _blockLength(region, lineCount) - 1 <= region.end;
+      start++
+    )
+      [for (var i = 0; i < _blockLength(region, lineCount); i++) start + i],
+];
+
+int _blockLength(ChorusRegion region, int lineCount) =>
+    min(lineCount, region.end - region.start + 1);
+
+Set<int> _withoutSeen(
+  List<String> lines,
+  int lineCount,
+  Set<int> excluded,
+  Set<String> avoid,
+) {
+  final seen = _seenIndices(lines, avoid);
+  if (seen.isEmpty) {
+    return excluded;
+  }
+  final both = {...excluded, ...seen};
+  if (_hasBlock(lines, lineCount, both, playable: true)) {
+    return both;
+  }
+  if (_hasBlock(lines, lineCount, excluded, playable: true)) {
+    return excluded;
+  }
+  return _hasBlock(lines, lineCount, both) ? both : excluded;
+}
+
+bool _hasBlock(
+  List<String> lines,
+  int lineCount,
+  Set<int> excluded, {
+  bool playable = false,
+}) {
+  bool usable(int index) =>
+      !excluded.contains(index) &&
+      (!playable || _hasPlayableWordCount(lines[index]));
+  if (lineCount <= 1) {
+    return [for (var i = 0; i < lines.length; i++) i].any(usable);
+  }
+  final first = lines.length > 2 ? 1 : 0;
+  final last = lines.length > 2 ? lines.length - 2 : lines.length - 1;
+  final eligible = [
+    for (var i = first; i <= last; i++)
+      if (usable(i)) i,
+  ];
+  return [for (var i = 0; i <= eligible.length - lineCount; i++) i]
+      .any((start) => _isContiguousRun(eligible, start, lineCount));
+}
+
+Set<int> _seenIndices(List<String> lines, Set<String> avoid) => {
+  if (avoid.isNotEmpty)
+    for (var i = 0; i < lines.length; i++)
+      if (avoid.contains(_normalizeLine(lines[i]))) i,
+};
+
 List<ChorusRegion> detectChorusRegions(List<String> lines) {
   final normalized = lines.map(_normalizeLine).toList(growable: false);
 
@@ -92,8 +155,11 @@ LyricSnippet extractSnippet(
   bool preferChorus,
   bool excludeChorus, {
   Random? random,
+  Set<String> avoid = const {},
 }) {
   final generator = random ?? Random();
+  final seen = _seenIndices(allLines, avoid);
+  bool unseen(Iterable<int> block) => !block.any(seen.contains);
 
   if (allLines.length <= lineCount) {
     return LyricSnippet(
@@ -104,7 +170,19 @@ LyricSnippet extractSnippet(
 
   final chorusRegions = detectChorusRegions(allLines);
 
-  if (preferChorus && chorusRegions.isNotEmpty) {
+  final unseenBlocks = !preferChorus || seen.isEmpty
+      ? const <List<int>>[]
+      : _chorusBlocks(chorusRegions, lineCount).where(unseen).toList();
+  if (unseenBlocks.isNotEmpty) {
+    return _snippetAt(
+      allLines,
+      unseenBlocks[generator.nextInt(unseenBlocks.length)],
+    );
+  }
+
+  if (preferChorus &&
+      chorusRegions.isNotEmpty &&
+      (seen.isEmpty || !_hasBlock(allLines, lineCount, seen))) {
     final region = chorusRegions[generator.nextInt(chorusRegions.length)];
     final regionLength = region.end - region.start + 1;
     final actualCount = min(lineCount, regionLength);
@@ -145,9 +223,15 @@ LyricSnippet extractSnippet(
       if (_isContiguousRun(eligible, i, lineCount)) i,
   ];
 
-  if (contiguousStarts.isNotEmpty) {
-    final startIdx =
-        contiguousStarts[generator.nextInt(contiguousStarts.length)];
+  final unseenStarts = [
+    if (seen.isNotEmpty)
+      for (final start in contiguousStarts)
+        if (unseen(eligible.getRange(start, start + lineCount))) start,
+  ];
+  final starts = unseenStarts.isNotEmpty ? unseenStarts : contiguousStarts;
+
+  if (starts.isNotEmpty) {
+    final startIdx = starts[generator.nextInt(starts.length)];
     return _snippetAt(allLines, [
       for (var i = 0; i < lineCount; i++) eligible[startIdx + i],
     ]);
@@ -285,6 +369,7 @@ DecoyResult selectDecoyOrReal(
   int lineCount = 1,
   String? currentTrackTitle,
   Random? random,
+  Set<String> avoid = const {},
 }) {
   final generator = random ?? Random();
   final showReal = generator.nextDouble() < 0.5;
@@ -300,7 +385,12 @@ DecoyResult selectDecoyOrReal(
       currentTrackLyrics,
       lineCount,
       generator,
-      excludeIndices: titleExcluded,
+      excludeIndices: _withoutSeen(
+        currentTrackLyrics,
+        lineCount,
+        titleExcluded,
+        avoid,
+      ),
     ),
     isReal: true,
     sourceSong: null,
@@ -355,21 +445,26 @@ DecoyResult selectDecoyOrReal(
           (words - avgWordCount).abs() <= tolerance;
     }
 
-    var decoyLines = [
+    List<String> unseen(List<String> lines) => [
+      for (final line in lines)
+        if (!avoid.contains(_normalizeLine(line))) line,
+    ];
+    final close = [
       for (final line in decoyLyrics.lines)
         if (matchesCurrentLength(line)) line,
     ];
-
-    if (decoyLines.isEmpty) {
-      decoyLines = [
-        for (final line in decoyLyrics.lines)
-          if (_wordCount(line) >= 4) line,
-      ];
-    }
-
-    if (decoyLines.isEmpty) {
-      decoyLines = [...decoyLyrics.lines];
-    }
+    final playable = [
+      for (final line in decoyLyrics.lines)
+        if (_wordCount(line) >= 4) line,
+    ];
+    final decoyLines = [
+      unseen(close),
+      unseen(playable),
+      close,
+      playable,
+      unseen(decoyLyrics.lines),
+      decoyLyrics.lines,
+    ].firstWhere((lines) => lines.isNotEmpty, orElse: () => const []);
 
     final line = decoyLines[generator.nextInt(decoyLines.length)];
     return DecoyResult(
@@ -380,7 +475,17 @@ DecoyResult selectDecoyOrReal(
   }
 
   return DecoyResult(
-    lines: _pickContiguousBlock(decoyLyrics.lines, lineCount, generator),
+    lines: _pickContiguousBlock(
+      decoyLyrics.lines,
+      lineCount,
+      generator,
+      excludeIndices: _withoutSeen(
+        decoyLyrics.lines,
+        lineCount,
+        const {},
+        avoid,
+      ),
+    ),
     isReal: false,
     sourceSong: decoyLyrics.sourceTrack,
   );

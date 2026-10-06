@@ -45,6 +45,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 | Add a game phase/screen         | GamePhase in lib/domain/models/game_types.dart:3 + phase switch in lib/app/app.dart:175 + new widget in lib/ui/screens/ |
 | Change save format              | bump currentSaveVersion in lib/data/save/migrations.dart:5 and defaultProgress in lib/domain/models/progress.dart:9 + a migration step in migrations.dart |
 | Fix smart-clip behaviour        | lib/domain/engine/clip_selector.dart + lib/data/lyrics/danger_zones.dart |
+| Change how songs and lyrics avoid repeating | lib/domain/engine/play_order.dart + lib/state/play_history_controller.dart + docs/decisions/2026-10-06-repetition.md |
 | Change a Deezer or LRCLIB call  | lib/data/catalog/deezer_client.dart or lib/data/lyrics/lrclib_client.dart + providers in lib/state/providers.dart |
 | Change the updater              | lib/services/updater/ (protocol) + lib/state/updater_controller.dart (schedule and states) |
 | Change the Windows installer    | installer/windows/swiftie-quiz.nsi + test/installer/nsis_script_test.dart |
