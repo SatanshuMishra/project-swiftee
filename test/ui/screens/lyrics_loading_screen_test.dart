@@ -14,7 +14,6 @@ import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
-import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
@@ -351,7 +350,7 @@ void main() {
       await harness.settle();
 
       harness.expectLost(
-        'Could not load tracks for the selected albums. Please try again.',
+        'Could not load tracks for the selected eras. Please try again.',
       );
     });
 
@@ -370,9 +369,7 @@ void main() {
 
       await tester.pump(const Duration(seconds: 1));
       await harness.settle();
-      harness.expectLost(
-        'Could not load tracks for the selected albums. Please try again.',
-      );
+      harness.expectLost('Could not load the song list. Please try again.');
 
       harness
         ..catalogueDelay = const Duration(seconds: 1)

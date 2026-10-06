@@ -12,7 +12,10 @@ const int _initialBatchSize = 8;
 const int _rollingBatchSize = 5;
 
 const String noAlbumTracksMessage =
-    'Could not load tracks for the selected albums. Please try again.';
+    'Could not load tracks for the selected eras. Please try again.';
+
+const String catalogueUnavailableMessage =
+    'Could not load the song list. Please try again.';
 
 final class LyricsSourceError implements Exception {
   const LyricsSourceError(this.message);
@@ -39,6 +42,9 @@ class LyricsController {
     final game = _ref.read(gameControllerProvider);
     final catalog = _ref.read(catalogControllerProvider.notifier);
     await catalog.loadCatalogue();
+    if (_ref.read(catalogControllerProvider).error != null) {
+      throw const LyricsSourceError(catalogueUnavailableMessage);
+    }
     final tracks = shuffle(
       tracksForGame(
         _ref.read(catalogControllerProvider).catalogue,

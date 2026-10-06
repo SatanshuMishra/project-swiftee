@@ -364,7 +364,7 @@ void main() {
           isA<LyricsSourceError>().having(
             (error) => error.message,
             'message',
-            'Could not load tracks for the selected albums. Please try again.',
+            'Could not load tracks for the selected eras. Please try again.',
           ),
         ),
       );
