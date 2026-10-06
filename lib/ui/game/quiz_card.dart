@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
-import 'package:swiftie_quiz/ui/game/result_feedback.dart';
+import 'package:swiftie_quiz/ui/widgets/motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';

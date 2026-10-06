@@ -204,7 +204,7 @@ void main() {
       await tester.tap(find.text('Back to Mode Select'));
       await tester.pump();
 
-      expect(harness.state.phase, GamePhase.lyricsModeSelect);
+      expect(harness.state.phase, GamePhase.setup);
     });
 
     testWidgets('gives up after 30 s', (tester) async {

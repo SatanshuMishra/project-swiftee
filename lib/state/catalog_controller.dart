@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/data/catalog/deezer_client.dart';
 import 'package:swiftie_quiz/domain/engine/game_engine.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
@@ -125,6 +126,9 @@ class CatalogController extends Notifier<CatalogState> {
     final tracks = switch (game.mode) {
       GameMode.random => await fetchTopTracks(),
       GameMode.album => await _selectedAlbumTracks(game.selectedAlbumIds),
+      GameMode.tonight => await _selectedAlbumTracks([
+        tonightsEra(ref.read(clockProvider)()).deezerAlbumId,
+      ]),
     };
     final pool = createTrackPool(tracks, random: random);
     if (ref.mounted &&

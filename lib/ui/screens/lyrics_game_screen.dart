@@ -18,6 +18,7 @@ import 'package:swiftie_quiz/ui/game/lyric_snippet_card.dart';
 import 'package:swiftie_quiz/ui/game/lyrics_or_lie_card.dart';
 import 'package:swiftie_quiz/ui/game/quiz_card.dart';
 import 'package:swiftie_quiz/ui/game/result_feedback.dart';
+import 'package:swiftie_quiz/ui/widgets/motion.dart';
 import 'package:swiftie_quiz/ui/game/timer_bar.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';

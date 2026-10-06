@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/app/app.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -22,37 +23,40 @@ import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/toast_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/chrome/title_bar.dart';
+import 'package:swiftie_quiz/ui/misu/misu_host.dart';
 import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
 import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
 import 'package:swiftie_quiz/ui/overlays/toast_host.dart';
 import 'package:swiftie_quiz/ui/overlays/update_badge.dart';
 import 'package:swiftie_quiz/ui/overlays/update_modal.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
-import 'package:swiftie_quiz/ui/screens/cat_gallery.dart';
-import 'package:swiftie_quiz/ui/screens/difficulty_select.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/screens/lyrics_game_screen.dart';
 import 'package:swiftie_quiz/ui/screens/lyrics_loading_screen.dart';
-import 'package:swiftie_quiz/ui/screens/lyrics_mode_select.dart';
 import 'package:swiftie_quiz/ui/screens/main_menu.dart';
-import 'package:swiftie_quiz/ui/screens/quiz_type_select.dart';
+import 'package:swiftie_quiz/ui/screens/nickname_screen.dart';
+import 'package:swiftie_quiz/ui/screens/record_shelf_screen.dart';
+import 'package:swiftie_quiz/ui/screens/round_summary_screen.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
+import 'package:swiftie_quiz/ui/screens/setup_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 final DateTime _outsideBirthdayPeriod = DateTime(2026, 10, 5, 12);
 
 const List<Type> _screenTypes = [
+  NicknameScreen,
   MainMenu,
   AlbumGrid,
-  QuizTypeSelect,
-  LyricsModeSelect,
-  DifficultySelect,
+  SetupScreen,
   LyricsLoadingScreen,
   GameScreen,
   LyricsGameScreen,
-  CatGallery,
+  RoundSummaryScreen,
+  RecordShelfScreen,
   SettingsScreen,
 ];
 
@@ -208,6 +212,7 @@ final class _Harness {
 
   List<Override> get _overrides => [
     clockProvider.overrideWithValue(() => _outsideBirthdayPeriod),
+    editionProvider.overrideWithValue(Edition.ana),
     randomProvider.overrideWithValue(Random(5)),
     appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
     httpClientProvider.overrideWithValue(
@@ -283,12 +288,14 @@ final class _Harness {
               .first,
         )
         .children;
-    expect(layers, hasLength(2));
+    expect(layers, hasLength(3));
     expect(layers.first, isA<UpdateOverlay>());
     final shell = layers.first as UpdateOverlay;
     expect(shell.screen.runtimeType, screen);
     expect(shell.belowDialog, isA<AchievementToasts>());
+    expect(layers[1], isA<MisuHost>());
     expect(layers.last, isA<ToastHost>());
+    expect(find.byType(AppTitleBar), findsOneWidget);
   }
 
   void expectTheme(Brightness brightness) {
@@ -329,19 +336,10 @@ Future<FlutterErrorDetails> _firstErrorWhilePumping(
 void main() {
   group('phase routing', () {
     final cases = <({GamePhase phase, QuizType? quizType, Type screen})>[
+      (phase: GamePhase.nickname, quizType: null, screen: NicknameScreen),
       (phase: GamePhase.menu, quizType: null, screen: MainMenu),
       (phase: GamePhase.albumSelect, quizType: null, screen: AlbumGrid),
-      (phase: GamePhase.quizTypeSelect, quizType: null, screen: QuizTypeSelect),
-      (
-        phase: GamePhase.lyricsModeSelect,
-        quizType: QuizType.lyrics,
-        screen: LyricsModeSelect,
-      ),
-      (
-        phase: GamePhase.difficultySelect,
-        quizType: QuizType.sound,
-        screen: DifficultySelect,
-      ),
+      (phase: GamePhase.setup, quizType: null, screen: SetupScreen),
       (
         phase: GamePhase.lyricsLoading,
         quizType: QuizType.lyrics,
@@ -353,7 +351,12 @@ void main() {
         quizType: QuizType.lyrics,
         screen: LyricsGameScreen,
       ),
-      (phase: GamePhase.catGallery, quizType: null, screen: CatGallery),
+      (
+        phase: GamePhase.roundSummary,
+        quizType: null,
+        screen: RoundSummaryScreen,
+      ),
+      (phase: GamePhase.recordShelf, quizType: null, screen: RecordShelfScreen),
       (phase: GamePhase.settings, quizType: null, screen: SettingsScreen),
     ];
 
@@ -427,7 +430,7 @@ void main() {
     testWidgets('the overlays work over a screen', (tester) async {
       final harness = _Harness(tester);
       await harness.launch();
-      await harness.show(GamePhase.catGallery);
+      await harness.show(GamePhase.recordShelf);
 
       harness.game
         ..setUpdaterState(
@@ -455,7 +458,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Version 0.3.1 available'), findsOneWidget);
-      expect(find.byType(CatGallery), findsOneWidget);
+      expect(find.byType(RecordShelfScreen), findsOneWidget);
 
       await tester.tap(
         find.text('Welcome back! Your progress has been preserved.'),

@@ -1,14 +1,14 @@
 import 'package:collection/collection.dart';
 
 enum GamePhase {
+  nickname('nickname'),
   menu('menu'),
   albumSelect('album-select'),
-  quizTypeSelect('quiz-type-select'),
-  lyricsModeSelect('lyrics-mode-select'),
-  difficultySelect('difficulty-select'),
+  setup('setup'),
   lyricsLoading('lyrics-loading'),
   playing('playing'),
-  catGallery('cat-gallery'),
+  roundSummary('round-summary'),
+  recordShelf('record-shelf'),
   settings('settings');
 
   const GamePhase(this.wireName);
@@ -21,7 +21,8 @@ enum GamePhase {
 
 enum GameMode {
   random('random'),
-  album('album');
+  album('album'),
+  tonight('tonight');
 
   const GameMode(this.wireName);
 

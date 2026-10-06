@@ -8,7 +8,7 @@ import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
-import 'package:swiftie_quiz/ui/game/result_feedback.dart';
+import 'package:swiftie_quiz/ui/widgets/motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/widgets/back_link.dart';
@@ -162,7 +162,7 @@ class _LyricsLoadingScreenState extends ConsumerState<LyricsLoadingScreen> {
           animateEntrance: false,
           onPressed: () => ref
               .read(gameControllerProvider.notifier)
-              .setPhase(GamePhase.lyricsModeSelect),
+              .setPhase(GamePhase.setup),
         ),
       ],
     ),
