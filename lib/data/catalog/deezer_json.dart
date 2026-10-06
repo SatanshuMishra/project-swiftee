@@ -5,12 +5,6 @@ typedef DeezerTrack = ({Track track, String titleVersion});
 
 typedef DeezerPage<T> = ({List<T> data, String? next});
 
-typedef DeezerAlbumDetail = ({
-  Album album,
-  int nbTracks,
-  List<DeezerTrack> tracks,
-});
-
 const Album _absentAlbum = Album(id: 0, title: '', coverMedium: null);
 
 Artist parseArtist(Object? json) {
@@ -56,19 +50,6 @@ DeezerPage<T> parseDeezerPage<T>(
   return (
     data: _list(fields, 'data', parseItem),
     next: _optionalString(fields, 'next'),
-  );
-}
-
-DeezerAlbumDetail parseAlbumDetail(Object? json) {
-  final fields = _object(json, 'album detail');
-  return (
-    album: Album(
-      id: _requiredCount(fields, 'id'),
-      title: _requiredString(fields, 'title'),
-      coverMedium: _optionalString(fields, 'cover_medium'),
-    ),
-    nbTracks: _requiredCount(fields, 'nb_tracks'),
-    tracks: parseDeezerPage(_required(fields, 'tracks'), parseDeezerTrack).data,
   );
 }
 

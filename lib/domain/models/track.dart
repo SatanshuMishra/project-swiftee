@@ -1,5 +1,3 @@
-import 'package:collection/collection.dart';
-
 const Object _unchanged = Object();
 
 final class Artist {
@@ -135,32 +133,4 @@ final class Track {
       'Track(id: $id, title: $title, titleShort: $titleShort, '
       'duration: $duration, preview: $preview, artist: $artist, '
       'album: $album, trackPosition: $trackPosition, eraKey: $eraKey)';
-}
-
-final class AlbumTracks {
-  const AlbumTracks({required this._tracks, required this.totalTracks});
-
-  final List<Track> _tracks;
-  final int totalTracks;
-
-  List<Track> get tracks => UnmodifiableListView(_tracks);
-
-  AlbumTracks copyWith({List<Track>? tracks, int? totalTracks}) => AlbumTracks(
-    tracks: tracks == null ? _tracks : List.unmodifiable(tracks),
-    totalTracks: totalTracks ?? this.totalTracks,
-  );
-
-  @override
-  bool operator ==(Object other) =>
-      other is AlbumTracks &&
-      const ListEquality<Track>().equals(other._tracks, _tracks) &&
-      other.totalTracks == totalTracks;
-
-  @override
-  int get hashCode =>
-      Object.hash(const ListEquality<Track>().hash(_tracks), totalTracks);
-
-  @override
-  String toString() =>
-      'AlbumTracks(tracks: $_tracks, totalTracks: $totalTracks)';
 }
