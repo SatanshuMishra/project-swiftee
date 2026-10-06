@@ -7,7 +7,7 @@ import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 
 const Map<String, Object?> defaultProgressJson = {
-  'version': 3,
+  'version': 4,
   'achievements': <String, Object?>{},
   'stats': {
     'totalCorrect': 0,
@@ -22,6 +22,8 @@ const Map<String, Object?> defaultProgressJson = {
     'volume': 0.8,
     'mediumTimer': 30,
     'hardTimer': 20,
+    'misuVisits': 'sometimes',
+    'nickname': null,
   },
   'updater': {
     'autoCheckEnabled': true,
@@ -30,6 +32,79 @@ const Map<String, Object?> defaultProgressJson = {
     'remindLaterUntil': null,
   },
 };
+
+const String defaultSaveJson = '''
+{
+  "version": 4,
+  "achievements": {},
+  "stats": {
+    "totalCorrect": 0,
+    "albumsPlayed": [],
+    "tracksGuessedPerAlbum": {},
+    "totalLyricsCorrect": 0,
+    "nameThaSongCorrect": 0,
+    "lyricsOrLieCorrect": 0
+  },
+  "settings": {
+    "theme": "dark",
+    "volume": 0.8,
+    "mediumTimer": 30,
+    "hardTimer": 20,
+    "misuVisits": "sometimes",
+    "nickname": null
+  },
+  "updater": {
+    "autoCheckEnabled": true,
+    "lastCheckedAt": null,
+    "skippedVersions": [],
+    "remindLaterUntil": null
+  }
+}''';
+
+const String populatedSaveJson = '''
+{
+  "version": 4,
+  "achievements": {
+    "first_meow": {
+      "unlocked": true,
+      "unlockedAt": "2026-02-15T14:30:00Z",
+      "song": null,
+      "albumId": null,
+      "trackId": null
+    }
+  },
+  "stats": {
+    "totalCorrect": 0,
+    "albumsPlayed": [
+      "12345"
+    ],
+    "tracksGuessedPerAlbum": {
+      "12345": [
+        "111",
+        "222"
+      ]
+    },
+    "totalLyricsCorrect": 0,
+    "nameThaSongCorrect": 0,
+    "lyricsOrLieCorrect": 0
+  },
+  "settings": {
+    "theme": "light",
+    "volume": 1.0,
+    "mediumTimer": 30,
+    "hardTimer": 20,
+    "misuVisits": "sometimes",
+    "nickname": null
+  },
+  "updater": {
+    "autoCheckEnabled": true,
+    "lastCheckedAt": null,
+    "skippedVersions": [
+      "0.2.3"
+    ],
+    "remindLaterUntil": null
+  }
+}''';
 
 const String tauriDefaultSaveJson = '''
 {
@@ -146,11 +221,14 @@ Map<String, Object?> objectAt(Map<String, Object?> source, String key) =>
     source[key]! as Map<String, Object?>;
 
 GameProgress populatedProgress() => const GameProgress(
-  version: 3,
+  version: 4,
   achievements: {
     'first_meow': AchievementState(
       unlocked: true,
       unlockedAt: '2026-02-15T14:30:00Z',
+      song: 'Tim McGraw',
+      albumId: '12345',
+      trackId: '111',
     ),
     'purrfect_streak': AchievementState(unlocked: false, unlockedAt: null),
   },
@@ -170,6 +248,8 @@ GameProgress populatedProgress() => const GameProgress(
     volume: 0.35,
     mediumTimer: 25,
     hardTimer: 15,
+    misuVisits: MisuVisits.often,
+    nickname: 'Sam',
   ),
   updater: UpdaterState(
     autoCheckEnabled: false,
@@ -185,14 +265,18 @@ void main() {
       expect(defaultProgress.toJson(), defaultProgressJson);
     });
 
-    test('pretty-printed defaultProgress is byte-identical to Tauri', () {
+    test('pretty-printed defaultProgress keeps the Tauri layout at v4', () {
+      expect(prettyEncoder.convert(defaultProgress.toJson()), defaultSaveJson);
+    });
+
+    test('the Tauri default save reads as the defaults at version 3', () {
       expect(
-        prettyEncoder.convert(defaultProgress.toJson()),
-        tauriDefaultSaveJson,
+        GameProgress.fromJson(decodeObject(tauriDefaultSaveJson)),
+        defaultProgress.copyWith(version: 3),
       );
     });
 
-    test('pretty-printed populated progress is byte-identical to Tauri', () {
+    test('pretty-printed populated progress keeps the Tauri layout', () {
       final progress = defaultProgress.copyWith(
         achievements: {
           'first_meow': const AchievementState(
@@ -213,10 +297,11 @@ void main() {
         updater: defaultProgress.updater.copyWith(skippedVersions: ['0.2.3']),
       );
 
-      expect(prettyEncoder.convert(progress.toJson()), tauriPopulatedSaveJson);
+      expect(prettyEncoder.convert(progress.toJson()), populatedSaveJson);
+      expect(GameProgress.fromJson(decodeObject(populatedSaveJson)), progress);
       expect(
         GameProgress.fromJson(decodeObject(tauriPopulatedSaveJson)),
-        progress,
+        progress.copyWith(version: 3),
       );
     });
 
@@ -282,6 +367,77 @@ void main() {
       expect(progress.settings.hardTimer, 15);
     });
 
+    test('version 4 settings and achievement records round trip', () {
+      const progress = GameProgress(
+        version: 4,
+        achievements: {
+          'first_meow': AchievementState(
+            unlocked: true,
+            unlockedAt: '2026-10-05T12:00:00.000Z',
+            song: 'Love Story',
+            albumId: '1234',
+            trackId: '5678',
+          ),
+          'speed_demon': AchievementState(
+            unlocked: true,
+            unlockedAt: '2026-10-06T09:30:00.000Z',
+            song: 'Cruel Summer',
+            albumId: '81763',
+            trackId: '734212',
+          ),
+        },
+        stats: GameStats(
+          totalCorrect: 2,
+          albumsPlayed: ['1234', '81763'],
+          tracksGuessedPerAlbum: {
+            '1234': ['5678'],
+            '81763': ['734212'],
+          },
+          totalLyricsCorrect: 0,
+          nameThaSongCorrect: 0,
+          lyricsOrLieCorrect: 0,
+        ),
+        settings: GameSettings(
+          theme: ThemeSetting.system,
+          volume: 0.4,
+          mediumTimer: 35,
+          hardTimer: 10,
+          misuVisits: MisuVisits.off,
+          nickname: 'Sam',
+        ),
+        updater: UpdaterState(
+          autoCheckEnabled: true,
+          lastCheckedAt: null,
+          skippedVersions: [],
+          remindLaterUntil: null,
+        ),
+      );
+
+      final direct = GameProgress.fromJson(progress.toJson());
+      final throughText = GameProgress.fromJson(
+        decodeObject(prettyEncoder.convert(progress.toJson())),
+      );
+
+      expect(direct, progress);
+      expect(throughText, progress);
+      expect(throughText.settings.misuVisits, MisuVisits.off);
+      expect(throughText.settings.nickname, 'Sam');
+      expect(throughText.achievements['speed_demon']!.song, 'Cruel Summer');
+      expect(throughText.achievements['speed_demon']!.albumId, '81763');
+      expect(throughText.achievements['speed_demon']!.trackId, '734212');
+      expect(objectAt(progress.toJson(), 'settings'), {
+        'theme': 'system',
+        'volume': 0.4,
+        'mediumTimer': 35,
+        'hardTimer': 10,
+        'misuVisits': 'off',
+        'nickname': 'Sam',
+      });
+      expect(defaultProgress.version, 4);
+      expect(defaultProgress.settings.misuVisits, MisuVisits.sometimes);
+      expect(defaultProgress.settings.nickname, isNull);
+    });
+
     test('fromJson(toJson(x)) == x for a populated progress', () {
       final progress = populatedProgress();
 
@@ -337,6 +493,8 @@ void main() {
         'volume',
         'mediumTimer',
         'hardTimer',
+        'misuVisits',
+        'nickname',
       ]);
       expect(objectAt(output, 'updater').keys, [
         'autoCheckEnabled',
@@ -347,6 +505,9 @@ void main() {
       expect(objectAt(objectAt(output, 'achievements'), 'first_meow').keys, [
         'unlocked',
         'unlockedAt',
+        'song',
+        'albumId',
+        'trackId',
       ]);
     });
 
@@ -357,6 +518,22 @@ void main() {
       });
 
       expect(GameProgress.fromJson(save).settings.theme, ThemeSetting.dark);
+    });
+
+    test('an unknown or missing misu visits setting reads as sometimes', () {
+      for (final settings in [
+        {'theme': 'dark', 'volume': 0.8, 'misuVisits': 'always'},
+        {'theme': 'dark', 'volume': 0.8, 'misuVisits': null},
+        {'theme': 'dark', 'volume': 0.8},
+      ]) {
+        final save = withEntry(loadRsV1Save, 'settings', settings);
+
+        expect(
+          GameProgress.fromJson(save).settings.misuVisits,
+          MisuVisits.sometimes,
+          reason: '$settings',
+        );
+      }
     });
 
     test('an integer volume reads as a double and writes as 1.0', () {
@@ -384,6 +561,10 @@ void main() {
       final progress = GameProgress.fromJson(save);
 
       expect(progress.achievements['first_meow']!.unlockedAt, isNull);
+      expect(progress.achievements['first_meow']!.song, isNull);
+      expect(progress.achievements['first_meow']!.albumId, isNull);
+      expect(progress.achievements['first_meow']!.trackId, isNull);
+      expect(progress.settings.nickname, isNull);
       expect(progress.updater.lastCheckedAt, isNull);
       expect(progress.updater.remindLaterUntil, isNull);
       expect(progress.updater.autoCheckEnabled, isFalse);
@@ -438,6 +619,19 @@ void main() {
           'achievements',
           {'first_meow': <String, Object?>{}},
         ),
+        'non-string song': withEntry(loadRsV1Save, 'achievements', {
+          'first_meow': {'unlocked': true, 'song': 7},
+        }),
+        'non-string nickname': withEntry(loadRsV1Save, 'settings', {
+          'theme': 'dark',
+          'volume': 0.8,
+          'nickname': 7,
+        }),
+        'non-string misuVisits': withEntry(loadRsV1Save, 'settings', {
+          'theme': 'dark',
+          'volume': 0.8,
+          'misuVisits': false,
+        }),
       };
 
       for (final MapEntry(key: label, value: save) in invalidSaves.entries) {
@@ -452,7 +646,7 @@ void main() {
     test('progress.rs test_default_progress', () {
       const progress = defaultProgress;
 
-      expect(progress.version, 3);
+      expect(progress.version, 4);
       expect(progress.stats.totalCorrect, 0);
       expect(progress.stats.totalLyricsCorrect, 0);
       expect(progress.stats.nameThaSongCorrect, 0);
@@ -573,6 +767,10 @@ void main() {
           for (final value in ThemeSetting.values)
             (value, ThemeSetting.fromWireName(value.wireName)),
         ],
+        'MisuVisits': [
+          for (final value in MisuVisits.values)
+            (value, MisuVisits.fromWireName(value.wireName)),
+        ],
       };
 
       for (final MapEntry(key: name, value: pairs) in enumRoundTrips.entries) {
@@ -617,6 +815,11 @@ void main() {
         'light',
         'system',
       ]);
+      expect(MisuVisits.values.map((value) => value.wireName), [
+        'often',
+        'sometimes',
+        'off',
+      ]);
     });
 
     test('unknown wire names give null', () {
@@ -627,6 +830,7 @@ void main() {
         expect(LyricsMode.fromWireName(unknown), isNull, reason: unknown);
         expect(Difficulty.fromWireName(unknown), isNull, reason: unknown);
         expect(ThemeSetting.fromWireName(unknown), isNull, reason: unknown);
+        expect(MisuVisits.fromWireName(unknown), isNull, reason: unknown);
       }
       expect(LyricsMode.fromWireName('nameThatSong'), isNull);
       expect(ThemeSetting.fromWireName('Dark'), isNull);
@@ -716,6 +920,19 @@ void main() {
         ).copyWith(unlockedAt: null).unlockedAt,
         isNull,
       );
+      final record = populatedProgress().achievements['first_meow']!;
+      expect(record.copyWith(), record);
+      expect(record.copyWith(song: null).song, isNull);
+      expect(record.copyWith(song: null).albumId, '12345');
+      expect(record.copyWith(albumId: null).albumId, isNull);
+      expect(record.copyWith(trackId: null).trackId, isNull);
+      final settings = populatedProgress().settings;
+      expect(settings.copyWith().nickname, 'Sam');
+      expect(settings.copyWith(nickname: null).nickname, isNull);
+      expect(
+        settings.copyWith(misuVisits: MisuVisits.off).misuVisits,
+        MisuVisits.off,
+      );
     });
 
     test('equal content gives equal values and hash codes', () {
@@ -735,6 +952,29 @@ void main() {
       expect(
         a ==
             a.copyWith(updater: a.updater.copyWith(skippedVersions: ['0.2.3'])),
+        isFalse,
+      );
+      expect(
+        a == a.copyWith(settings: a.settings.copyWith(nickname: 'Sammy')),
+        isFalse,
+      );
+      expect(
+        a ==
+            a.copyWith(
+              settings: a.settings.copyWith(misuVisits: MisuVisits.sometimes),
+            ),
+        isFalse,
+      );
+      expect(
+        a ==
+            a.copyWith(
+              achievements: {
+                ...a.achievements,
+                'first_meow': a.achievements['first_meow']!.copyWith(
+                  trackId: '222',
+                ),
+              },
+            ),
         isFalse,
       );
     });

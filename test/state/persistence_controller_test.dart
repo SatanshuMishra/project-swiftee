@@ -7,9 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:swiftie_quiz/data/save/save_error.dart';
 import 'package:swiftie_quiz/data/save/save_store.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/load_result.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
@@ -17,7 +19,7 @@ import 'package:swiftie_quiz/state/toast_controller.dart';
 
 final DateTime _now = DateTime.utc(2026, 10, 5, 12);
 
-Map<String, Object?> _v3Save({required int totalCorrect}) => {
+Map<String, Object?> _currentSave({required int totalCorrect}) => {
   ...defaultProgress.toJson(),
   'stats': {...defaultProgress.stats.toJson(), 'totalCorrect': totalCorrect},
 };
@@ -86,7 +88,7 @@ void main() {
       'setProgress (with merged settings) on Loaded result; no toast',
       () async {
         writeSave({
-          ..._v3Save(totalCorrect: 42),
+          ..._currentSave(totalCorrect: 42),
           'settings': {'theme': 'light', 'volume': 0.5},
         });
 
@@ -124,7 +126,7 @@ void main() {
     });
 
     test('does not overwrite store on invoke error (preserves seeded data for backup recovery)', () async {
-      writeSave({..._v3Save(totalCorrect: 1), 'version': 99});
+      writeSave({..._currentSave(totalCorrect: 1), 'version': 99});
       final seeded = defaultProgress.copyWith(
         stats: defaultProgress.stats.copyWith(totalCorrect: 99),
       );
@@ -143,12 +145,77 @@ void main() {
       );
     });
 
+    test(
+      'the open edition without a nickname starts on the nickname screen',
+      () async {
+        Future<GamePhase> phaseAfterLoad(
+          Edition edition, {
+          String? nickname,
+        }) async {
+          writeSave({
+            ..._currentSave(totalCorrect: 3),
+            'settings': {
+              ...defaultProgress.settings.toJson(),
+              'nickname': nickname,
+            },
+          });
+          final launch = ProviderContainer.test(
+            overrides: [
+              clockProvider.overrideWithValue(() => _now),
+              saveStoreProvider.overrideWithValue(store),
+              progressSaverProvider.overrideWithValue((_) async {}),
+              editionProvider.overrideWithValue(edition),
+            ],
+          );
+          expect(launch.read(gameControllerProvider).phase, GamePhase.menu);
+          await launch.read(persistenceControllerProvider.notifier).load();
+          expect(
+            launch.read(gameControllerProvider).progress.stats.totalCorrect,
+            3,
+          );
+          return launch.read(gameControllerProvider).phase;
+        }
+
+        expect(await phaseAfterLoad(Edition.open), GamePhase.nickname);
+        expect(await phaseAfterLoad(Edition.ana), GamePhase.menu);
+        expect(
+          await phaseAfterLoad(Edition.open, nickname: 'Sam'),
+          GamePhase.menu,
+        );
+      },
+    );
+
+    test('a fresh, migrated or failed load routes the open edition', () async {
+      Future<GamePhase> phaseAfterLoad(Edition edition) async {
+        final launch = ProviderContainer.test(
+          overrides: [
+            clockProvider.overrideWithValue(() => _now),
+            saveStoreProvider.overrideWithValue(store),
+            progressSaverProvider.overrideWithValue((_) async {}),
+            editionProvider.overrideWithValue(edition),
+          ],
+        );
+        await launch.read(persistenceControllerProvider.notifier).load();
+        return launch.read(gameControllerProvider).phase;
+      }
+
+      expect(await phaseAfterLoad(Edition.open), GamePhase.nickname);
+      expect(await phaseAfterLoad(Edition.ana), GamePhase.menu);
+
+      writeSave(_v1Save(totalCorrect: 7));
+      expect(await phaseAfterLoad(Edition.open), GamePhase.nickname);
+
+      writeSave({..._currentSave(totalCorrect: 1), 'version': 99});
+      expect(await phaseAfterLoad(Edition.open), GamePhase.nickname);
+      expect(await phaseAfterLoad(Edition.ana), GamePhase.menu);
+    });
+
     test('loads only once', () async {
-      writeSave(_v3Save(totalCorrect: 42));
+      writeSave(_currentSave(totalCorrect: 42));
       final first = persistence().load();
       final second = persistence().load();
       await first;
-      writeSave(_v3Save(totalCorrect: 1));
+      writeSave(_currentSave(totalCorrect: 1));
 
       await persistence().load();
 
@@ -172,7 +239,7 @@ void main() {
     });
 
     test('never saves after a failed load', () async {
-      writeSave({..._v3Save(totalCorrect: 1), 'version': 4});
+      writeSave({..._currentSave(totalCorrect: 1), 'version': 5});
       await persistence().load();
 
       fakeAsync((async) {
@@ -186,7 +253,7 @@ void main() {
       expect(saved, isEmpty);
       expect(
         jsonDecode(saveFile.readAsStringSync()),
-        containsPair('version', 4),
+        containsPair('version', 5),
       );
     });
 
@@ -246,9 +313,9 @@ void main() {
     });
 
     test('lists backups and restores one, then reloads it', () async {
-      writeSave(_v3Save(totalCorrect: 5));
+      writeSave(_currentSave(totalCorrect: 5));
       await store.createBackup();
-      writeSave(_v3Save(totalCorrect: 9));
+      writeSave(_currentSave(totalCorrect: 9));
       await persistence().load();
       expect(progress().stats.totalCorrect, 9);
 
@@ -271,9 +338,9 @@ void main() {
     });
 
     test('a restore pauses saving until the backup is loaded', () async {
-      writeSave(_v3Save(totalCorrect: 5));
+      writeSave(_currentSave(totalCorrect: 5));
       await store.createBackup();
-      writeSave(_v3Save(totalCorrect: 9));
+      writeSave(_currentSave(totalCorrect: 9));
       await persistence().load();
       final timestamp = (await persistence().listBackups()).single.timestamp;
 
@@ -292,9 +359,9 @@ void main() {
     });
 
     test('a restore after a failed load re-enables saving', () async {
-      writeSave(_v3Save(totalCorrect: 5));
+      writeSave(_currentSave(totalCorrect: 5));
       await store.createBackup();
-      writeSave({..._v3Save(totalCorrect: 1), 'version': 99});
+      writeSave({..._currentSave(totalCorrect: 1), 'version': 99});
       await persistence().load();
       expect(
         container.read(persistenceControllerProvider),
@@ -312,7 +379,7 @@ void main() {
     });
 
     test('restoring a missing backup fails and keeps progress', () async {
-      writeSave(_v3Save(totalCorrect: 9));
+      writeSave(_currentSave(totalCorrect: 9));
       await persistence().load();
 
       await expectLater(

@@ -144,6 +144,10 @@ void main() {
       expect(state.progress, defaultProgress);
       expect(state.updaterState, const UpdaterIdle());
       expect(state.pendingToasts, isEmpty);
+      expect(state.quickRoundTotal, isNull);
+      expect(state.roundNumber, 0);
+      expect(state.roundResults, isEmpty);
+      expect(state.isLastQuickRound, isFalse);
     });
 
     test('answerCorrect keeps per-album guessed tracks unique', () {
@@ -183,6 +187,7 @@ void main() {
     test('resetGame keeps the session counters, progress and albums', () {
       const album = Album(id: 100, title: 'Album', coverMedium: null);
       controller
+        ..startQuickRound()
         ..setAlbums([album])
         ..setMode(GameMode.album)
         ..setDifficulty(Difficulty.hard)
@@ -226,6 +231,9 @@ void main() {
       expect(state.albums, [album]);
       expect(state.mode, GameMode.album);
       expect(state.difficulty, Difficulty.hard);
+      expect(state.quickRoundTotal, isNull);
+      expect(state.roundNumber, 0);
+      expect(state.roundResults, isEmpty);
     });
 
     test('startRound sets the round and stamps the clock time', () {
@@ -323,12 +331,185 @@ void main() {
       expect(read().decoyPool[1], lyrics);
     });
 
-    test('resetProgress restores the default progress', () {
+    test(
+      'reset clears the shelf and stats but keeps settings and the nickname',
+      () {
+        final updater = defaultProgress.updater.copyWith(
+          autoCheckEnabled: false,
+          lastCheckedAt: '2026-10-05T08:00:00.000Z',
+          skippedVersions: ['0.2.3'],
+        );
+        controller
+          ..setProgress(read().progress.copyWith(updater: updater))
+          ..answerCorrect(makeTrack(1))
+          ..incrementLyricsStat(LyricsMode.nameThatSong)
+          ..setProgress(
+            read().progress.copyWith(
+              achievements: {
+                'first_meow': const AchievementState(
+                  unlocked: true,
+                  unlockedAt: '2026-10-05T12:00:00.000Z',
+                  song: 'Track 1',
+                  albumId: '100',
+                  trackId: '1',
+                ),
+              },
+            ),
+          )
+          ..setTheme(ThemeSetting.light)
+          ..setVolume(0.4)
+          ..setMediumTimer(25)
+          ..setHardTimer(15)
+          ..setMisuVisits(MisuVisits.often)
+          ..setNickname('Sam');
+
+        controller.resetProgress();
+
+        final progress = read().progress;
+        expect(progress.achievements, defaultProgress.achievements);
+        expect(progress.stats, defaultProgress.stats);
+        expect(progress.settings.theme, ThemeSetting.light);
+        expect(progress.settings.volume, 0.4);
+        expect(progress.settings.mediumTimer, 25);
+        expect(progress.settings.hardTimer, 15);
+        expect(progress.settings.misuVisits, MisuVisits.often);
+        expect(progress.settings.nickname, 'Sam');
+        expect(progress.updater, updater);
+        expect(progress.version, defaultProgress.version);
+      },
+    );
+
+    test('a quick round lasts ten songs and ends on the summary', () {
+      controller
+        ..setMode(GameMode.album)
+        ..setDifficulty(Difficulty.hard)
+        ..setQuizType(QuizType.lyrics)
+        ..setLyricsMode(LyricsMode.lyricsOrLie)
+        ..answerCorrect(makeTrack(99))
+        ..answerIncorrect(makeTrack(98))
+        ..startQuickRound();
+
+      final started = read();
+      expect(started.mode, GameMode.tonight);
+      expect(started.quizType, QuizType.sound);
+      expect(started.lyricsMode, isNull);
+      expect(started.difficulty, Difficulty.medium);
+      expect(started.quickRoundTotal, 10);
+      expect(started.roundNumber, 0);
+      expect(started.roundResults, isEmpty);
+      expect(started.streak, 0);
+      expect(started.quackCount, 0);
+      expect(started.phase, GamePhase.playing);
+
+      for (var round = 1; round <= 10; round++) {
+        expect(read().isLastQuickRound, isFalse, reason: 'round $round');
+        final track = makeTrack(round);
+        controller.startRound(track, const [], [track]);
+        if (round.isEven) {
+          controller.answerCorrect(track);
+        } else {
+          controller.answerIncorrect(track);
+        }
+      }
+      expect(read().roundNumber, 10);
+      expect(read().isLastQuickRound, isTrue);
+
+      controller.finishQuickRound();
+
+      final finished = read();
+      expect(finished.phase, GamePhase.roundSummary);
+      expect(finished.quickRoundTotal, 10);
+      expect(finished.roundResults, [
+        for (var round = 1; round <= 10; round++)
+          RoundOutcome(makeTrack(round), correct: round.isEven),
+      ]);
+    });
+
+    test('nickname is trimmed and capped at twenty characters', () {
+      controller.setNickname('     ');
+      expect(read().progress.settings.nickname, isNull);
+      controller.setNickname('');
+      expect(read().progress.settings.nickname, isNull);
+
+      controller.setNickname('  Abcdefghijklmnopqrstuvwxy  ');
+      expect(read().progress.settings.nickname, 'Abcdefghijklmnopqrst');
+
+      controller.setNickname('   ');
+      expect(read().progress.settings.nickname, 'Abcdefghijklmnopqrst');
+
+      controller.setNickname('Taylor Alison Swift Ana');
+      expect(read().progress.settings.nickname, 'Taylor Alison Swift');
+
+      controller.setNickname(' Sam ');
+      expect(read().progress.settings.nickname, 'Sam');
+    });
+
+    test('setMisuVisits updates settings', () {
+      controller.setMisuVisits(MisuVisits.off);
+      expect(read().progress.settings.misuVisits, MisuVisits.off);
+      expect(read().progress.settings.volume, 0.8);
+    });
+
+    test('beginSetup chooses the mode and clears a quick round', () {
+      controller
+        ..startQuickRound()
+        ..startRound(makeTrack(1), const [], [makeTrack(1)])
+        ..answerCorrect(makeTrack(1))
+        ..beginSetup(GameMode.album);
+
+      final state = read();
+      expect(state.mode, GameMode.album);
+      expect(state.phase, GamePhase.setup);
+      expect(state.quickRoundTotal, isNull);
+      expect(state.roundNumber, 0);
+      expect(state.roundResults, isEmpty);
+      expect(state.isLastQuickRound, isFalse);
+    });
+
+    test('rounds count through startRound and nextLyricsTrack', () {
+      controller
+        ..startRound(makeTrack(1), const [], [makeTrack(1)])
+        ..startRound(makeTrack(2), const [], [makeTrack(2)]);
+      expect(read().roundNumber, 2);
+
+      expect(controller.nextLyricsTrack(), isNull);
+      expect(read().roundNumber, 2);
+
+      controller.setLyricsPool([withLyrics(1)]);
+      controller
+        ..nextLyricsTrack()
+        ..nextLyricsTrack();
+      expect(read().roundNumber, 4);
+      expect(read().isLastQuickRound, isFalse);
+    });
+
+    test('answers record their outcome only when a track is given', () {
       controller
         ..answerCorrect(makeTrack(1))
-        ..setVolume(0.2)
-        ..resetProgress();
-      expect(read().progress, defaultProgress);
+        ..answerIncorrect()
+        ..answerIncorrect(makeTrack(2));
+
+      expect(read().roundResults, [
+        RoundOutcome(makeTrack(1), correct: true),
+        RoundOutcome(makeTrack(2), correct: false),
+      ]);
+      expect(read().quackCount, 2);
+    });
+
+    test('round outcomes compare by track and result', () {
+      expect(
+        RoundOutcome(makeTrack(1), correct: true),
+        RoundOutcome(makeTrack(1), correct: true),
+      );
+      expect(
+        RoundOutcome(makeTrack(1), correct: true).hashCode,
+        RoundOutcome(makeTrack(1), correct: true).hashCode,
+      );
+      expect(
+        RoundOutcome(makeTrack(1), correct: true) ==
+            RoundOutcome(makeTrack(1), correct: false),
+        isFalse,
+      );
     });
 
     test('simple setters store their values', () {
@@ -407,13 +588,15 @@ void main() {
         ..toggleAlbum(1)
         ..setTrackPool([makeTrack(1)])
         ..addToast('first_meow')
-        ..addToDecoyPool(1, withLyrics(1).lyrics);
+        ..addToDecoyPool(1, withLyrics(1).lyrics)
+        ..answerCorrect(makeTrack(1));
       final state = read();
 
       expect(() => state.selectedAlbumIds.add(2), throwsUnsupportedError);
       expect(() => state.trackPool.clear(), throwsUnsupportedError);
       expect(() => state.pendingToasts.add('x'), throwsUnsupportedError);
       expect(() => state.decoyPool.remove(1), throwsUnsupportedError);
+      expect(() => state.roundResults.clear(), throwsUnsupportedError);
     });
   });
 }

@@ -2,11 +2,12 @@ import 'package:swiftie_quiz/data/save/save_error.dart';
 
 typedef SaveMigration = Map<String, Object?> Function(Map<String, Object?>);
 
-const int currentSaveVersion = 3;
+const int currentSaveVersion = 4;
 
 const Map<int, SaveMigration> _migrations = {
   1: _migrateV1ToV2,
   2: _migrateV2ToV3,
+  3: _migrateV3ToV4,
 };
 
 int? declaredSaveVersion(Map<String, Object?> state) =>
@@ -59,4 +60,27 @@ Map<String, Object?> _migrateV2ToV3(Map<String, Object?> state) => {
       'remindLaterUntil': null,
     },
   'version': 3,
+};
+
+Map<String, Object?> _migrateV3ToV4(Map<String, Object?> state) => {
+  ...state,
+  if (state['achievements'] case final Map<String, Object?> achievements)
+    'achievements': {
+      for (final MapEntry(:key, :value) in achievements.entries)
+        key: switch (value) {
+          final Map<String, Object?> record => {
+            ...record,
+            for (final field in const ['song', 'albumId', 'trackId'])
+              if (!record.containsKey(field)) field: null,
+          },
+          _ => value,
+        },
+    },
+  if (state['settings'] case final Map<String, Object?> settings)
+    'settings': {
+      ...settings,
+      if (!settings.containsKey('misuVisits')) 'misuVisits': 'sometimes',
+      if (!settings.containsKey('nickname')) 'nickname': null,
+    },
+  'version': 4,
 };

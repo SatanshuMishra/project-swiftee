@@ -7,7 +7,7 @@ const int _defaultMediumTimer = 30;
 const int _defaultHardTimer = 20;
 
 const GameProgress defaultProgress = GameProgress(
-  version: 3,
+  version: 4,
   achievements: {},
   stats: GameStats(
     totalCorrect: 0,
@@ -22,6 +22,8 @@ const GameProgress defaultProgress = GameProgress(
     volume: 0.8,
     mediumTimer: _defaultMediumTimer,
     hardTimer: _defaultHardTimer,
+    misuVisits: MisuVisits.sometimes,
+    nickname: null,
   ),
   updater: UpdaterState(
     autoCheckEnabled: true,
@@ -31,45 +33,83 @@ const GameProgress defaultProgress = GameProgress(
   ),
 );
 
+enum MisuVisits {
+  often('often'),
+  sometimes('sometimes'),
+  off('off');
+
+  const MisuVisits(this.wireName);
+
+  final String wireName;
+
+  static MisuVisits? fromWireName(String wireName) =>
+      values.firstWhereOrNull((value) => value.wireName == wireName);
+}
+
 final class AchievementState {
-  const AchievementState({required this.unlocked, required this.unlockedAt});
+  const AchievementState({
+    required this.unlocked,
+    required this.unlockedAt,
+    this.song,
+    this.albumId,
+    this.trackId,
+  });
 
   factory AchievementState.fromJson(Map<String, Object?> json) =>
       AchievementState(
         unlocked: _readBool(json, 'unlocked'),
         unlockedAt: _readOptionalString(json, 'unlockedAt'),
+        song: _readOptionalString(json, 'song'),
+        albumId: _readOptionalString(json, 'albumId'),
+        trackId: _readOptionalString(json, 'trackId'),
       );
 
   final bool unlocked;
   final String? unlockedAt;
+  final String? song;
+  final String? albumId;
+  final String? trackId;
 
   Map<String, Object?> toJson() => {
     'unlocked': unlocked,
     'unlockedAt': unlockedAt,
+    'song': song,
+    'albumId': albumId,
+    'trackId': trackId,
   };
 
   AchievementState copyWith({
     bool? unlocked,
     Object? unlockedAt = _unchanged,
+    Object? song = _unchanged,
+    Object? albumId = _unchanged,
+    Object? trackId = _unchanged,
   }) => AchievementState(
     unlocked: unlocked ?? this.unlocked,
     unlockedAt: identical(unlockedAt, _unchanged)
         ? this.unlockedAt
         : unlockedAt as String?,
+    song: identical(song, _unchanged) ? this.song : song as String?,
+    albumId: identical(albumId, _unchanged) ? this.albumId : albumId as String?,
+    trackId: identical(trackId, _unchanged) ? this.trackId : trackId as String?,
   );
 
   @override
   bool operator ==(Object other) =>
       other is AchievementState &&
       other.unlocked == unlocked &&
-      other.unlockedAt == unlockedAt;
+      other.unlockedAt == unlockedAt &&
+      other.song == song &&
+      other.albumId == albumId &&
+      other.trackId == trackId;
 
   @override
-  int get hashCode => Object.hash(unlocked, unlockedAt);
+  int get hashCode => Object.hash(unlocked, unlockedAt, song, albumId, trackId);
 
   @override
   String toString() =>
-      'AchievementState(unlocked: $unlocked, unlockedAt: $unlockedAt)';
+      'AchievementState(unlocked: $unlocked, unlockedAt: $unlockedAt, '
+      'song: $song, albumId: $albumId, trackId: $trackId)';
 }
 
 final class GameStats {
@@ -175,6 +215,8 @@ final class GameSettings {
     required this.volume,
     required this.mediumTimer,
     required this.hardTimer,
+    this.misuVisits = MisuVisits.sometimes,
+    this.nickname,
   });
 
   factory GameSettings.fromJson(Map<String, Object?> json) => GameSettings(
@@ -184,18 +226,28 @@ final class GameSettings {
     volume: _readNumber(json, 'volume'),
     mediumTimer: _readCountOr(json, 'mediumTimer', _defaultMediumTimer),
     hardTimer: _readCountOr(json, 'hardTimer', _defaultHardTimer),
+    misuVisits: switch (_readOptionalString(json, 'misuVisits')) {
+      final String wireName =>
+        MisuVisits.fromWireName(wireName) ?? MisuVisits.sometimes,
+      null => MisuVisits.sometimes,
+    },
+    nickname: _readOptionalString(json, 'nickname'),
   );
 
   final ThemeSetting theme;
   final double volume;
   final int mediumTimer;
   final int hardTimer;
+  final MisuVisits misuVisits;
+  final String? nickname;
 
   Map<String, Object?> toJson() => {
     'theme': theme.wireName,
     'volume': volume,
     'mediumTimer': mediumTimer,
     'hardTimer': hardTimer,
+    'misuVisits': misuVisits.wireName,
+    'nickname': nickname,
   };
 
   GameSettings copyWith({
@@ -203,11 +255,17 @@ final class GameSettings {
     double? volume,
     int? mediumTimer,
     int? hardTimer,
+    MisuVisits? misuVisits,
+    Object? nickname = _unchanged,
   }) => GameSettings(
     theme: theme ?? this.theme,
     volume: volume ?? this.volume,
     mediumTimer: mediumTimer ?? this.mediumTimer,
     hardTimer: hardTimer ?? this.hardTimer,
+    misuVisits: misuVisits ?? this.misuVisits,
+    nickname: identical(nickname, _unchanged)
+        ? this.nickname
+        : nickname as String?,
   );
 
   @override
@@ -216,15 +274,19 @@ final class GameSettings {
       other.theme == theme &&
       other.volume == volume &&
       other.mediumTimer == mediumTimer &&
-      other.hardTimer == hardTimer;
+      other.hardTimer == hardTimer &&
+      other.misuVisits == misuVisits &&
+      other.nickname == nickname;
 
   @override
-  int get hashCode => Object.hash(theme, volume, mediumTimer, hardTimer);
+  int get hashCode =>
+      Object.hash(theme, volume, mediumTimer, hardTimer, misuVisits, nickname);
 
   @override
   String toString() =>
       'GameSettings(theme: $theme, volume: $volume, '
-      'mediumTimer: $mediumTimer, hardTimer: $hardTimer)';
+      'mediumTimer: $mediumTimer, hardTimer: $hardTimer, '
+      'misuVisits: $misuVisits, nickname: $nickname)';
 }
 
 final class UpdaterState {

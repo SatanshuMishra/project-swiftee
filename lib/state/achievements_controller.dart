@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
@@ -19,6 +20,7 @@ typedef AchievementContext = ({
   LyricsMode? lyricsMode,
   int sessionSoundCorrect,
   int sessionLyricsCorrect,
+  Track? track,
 });
 
 const Duration _speedDemonLimit = Duration(seconds: 3);
@@ -80,6 +82,7 @@ class AchievementsController {
     required bool correct,
     required Duration timeElapsed,
     required bool usedFullClip,
+    Track? track,
   }) {
     final game = _ref.read(gameControllerProvider);
     return checkAndUnlock((
@@ -95,6 +98,7 @@ class AchievementsController {
       lyricsMode: game.lyricsMode,
       sessionSoundCorrect: game.sessionSoundCorrect,
       sessionLyricsCorrect: game.sessionLyricsCorrect,
+      track: track,
     ));
   }
 
@@ -109,9 +113,13 @@ class AchievementsController {
     if (newlyUnlocked.isEmpty) {
       return newlyUnlocked;
     }
+    final track = context.track;
     final unlocked = AchievementState(
       unlocked: true,
       unlockedAt: _isoTimestamp(_ref.read(clockProvider)()),
+      song: track?.title,
+      albumId: track == null ? null : '${track.album.id}',
+      trackId: track == null ? null : '${track.id}',
     );
     final game = _ref.read(gameControllerProvider.notifier)
       ..setProgress(

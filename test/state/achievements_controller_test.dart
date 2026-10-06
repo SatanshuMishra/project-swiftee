@@ -59,6 +59,7 @@ AchievementContext _context({
   QuizType? quizType,
   int sessionSoundCorrect = 0,
   int sessionLyricsCorrect = 0,
+  Track? track,
 }) => (
   correct: correct,
   streak: streak,
@@ -72,6 +73,7 @@ AchievementContext _context({
   lyricsMode: null,
   sessionSoundCorrect: sessionSoundCorrect,
   sessionLyricsCorrect: sessionLyricsCorrect,
+  track: track,
 );
 
 void main() {
@@ -124,6 +126,66 @@ void main() {
         const AchievementState(unlocked: true, unlockedAt: _nowIso),
       );
       expect(read().pendingToasts, ['first_meow']);
+    });
+
+    test('an unlock records the song it was earned on', () {
+      const folklore = Album(id: 1234, title: 'folklore', coverMedium: null);
+      final cardigan = _track(
+        5678,
+        album: folklore,
+      ).copyWith(title: 'cardigan');
+      game().answerCorrect(cardigan);
+
+      final unlocked = achievements().checkAfterAnswer(
+        correct: true,
+        timeElapsed: const Duration(seconds: 10),
+        usedFullClip: false,
+        track: cardigan,
+      );
+
+      expect(unlocked, ['first_meow']);
+      expect(
+        read().progress.achievements['first_meow'],
+        const AchievementState(
+          unlocked: true,
+          unlockedAt: _nowIso,
+          song: 'cardigan',
+          albumId: '1234',
+          trackId: '5678',
+        ),
+      );
+    });
+
+    test('every record unlocked together carries the same song', () {
+      final track = _track(3).copyWith(title: 'Cruel Summer');
+      game().answerCorrect(track);
+
+      final unlocked = achievements().checkAfterAnswer(
+        correct: true,
+        timeElapsed: const Duration(seconds: 2),
+        usedFullClip: true,
+        track: track,
+      );
+
+      expect(unlocked, ['first_meow', 'speed_demon', 'persistent_listener']);
+      for (final id in unlocked) {
+        final record = read().progress.achievements[id]!;
+        expect(record.song, 'Cruel Summer', reason: id);
+        expect(record.albumId, '10', reason: id);
+        expect(record.trackId, '3', reason: id);
+      }
+    });
+
+    test('an unlock without a track leaves the song empty', () {
+      final unlocked = achievements().checkAndUnlock(
+        _context(progress: _progressWith(totalCorrect: 1)),
+      );
+
+      expect(unlocked, ['first_meow']);
+      final record = read().progress.achievements['first_meow']!;
+      expect(record.song, isNull);
+      expect(record.albumId, isNull);
+      expect(record.trackId, isNull);
     });
 
     test('unlockedAt is an ISO 8601 UTC time with milliseconds', () {

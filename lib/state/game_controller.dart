@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show StringCharacters;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
@@ -10,6 +11,10 @@ import 'package:swiftie_quiz/state/providers.dart';
 final gameControllerProvider = NotifierProvider<GameController, GameState>(
   GameController.new,
 );
+
+const int quickRoundLength = 10;
+
+const int nicknameMaxLength = 20;
 
 class GameController extends Notifier<GameState> {
   @override
@@ -41,6 +46,30 @@ class GameController extends Notifier<GameState> {
 
   void clearSelectedAlbums() => state = state.copyWith(selectedAlbumIds: []);
 
+  void beginSetup(GameMode mode) => state = state.copyWith(
+    mode: mode,
+    quickRoundTotal: null,
+    roundNumber: 0,
+    roundResults: [],
+    phase: GamePhase.setup,
+  );
+
+  void startQuickRound() => state = state.copyWith(
+    mode: GameMode.tonight,
+    quizType: QuizType.sound,
+    lyricsMode: null,
+    difficulty: Difficulty.medium,
+    quickRoundTotal: quickRoundLength,
+    roundNumber: 0,
+    roundResults: [],
+    streak: 0,
+    quackCount: 0,
+    phase: GamePhase.playing,
+  );
+
+  void finishQuickRound() =>
+      state = state.copyWith(phase: GamePhase.roundSummary);
+
   void setAlbums(List<Album> albums) => state = state.copyWith(albums: albums);
 
   void setTrackPool(List<Track> tracks) =>
@@ -53,6 +82,7 @@ class GameController extends Notifier<GameState> {
         options: options,
         relistenCount: 0,
         roundStartTime: ref.read(clockProvider)().millisecondsSinceEpoch,
+        roundNumber: state.roundNumber + 1,
       );
 
   void answerCorrect(Track track) {
@@ -66,6 +96,7 @@ class GameController extends Notifier<GameState> {
     state = state.copyWith(
       streak: state.streak + 1,
       quackCount: 0,
+      roundResults: [...state.roundResults, RoundOutcome(track, correct: true)],
       sessionSoundCorrect: isLyrics
           ? state.sessionSoundCorrect
           : state.sessionSoundCorrect + 1,
@@ -92,8 +123,13 @@ class GameController extends Notifier<GameState> {
     );
   }
 
-  void answerIncorrect() =>
-      state = state.copyWith(streak: 0, quackCount: state.quackCount + 1);
+  void answerIncorrect([Track? track]) => state = state.copyWith(
+    streak: 0,
+    quackCount: state.quackCount + 1,
+    roundResults: track == null
+        ? null
+        : [...state.roundResults, RoundOutcome(track, correct: false)],
+  );
 
   void incrementRelisten() =>
       state = state.copyWith(relistenCount: state.relistenCount + 1);
@@ -114,6 +150,9 @@ class GameController extends Notifier<GameState> {
     decoyPool: {},
     lyricsFetchProgress: null,
     lyricsAvailableTracks: [],
+    quickRoundTotal: null,
+    roundNumber: 0,
+    roundResults: [],
   );
 
   void setProgress(GameProgress progress) =>
@@ -134,6 +173,22 @@ class GameController extends Notifier<GameState> {
   void setHardTimer(int seconds) =>
       _updateSettings((settings) => settings.copyWith(hardTimer: seconds));
 
+  void setMisuVisits(MisuVisits visits) =>
+      _updateSettings((settings) => settings.copyWith(misuVisits: visits));
+
+  void setNickname(String value) {
+    final nickname = value
+        .trim()
+        .characters
+        .take(nicknameMaxLength)
+        .toString()
+        .trimRight();
+    if (nickname.isEmpty) {
+      return;
+    }
+    _updateSettings((settings) => settings.copyWith(nickname: nickname));
+  }
+
   void addToast(String achievementId) => state = state.copyWith(
     pendingToasts: [...state.pendingToasts, achievementId],
   );
@@ -145,7 +200,12 @@ class GameController extends Notifier<GameState> {
     ],
   );
 
-  void resetProgress() => state = state.copyWith(progress: defaultProgress);
+  void resetProgress() => state = state.copyWith(
+    progress: state.progress.copyWith(
+      achievements: defaultProgress.achievements,
+      stats: defaultProgress.stats,
+    ),
+  );
 
   void setLyricsPool(List<TrackWithLyrics> pool) =>
       state = state.copyWith(lyricsPool: pool, lyricsPoolIndex: 0);
@@ -159,11 +219,15 @@ class GameController extends Notifier<GameState> {
       return null;
     }
     final index = state.lyricsPoolIndex;
+    final roundNumber = state.roundNumber + 1;
     if (index >= pool.length) {
-      state = state.copyWith(lyricsPoolIndex: 1);
+      state = state.copyWith(lyricsPoolIndex: 1, roundNumber: roundNumber);
       return pool.first;
     }
-    state = state.copyWith(lyricsPoolIndex: index + 1);
+    state = state.copyWith(
+      lyricsPoolIndex: index + 1,
+      roundNumber: roundNumber,
+    );
     return pool[index];
   }
 

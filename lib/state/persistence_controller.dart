@@ -4,8 +4,11 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
+import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/load_result.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/state/toast_controller.dart';
@@ -101,6 +104,7 @@ class PersistenceController extends Notifier<PersistenceStatus> {
       if (ref.mounted) {
         state = PersistenceStatus.failed;
         _showToast(loadFailedMessage);
+        _routeFirstLaunch();
       }
       return;
     }
@@ -116,6 +120,15 @@ class PersistenceController extends Notifier<PersistenceStatus> {
       case LoadMigrated(:final progress, :final fromVersion):
         _apply(progress);
         _showToast(migratedMessage(fromVersion));
+    }
+    _routeFirstLaunch();
+  }
+
+  void _routeFirstLaunch() {
+    final game = ref.read(gameControllerProvider);
+    if (ref.read(editionProvider) == Edition.open &&
+        game.progress.settings.nickname == null) {
+      ref.read(gameControllerProvider.notifier).setPhase(GamePhase.nickname);
     }
   }
 
