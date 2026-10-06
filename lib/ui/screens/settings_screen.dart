@@ -1,58 +1,119 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:intl/intl.dart' show DateFormat;
+import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
+import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/domain/models/updater.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
+import 'package:swiftie_quiz/state/toast_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
-import 'package:swiftie_quiz/ui/widgets/screen_layout.dart';
+import 'package:swiftie_quiz/ui/kit/confirm_dialog.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
+import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
+import 'package:swiftie_quiz/ui/kit/section_label.dart';
+import 'package:swiftie_quiz/ui/kit/segmented.dart';
+import 'package:swiftie_quiz/ui/kit/serif_input.dart';
+import 'package:swiftie_quiz/ui/kit/two_pane.dart';
+import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
-import 'package:swiftie_quiz/ui/widgets/app_icon.dart';
-import 'package:swiftie_quiz/ui/widgets/entrance.dart';
-import 'package:swiftie_quiz/ui/widgets/swiftie_logo.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
+import 'package:swiftie_quiz/ui/widgets/back_link.dart';
+
+final DateFormat _momentFormat = DateFormat("MMM d, y 'at' h:mm a", 'en_US');
+
+String _formatMoment(DateTime moment) => _momentFormat.format(moment.toLocal());
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
-  static const double padding = 32;
-  static const double gap = 32;
-  static const double sectionPadding = 24;
-  static const double indent = 44;
-  static const Offset cardEntranceOffset = Offset(0, 20);
-  static const Duration settingsCardDelay = Duration(milliseconds: 100);
-  static const Duration updatesCardDelay = Duration(milliseconds: 200);
-  static const Duration backupsCardDelay = Duration(milliseconds: 250);
-  static const double volumeSliderWidth = 128;
-  static const double timerSliderWidth = 96;
-  static const double timerValueWidth = 32;
+  static const String title = 'Settings';
+  static const String subtitle = 'Saved as you go.';
+
+  static const String lookAndSoundLabel = 'Look and sound';
+  static const String timersLabel = 'Timers';
+  static const String updatesLabel = 'Updates';
+  static const String backupsLabel = 'Backups';
+  static const String progressLabel = 'Progress';
+
+  static const String themeTitle = 'Theme';
+  static const String themeNote = 'System follows your computer.';
+  static const String volumeTitle = 'Volume';
+  static const String misuTitle = 'Misu visits';
+  static const String misuNote = 'How often she drops by with a word.';
+  static const String nicknameTitle = 'Nickname';
+  static const String nicknameNote = 'Shown in the app.';
+  static const String mediumTitle = 'Medium';
+  static const String hardTitle = 'Hard';
+  static const String timerNote = 'Seconds to answer each round.';
+  static const String appName = 'Project Swiftie';
+  static const String lastCheckedPrefix = 'Last checked ';
+  static const String checkNow = 'Check now';
+  static const String checking = 'Checking…';
+  static const String upToDate = "You're up to date.";
+  static const String autoCheckTitle = 'Check for updates automatically';
+  static const String autoCheckNote =
+      'Sends only a standard request to GitHub. No analytics or tracking.';
+  static const String backupsNote =
+      'The three most recent automatic backups are kept.';
+  static const String restore = 'Restore';
+  static const String restoreTitle = 'Restore this backup?';
+  static const String restoreMessage =
+      'Your current save will be replaced with this one.';
+  static const String restoreFailurePrefix = 'Could not restore backup: ';
+  static const String restored = 'Backup restored';
+  static const String progressReset = 'Progress reset';
+  static const String resetTitle = 'Reset progress';
+  static const String resetNote = 'Clears the record shelf and all stats.';
+  static const String resetAction = 'Reset…';
+  static const String resetConfirmTitle = 'Reset all progress?';
+  static const String resetConfirmLabel = 'Reset progress';
+  static const String madeForAna = 'Made for Ana by Satanshu';
+  static const String madeBy = 'Made by Satanshu';
+  static const String appIcon = 'assets/brand/app-icon.svg';
+
+  static const List<(ThemeSetting, String)> themeOptions = [
+    (ThemeSetting.dark, 'Dark'),
+    (ThemeSetting.light, 'Light'),
+    (ThemeSetting.system, 'System'),
+  ];
+  static const List<(MisuVisits, String)> misuOptions = [
+    (MisuVisits.often, 'Often'),
+    (MisuVisits.sometimes, 'Now and then'),
+    (MisuVisits.off, 'Off'),
+  ];
+
+  static const int shownBackups = 3;
   static const double minTimer = 10;
   static const double maxTimer = 40;
   static const int timerDivisions = 6;
   static const int volumeDivisions = 100;
-  static const double logoSize = 32;
-  static const double checkboxOffset = 4;
-  static const double finePrintSize = 11;
-  static const String monospaceFont = 'Consolas';
-  static const List<String> monospaceFallbacks = [
-    'Menlo',
-    'Monaco',
-    'Liberation Mono',
-    'Courier New',
-    'monospace',
-  ];
+  static const double volumeWidth = 180;
+  static const double timerWidth = 150;
+  static const double nicknameWidth = 180;
+  static const double sectionsTop = 12;
+  static const double sectionsBottom = 48;
 
-  static const String restorePrompt =
-      'Restore this backup? Your current save will be replaced.';
-  static const String restoreFailurePrefix = 'Could not restore backup: ';
-  static const String neverChecked = 'Never';
-  static const String telemetryNote =
-      'Sends only the standard HTTP request to GitHub. No analytics, no '
-      'install identifiers, no telemetry.';
+  static String resetMessage(String name) =>
+      'This clears ${name == 'you' ? 'your' : "$name's"} record shelf and '
+      'stats. Backups stay available.';
+
+  static String aboutLine(Edition edition) => switch (edition) {
+    Edition.ana => madeForAna,
+    Edition.open => madeBy,
+  };
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -60,6 +121,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   List<BackupEntry> _backups = const [];
+  bool _checkRequested = false;
 
   @override
   void initState() {
@@ -70,8 +132,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _loadBackups() async {
     List<BackupEntry> backups;
     try {
+      final listed = await ref
+          .read(persistenceControllerProvider.notifier)
+          .listBackups();
       backups = List.unmodifiable(
-        await ref.read(persistenceControllerProvider.notifier).listBackups(),
+        listed
+            .sorted((a, b) => b.timestamp.compareTo(a.timestamp))
+            .take(SettingsScreen.shownBackups),
       );
     } on Object {
       backups = const [];
@@ -81,297 +148,218 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  void _checkNow() {
+    if (ref.read(updaterStateProvider) is UpdaterChecking) {
+      return;
+    }
+    setState(() => _checkRequested = true);
+    unawaited(ref.read(updaterControllerProvider).check(manual: true));
+  }
+
+  void _setAutoCheck(bool enabled) {
+    final progress = ref.read(gameControllerProvider).progress;
+    ref
+        .read(gameControllerProvider.notifier)
+        .setProgress(
+          progress.copyWith(
+            updater: progress.updater.copyWith(autoCheckEnabled: enabled),
+          ),
+        );
+  }
+
   Future<void> _confirmReset() async {
-    final confirmed = await _showSettingsDialog(
-      context,
-      title: 'Reset Progress',
-      message: 'Erase all achievements',
-      actions: const [
-        _DialogAction('Cancel', _DialogActionStyle.quiet, result: false),
-        _DialogAction(
-          'Confirm Reset',
-          _DialogActionStyle.destructive,
-          result: true,
-        ),
-      ],
+    final name = displayName(
+      ref.read(editionProvider),
+      ref.read(gameControllerProvider).progress.settings.nickname,
     );
-    if (confirmed ?? false) {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: SettingsScreen.resetConfirmTitle,
+      message: SettingsScreen.resetMessage(name),
+      confirmLabel: SettingsScreen.resetConfirmLabel,
+      destructive: true,
+    );
+    if (confirmed && mounted) {
       ref.read(gameControllerProvider.notifier).resetProgress();
+      ref
+          .read(toastControllerProvider.notifier)
+          .show(SettingsScreen.progressReset);
     }
   }
 
-  Future<void> _restore(int timestamp) async {
-    final confirmed = await _showSettingsDialog(
+  Future<void> _restore(BackupEntry backup) async {
+    final confirmed = await showConfirmDialog(
       context,
-      message: SettingsScreen.restorePrompt,
-      actions: const [
-        _DialogAction('Cancel', _DialogActionStyle.quiet, result: false),
-        _DialogAction('OK', _DialogActionStyle.outlined, result: true),
-      ],
+      title: SettingsScreen.restoreTitle,
+      message: SettingsScreen.restoreMessage,
+      confirmLabel: SettingsScreen.restore,
     );
-    if (!(confirmed ?? false) || !mounted) {
+    if (!confirmed || !mounted) {
       return;
     }
+    String outcome;
     try {
       await ref
           .read(persistenceControllerProvider.notifier)
-          .restoreBackup(timestamp);
+          .restoreBackup(backup.timestamp);
+      outcome = SettingsScreen.restored;
     } on Object catch (error) {
-      if (!mounted) {
-        return;
-      }
-      await _showSettingsDialog(
-        context,
-        message: '${SettingsScreen.restoreFailurePrefix}$error',
-        actions: const [
-          _DialogAction('OK', _DialogActionStyle.outlined, result: true),
-        ],
-      );
+      outcome = '${SettingsScreen.restoreFailurePrefix}$error';
+    }
+    if (mounted) {
+      ref.read(toastControllerProvider.notifier).show(outcome);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final game = ref.read(gameControllerProvider.notifier);
-    return ScreenScaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(SettingsScreen.padding),
-        child: Column(
-          children: spacedVertically([
-            BackHeader(
-              maxWidth: TailwindContainers.md,
-              onBack: () => game.setPhase(GamePhase.menu),
+    final layout = AppLayout.of(context);
+    final edition = ref.watch(editionProvider);
+    return Material(
+      type: MaterialType.transparency,
+      child: ScreenEnter(
+        child: TwoPane(
+          left: FocusTraversalGroup(
+            child: _SettingsIntro(onBack: () => game.setPhase(GamePhase.menu)),
+          ),
+          right: FocusTraversalGroup(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                layout.padX,
+                SettingsScreen.sectionsTop,
+                layout.padX,
+                SettingsScreen.sectionsBottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _SectionHeading(
+                    SettingsScreen.lookAndSoundLabel,
+                    first: true,
+                  ),
+                  _LookAndSound(showNickname: edition == Edition.open),
+                  const _SectionHeading(SettingsScreen.timersLabel),
+                  const _Timers(),
+                  const _SectionHeading(SettingsScreen.updatesLabel),
+                  _Updates(
+                    checkRequested: _checkRequested,
+                    onCheck: _checkNow,
+                    onAutoCheck: _setAutoCheck,
+                  ),
+                  const _SectionHeading(SettingsScreen.backupsLabel),
+                  _Backups(backups: _backups, onRestore: _restore),
+                  const _SectionHeading(SettingsScreen.progressLabel),
+                  _SettingRow(
+                    label: const _RowLabel(
+                      title: SettingsScreen.resetTitle,
+                      note: SettingsScreen.resetNote,
+                    ),
+                    control: _LinePill(
+                      label: SettingsScreen.resetAction,
+                      tone: _PillTone.rose,
+                      padding: _LinePill.wide,
+                      onPressed: _confirmReset,
+                    ),
+                  ),
+                  _About(line: SettingsScreen.aboutLine(edition)),
+                ],
+              ),
             ),
-            const ScreenHeading(
-              title: 'Settings',
-              subtitle: 'Customize your experience',
-            ),
-            _SettingsCard(
-              delay: SettingsScreen.settingsCardDelay,
-              child: _PreferencesSection(onReset: _confirmReset),
-            ),
-            const _SettingsCard(
-              delay: SettingsScreen.updatesCardDelay,
-              child: _UpdatesSection(),
-            ),
-            _SettingsCard(
-              delay: SettingsScreen.backupsCardDelay,
-              child: _BackupsSection(backups: _backups, onRestore: _restore),
-            ),
-          ], SettingsScreen.gap),
+          ),
         ),
       ),
     );
   }
 }
 
-class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({required this.delay, required this.child});
+class _SettingsIntro extends StatelessWidget {
+  const _SettingsIntro({required this.onBack});
 
-  final Duration delay;
-  final Widget child;
+  static const double top = 20;
+  static const double bottom = 32;
+  static const double gap = 14;
+
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    return Entrance(
-      fromOffset: SettingsScreen.cardEntranceOffset,
-      delay: delay,
-      child: MaxWidthBox(
-        maxWidth: TailwindContainers.md,
-        child: Container(
-          decoration: BoxDecoration(
-            color: tokens.card,
-            borderRadius: BorderRadius.circular(AppRadii.xl2),
-            border: Border.all(color: tokens.border),
+    final layout = AppLayout.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(layout.padX, top, layout.padX, bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: gap,
+        children: [
+          BackLink(onPressed: onBack, animateEntrance: false),
+          Semantics(
+            header: true,
+            child: Text(
+              SettingsScreen.title,
+              style: AppType.display(layout.h1, height: 1, color: tokens.fg),
+            ),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.xl2 - 1),
-            child: child,
+          Text(
+            SettingsScreen.subtitle,
+            style: AppType.body.copyWith(color: tokens.mut),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _PreferencesSection extends ConsumerWidget {
-  const _PreferencesSection({required this.onReset});
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.text, {this.first = false});
 
-  final VoidCallback onReset;
+  static const double firstTop = 22;
+  static const double top = 30;
+  static const double bottom = 4;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = AppTokens.of(context);
-    final game = ref.read(gameControllerProvider.notifier);
-    final settings = ref.watch(
-      gameControllerProvider.select((state) => state.progress.settings),
-    );
-    final divider = Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: SettingsScreen.sectionPadding,
-      ),
-      child: SizedBox(height: 1, child: ColoredBox(color: tokens.border)),
-    );
-    const sectionPadding = EdgeInsets.all(SettingsScreen.sectionPadding);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: sectionPadding,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
-                child: _SectionLabel(
-                  glyph: LucideGlyph.moon,
-                  title: 'Appearance',
-                  subtitle: 'Choose your theme',
-                ),
-              ),
-              _ThemePicker(selected: settings.theme, onSelect: game.setTheme),
-            ],
-          ),
-        ),
-        divider,
-        Padding(
-          padding: sectionPadding,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            spacing: 16,
-            children: [
-              Flexible(
-                child: _SectionLabel(
-                  glyph: LucideGlyph.volume2,
-                  title: 'Volume',
-                  subtitle: '${(settings.volume * 100).round()}%',
-                ),
-              ),
-              SizedBox(
-                width: SettingsScreen.volumeSliderWidth,
-                child: Slider(
-                  value: settings.volume.clamp(0.0, 1.0),
-                  divisions: SettingsScreen.volumeDivisions,
-                  onChanged: (value) => game.setVolume(
-                    (value * SettingsScreen.volumeDivisions).round() /
-                        SettingsScreen.volumeDivisions,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        divider,
-        Padding(
-          padding: sectionPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 16,
-            children: [
-              const _SectionLabel(
-                glyph: LucideGlyph.clock,
-                title: 'Timers',
-                subtitle: 'Adjust time limits for timed modes',
-              ),
-              _TimerRow(
-                label: 'Medium',
-                seconds: settings.mediumTimer,
-                onChanged: game.setMediumTimer,
-              ),
-              _TimerRow(
-                label: 'Hard',
-                seconds: settings.hardTimer,
-                onChanged: game.setHardTimer,
-              ),
-            ],
-          ),
-        ),
-        divider,
-        Padding(
-          padding: sectionPadding,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
-                child: _SectionLabel(
-                  glyph: LucideGlyph.trash2,
-                  title: 'Reset Progress',
-                  subtitle: 'Erase all achievements',
-                ),
-              ),
-              _ResetButton(onPressed: onReset),
-            ],
-          ),
-        ),
-        divider,
-        const Padding(
-          padding: sectionPadding,
-          child: Row(
-            spacing: 12,
-            children: [
-              SwiftieLogo(size: SettingsScreen.logoSize),
-              _TitledText(title: 'Swiftie Quiz', subtitle: 'Made by Satanshu'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({
-    required this.glyph,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final LucideGlyph glyph;
-  final String title;
-  final String subtitle;
+  final String text;
+  final bool first;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    spacing: 12,
-    children: [
-      _IconChip(glyph: glyph),
-      Flexible(
-        child: _TitledText(title: title, subtitle: subtitle),
-      ),
-    ],
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(top: first ? firstTop : top, bottom: bottom),
+    child: Semantics(header: true, child: SectionLabel(text)),
   );
 }
 
-class _IconChip extends StatelessWidget {
-  const _IconChip({required this.glyph});
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({required this.label, required this.control});
 
-  static const double padding = 8;
-  static const double iconSize = 16;
+  static const double padding = 16;
+  static const double spacing = 20;
+  static const double runSpacing = 12;
 
-  final LucideGlyph glyph;
+  final Widget label;
+  final Widget control;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.muted,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(padding),
-        child: AppIcon(glyph, size: iconSize, color: tokens.mutedForeground),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: padding),
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: AppTokens.of(context).line)),
+    ),
+    child: Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: spacing,
+      runSpacing: runSpacing,
+      children: [label, control],
+    ),
+  );
 }
 
-class _TitledText extends StatelessWidget {
-  const _TitledText({required this.title, required this.subtitle});
+class _RowLabel extends StatelessWidget {
+  const _RowLabel({required this.title, required this.note});
 
   final String title;
-  final String subtitle;
+  final String note;
 
   @override
   Widget build(BuildContext context) {
@@ -380,188 +368,234 @@ class _TitledText extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: AppText.sm.copyWith(
-            fontWeight: FontWeight.w500,
-            color: tokens.foreground,
+        Text(title, style: AppType.body.copyWith(color: tokens.fg)),
+        Text(note, style: AppType.small.copyWith(color: tokens.mut)),
+      ],
+    );
+  }
+}
+
+class _LookAndSound extends ConsumerWidget {
+  const _LookAndSound({required this.showNickname});
+
+  final bool showNickname;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final game = ref.read(gameControllerProvider.notifier);
+    final settings = ref.watch(
+      gameControllerProvider.select((state) => state.progress.settings),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingRow(
+          label: const _RowLabel(
+            title: SettingsScreen.themeTitle,
+            note: SettingsScreen.themeNote,
+          ),
+          control: Segmented<ThemeSetting>(
+            options: SettingsScreen.themeOptions,
+            value: settings.theme,
+            onChanged: game.setTheme,
           ),
         ),
-        Text(
-          subtitle,
-          style: AppText.xs.copyWith(color: tokens.mutedForeground),
+        _SettingRow(
+          label: _RowLabel(
+            title: SettingsScreen.volumeTitle,
+            note: '${(settings.volume * 100).round()}%',
+          ),
+          control: _CoralSlider(
+            label: SettingsScreen.volumeTitle,
+            width: SettingsScreen.volumeWidth,
+            value: settings.volume,
+            min: 0,
+            max: 1,
+            divisions: SettingsScreen.volumeDivisions,
+            describe: (value) => '${(value * 100).round()}%',
+            onChanged: (value) => game.setVolume(
+              (value * SettingsScreen.volumeDivisions).round() /
+                  SettingsScreen.volumeDivisions,
+            ),
+          ),
+        ),
+        _SettingRow(
+          label: const _RowLabel(
+            title: SettingsScreen.misuTitle,
+            note: SettingsScreen.misuNote,
+          ),
+          control: Segmented<MisuVisits>(
+            options: SettingsScreen.misuOptions,
+            value: settings.misuVisits,
+            onChanged: game.setMisuVisits,
+          ),
+        ),
+        if (showNickname)
+          const _SettingRow(
+            label: _RowLabel(
+              title: SettingsScreen.nicknameTitle,
+              note: SettingsScreen.nicknameNote,
+            ),
+            control: _NicknameField(),
+          ),
+      ],
+    );
+  }
+}
+
+class _NicknameField extends ConsumerStatefulWidget {
+  const _NicknameField();
+
+  static const double top = 6;
+  static const double fontSize = 22;
+  static const double lineHeight = 28;
+
+  @override
+  ConsumerState<_NicknameField> createState() => _NicknameFieldState();
+}
+
+class _NicknameFieldState extends ConsumerState<_NicknameField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: _stored,
+  );
+  final FocusNode _focus = FocusNode(debugLabel: 'Nickname');
+
+  String get _stored =>
+      ref.read(gameControllerProvider).progress.settings.nickname ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_showStoredOnBlur);
+  }
+
+  @override
+  void dispose() {
+    _focus
+      ..removeListener(_showStoredOnBlur)
+      ..dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _showStoredOnBlur() {
+    if (!_focus.hasFocus && _controller.text != _stored) {
+      _controller.text = _stored;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(
+      gameControllerProvider.select(
+        (state) => state.progress.settings.nickname,
+      ),
+      (_, next) {
+        if ((next ?? '') != _controller.text.trim()) {
+          _controller.text = next ?? '';
+        }
+      },
+    );
+    return SizedBox(
+      width: SettingsScreen.nicknameWidth,
+      child: Padding(
+        padding: const EdgeInsets.only(top: _NicknameField.top),
+        child: MergeSemantics(
+          child: Semantics(
+            label: SettingsScreen.nicknameTitle,
+            child: SerifInput(
+              controller: _controller,
+              focusNode: _focus,
+              fontSize: _NicknameField.fontSize,
+              lineHeight: _NicknameField.lineHeight,
+              maxLength: nicknameMaxLength,
+              textAlign: TextAlign.right,
+              onChanged: ref.read(gameControllerProvider.notifier).setNickname,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Timers extends ConsumerWidget {
+  const _Timers();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final game = ref.read(gameControllerProvider.notifier);
+    final (medium, hard) = ref.watch(
+      gameControllerProvider.select(
+        (state) => (
+          state.progress.settings.mediumTimer,
+          state.progress.settings.hardTimer,
+        ),
+      ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _TimerRow(
+          title: SettingsScreen.mediumTitle,
+          seconds: medium,
+          onChanged: game.setMediumTimer,
+        ),
+        _TimerRow(
+          title: SettingsScreen.hardTitle,
+          seconds: hard,
+          onChanged: game.setHardTimer,
         ),
       ],
     );
   }
 }
 
-class _ThemePicker extends StatelessWidget {
-  const _ThemePicker({required this.selected, required this.onSelect});
-
-  static const List<(ThemeSetting, String, LucideGlyph)> options = [
-    (ThemeSetting.dark, 'Dark', LucideGlyph.moon),
-    (ThemeSetting.light, 'Light', LucideGlyph.sun),
-    (ThemeSetting.system, 'System', LucideGlyph.monitor),
-  ];
-  static const double padding = 4;
-  static const double gap = 4;
-
-  final ThemeSetting selected;
-  final ValueChanged<ThemeSetting> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.muted,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(padding),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: gap,
-          children: [
-            for (final (theme, label, glyph) in options)
-              _ThemeOption(
-                label: label,
-                glyph: glyph,
-                selected: theme == selected,
-                onPressed: () => onSelect(theme),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeOption extends StatelessWidget {
-  const _ThemeOption({
-    required this.label,
-    required this.glyph,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  static const EdgeInsets padding = EdgeInsets.symmetric(
-    horizontal: 12,
-    vertical: 6,
-  );
-  static const double iconSize = 16;
-  static const double gap = 6;
-
-  final String label;
-  final LucideGlyph glyph;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
-    return PlainButton(
-      onPressed: onPressed,
-      builder: (context, hover) => TweenAnimationBuilder<double>(
-        tween: Tween(end: selected ? 1 : 0),
-        duration: AppMotion.cssTransitionDuration,
-        curve: AppMotion.cssTransitionCurve,
-        builder: (context, selection, _) {
-          final idle = Oklab.mix(
-            tokens.mutedForeground,
-            tokens.foreground,
-            hover,
-          );
-          final color = Oklab.mix(idle, tokens.primaryForeground, selection);
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: tokens.primary.withValues(
-                alpha: tokens.primary.a * selection,
-              ),
-              borderRadius: BorderRadius.circular(AppRadii.md),
-              boxShadow: BoxShadow.lerpList(
-                AppShadows.hidden(AppShadows.sm),
-                AppShadows.sm,
-                selection,
-              ),
-            ),
-            child: Padding(
-              padding: padding,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: gap,
-                children: [
-                  AppIcon(glyph, size: iconSize, color: color),
-                  Text(
-                    label,
-                    style: AppText.xs.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _TimerRow extends StatelessWidget {
   const _TimerRow({
-    required this.label,
+    required this.title,
     required this.seconds,
     required this.onChanged,
   });
 
-  final String label;
+  static const double gap = 12;
+  static const double valueWidth = 32;
+
+  final String title;
   final int seconds;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(left: SettingsScreen.indent),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        spacing: 16,
+    return _SettingRow(
+      label: _RowLabel(title: title, note: SettingsScreen.timerNote),
+      control: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: gap,
         children: [
-          Flexible(
-            child: Text(
-              label,
-              style: AppText.sm.copyWith(color: tokens.mutedForeground),
-            ),
+          _CoralSlider(
+            label: title,
+            width: SettingsScreen.timerWidth,
+            value: seconds.toDouble(),
+            min: SettingsScreen.minTimer,
+            max: SettingsScreen.maxTimer,
+            divisions: SettingsScreen.timerDivisions,
+            describe: (value) => '${value.round()} seconds',
+            onChanged: (value) => onChanged(value.round()),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 8,
-            children: [
-              SizedBox(
-                width: SettingsScreen.timerSliderWidth,
-                child: Slider(
-                  value: seconds.toDouble().clamp(
-                    SettingsScreen.minTimer,
-                    SettingsScreen.maxTimer,
-                  ),
-                  min: SettingsScreen.minTimer,
-                  max: SettingsScreen.maxTimer,
-                  divisions: SettingsScreen.timerDivisions,
-                  onChanged: (value) => onChanged(value.round()),
-                ),
+          SizedBox(
+            width: valueWidth,
+            child: Text(
+              '${seconds}s',
+              textAlign: TextAlign.right,
+              style: AppType.sized(14, 20).copyWith(
+                color: tokens.fg,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
-              SizedBox(
-                width: SettingsScreen.timerValueWidth,
-                child: Text(
-                  '${seconds}s',
-                  textAlign: TextAlign.right,
-                  style: AppText.sm.copyWith(color: tokens.foreground),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -569,28 +603,58 @@ class _TimerRow extends StatelessWidget {
   }
 }
 
-class _ResetButton extends StatelessWidget {
-  const _ResetButton({required this.onPressed});
+class _CoralSlider extends StatelessWidget {
+  const _CoralSlider({
+    required this.label,
+    required this.width,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.describe,
+    required this.onChanged,
+  });
 
-  final VoidCallback onPressed;
+  static const double height = 24;
+  static const BorderRadius focusRadius = BorderRadius.all(
+    Radius.circular(999),
+  );
+
+  final String label;
+  final double width;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String Function(double value) describe;
+  final ValueChanged<double> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    return PlainButton(
-      onPressed: onPressed,
-      builder: (context, hover) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: tokens.destructive.withValues(alpha: 0.1 * hover),
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          border: Border.all(color: tokens.destructive.slashOpacity(50)),
-        ),
-        child: Text(
-          'Reset',
-          style: AppText.xs.copyWith(
-            fontWeight: FontWeight.w500,
-            color: tokens.destructive,
+    return _FocusRing(
+      radius: focusRadius,
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: tokens.coral,
+            thumbColor: tokens.coral,
+            thumbShape: const _CoralThumbShape(),
+          ),
+          child: MergeSemantics(
+            child: Semantics(
+              label: label,
+              child: Slider(
+                value: value.clamp(min, max),
+                min: min,
+                max: max,
+                divisions: divisions,
+                semanticFormatterCallback: describe,
+                onChanged: onChanged,
+              ),
+            ),
           ),
         ),
       ),
@@ -598,102 +662,305 @@ class _ResetButton extends StatelessWidget {
   }
 }
 
-class _UpdatesSection extends ConsumerWidget {
-  const _UpdatesSection();
+class _CoralThumbShape extends ChromiumSliderThumbShape {
+  const _CoralThumbShape();
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final fill = Color.lerp(
+      sliderTheme.disabledThumbColor,
+      sliderTheme.thumbColor,
+      enableAnimation.value,
+    )!;
+    const radius = ChromiumSliderThumbShape.diameter / 2;
+    context.canvas
+      ..drawCircle(
+        center,
+        radius,
+        Paint()..color = ChromiumControlColors.background,
+      )
+      ..drawCircle(
+        center,
+        radius - ChromiumSliderThumbShape.borderWidth,
+        Paint()..color = fill,
+      );
+  }
+}
+
+class _FocusRing extends StatefulWidget {
+  const _FocusRing({required this.child, required this.radius});
+
+  final Widget child;
+  final BorderRadius radius;
+
+  @override
+  State<_FocusRing> createState() => _FocusRingState();
+}
+
+class _FocusRingState extends State<_FocusRing> {
+  bool _focused = false;
+  FocusHighlightMode _mode = FocusManager.instance.highlightMode;
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addHighlightModeListener(_setMode);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeHighlightModeListener(_setMode);
+    super.dispose();
+  }
+
+  void _setMode(FocusHighlightMode mode) {
+    if (mounted && mode != _mode) {
+      setState(() => _mode = mode);
+    }
+  }
+
+  void _setFocused(bool focused) {
+    if (focused != _focused) {
+      setState(() => _focused = focused);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = _focused && _mode == FocusHighlightMode.traditional;
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: _setFocused,
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: visible
+            ? BoxDecoration(
+                borderRadius: widget.radius,
+                border: Border.all(
+                  color: AppTokens.of(context).coral,
+                  width: Pressable.focusRingWidth,
+                  strokeAlign:
+                      BorderSide.strokeAlignOutside +
+                      2 * Pressable.focusRingGap / Pressable.focusRingWidth,
+                ),
+              )
+            : const BoxDecoration(),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _Updates extends ConsumerWidget {
+  const _Updates({
+    required this.checkRequested,
+    required this.onCheck,
+    required this.onAutoCheck,
+  });
+
+  static const double monoSize = 13;
+  static const String monoFamily = 'Menlo';
+  static const List<String> monoFallbacks = ['Consolas', 'monospace'];
+
+  final bool checkRequested;
+  final VoidCallback onCheck;
+  final ValueChanged<bool> onAutoCheck;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = AppTokens.of(context);
     final version = ref.watch(appVersionProvider).value;
-    final updater = ref.watch(
-      gameControllerProvider.select((state) => state.progress.updater),
+    final (lastCheckedAt, autoCheck) = ref.watch(
+      gameControllerProvider.select(
+        (state) => (
+          state.progress.updater.lastCheckedAt,
+          state.progress.updater.autoCheckEnabled,
+        ),
+      ),
     );
-    final lastCheckedAt = updater.lastCheckedAt;
-    final lastChecked = lastCheckedAt == null || lastCheckedAt.isEmpty
-        ? SettingsScreen.neverChecked
-        : LocalDates.isoDateTime(
-            lastCheckedAt,
-            LocalDates.systemLocale(context),
-          );
-    final mutedStyle = AppText.xs.copyWith(color: tokens.mutedForeground);
-    void setAutoCheck(bool enabled) {
-      final progress = ref.read(gameControllerProvider).progress;
-      ref
-          .read(gameControllerProvider.notifier)
-          .setProgress(
-            progress.copyWith(
-              updater: progress.updater.copyWith(autoCheckEnabled: enabled),
-            ),
-          );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(SettingsScreen.sectionPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+    final updater = ref.watch(updaterStateProvider);
+    final checking = updater is UpdaterChecking;
+    final lastChecked = DateTime.tryParse(lastCheckedAt ?? '');
+    final result = checkRequested
+        ? switch (updater) {
+            UpdaterUpToDate() => SettingsScreen.upToDate,
+            UpdaterError(subtype: UpdaterErrorSubtype.check, :final message) =>
+              message,
+            _ => null,
+          }
+        : null;
+    final muted = AppType.small.copyWith(color: tokens.mut);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingRow(
+          label: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 12,
             children: [
-              const _IconChip(glyph: LucideGlyph.bell),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Text.rich(
+                TextSpan(
+                  text: version == null
+                      ? SettingsScreen.appName
+                      : '${SettingsScreen.appName} ',
                   children: [
-                    Text(
-                      'Updates',
-                      style: AppText.sm.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: tokens.foreground,
-                      ),
-                    ),
-                    Text.rich(
+                    if (version != null)
                       TextSpan(
-                        text: 'Current version: ',
-                        children: [
-                          TextSpan(
-                            text: version == null ? '' : 'v$version',
-                            style: const TextStyle(
-                              fontFamily: SettingsScreen.monospaceFont,
-                              fontFamilyFallback:
-                                  SettingsScreen.monospaceFallbacks,
-                            ),
-                          ),
-                        ],
+                        text: 'v$version',
+                        style: TextStyle(
+                          fontFamily: monoFamily,
+                          fontFamilyFallback: monoFallbacks,
+                          fontSize: monoSize,
+                          color: tokens.mut,
+                        ),
                       ),
-                      style: mutedStyle,
-                    ),
-                    const SizedBox(height: 4),
-                    Text('Last checked: $lastChecked', style: mutedStyle),
                   ],
                 ),
+                style: AppType.body.copyWith(color: tokens.fg),
               ),
-              _OutlinedButton(
-                label: 'Check now',
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+              if (lastChecked != null)
+                Text(
+                  '${SettingsScreen.lastCheckedPrefix}'
+                  '${_formatMoment(lastChecked)}',
+                  style: muted,
                 ),
-                onPressed: () => unawaited(
-                  ref.read(updaterControllerProvider).check(manual: true),
+              if (result != null)
+                _RiseIn(
+                  key: ValueKey(result),
+                  child: Text(
+                    result,
+                    style: AppType.small.copyWith(color: tokens.coralT),
+                  ),
                 ),
-              ),
             ],
           ),
-          const SizedBox(height: 16),
-          _AutoCheckToggle(
-            enabled: updater.autoCheckEnabled,
-            onChanged: setAutoCheck,
+          control: _LinePill(
+            label: checking ? SettingsScreen.checking : SettingsScreen.checkNow,
+            leading: checking ? const _Spinner() : null,
+            padding: _LinePill.wide,
+            onPressed: onCheck,
           ),
-        ],
+        ),
+        _AutoCheckRow(enabled: autoCheck, onChanged: onAutoCheck),
+      ],
+    );
+  }
+}
+
+class _RiseIn extends StatelessWidget {
+  const _RiseIn({super.key, required this.child});
+
+  static const Duration duration = Duration(milliseconds: 300);
+  static const double offset = 8;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0, end: 1),
+    duration: AppMotion.duration(context, duration),
+    curve: Curves.ease,
+    builder: (context, progress, child) => Opacity(
+      opacity: progress,
+      child: Transform.translate(
+        offset: Offset(0, offset * (1 - progress)),
+        child: child,
+      ),
+    ),
+    child: child,
+  );
+}
+
+class _Spinner extends StatefulWidget {
+  const _Spinner();
+
+  static const double size = 12;
+  static const double stroke = 2;
+  static const Duration period = Duration(milliseconds: 800);
+
+  @override
+  State<_Spinner> createState() => _SpinnerState();
+}
+
+class _SpinnerState extends State<_Spinner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _turns = AnimationController(
+    vsync: this,
+    duration: _Spinner.period,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _turns.stop();
+    } else if (!_turns.isAnimating) {
+      unawaited(_turns.repeat());
+    }
+  }
+
+  @override
+  void dispose() {
+    _turns.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return RotationTransition(
+      turns: _turns,
+      child: CustomPaint(
+        size: const Size.square(_Spinner.size),
+        painter: _SpinnerPainter(track: tokens.line2, arc: tokens.coral),
       ),
     );
   }
 }
 
-class _AutoCheckToggle extends StatelessWidget {
-  const _AutoCheckToggle({required this.enabled, required this.onChanged});
+class _SpinnerPainter extends CustomPainter {
+  const _SpinnerPainter({required this.track, required this.arc});
+
+  final Color track;
+  final Color arc;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).deflate(_Spinner.stroke / 2);
+    Paint stroke(Color color) => Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _Spinner.stroke
+      ..color = color;
+    canvas
+      ..drawOval(rect, stroke(track))
+      ..drawArc(rect, -3 * math.pi / 4, math.pi / 2, false, stroke(arc));
+  }
+
+  @override
+  bool shouldRepaint(_SpinnerPainter oldDelegate) =>
+      oldDelegate.track != track || oldDelegate.arc != arc;
+}
+
+class _AutoCheckRow extends StatelessWidget {
+  const _AutoCheckRow({required this.enabled, required this.onChanged});
+
+  static const double gap = 20;
+  static const BorderRadius focusRadius = BorderRadius.all(Radius.circular(4));
 
   final bool enabled;
   final ValueChanged<bool> onChanged;
@@ -701,48 +968,29 @@ class _AutoCheckToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final labelStyle = AppText.xs.copyWith(color: tokens.foreground);
-    return Padding(
-      padding: const EdgeInsets.only(left: SettingsScreen.indent),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => onChanged(!enabled),
-          child: MergeSemantics(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 8,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: SettingsScreen.checkboxOffset,
-                  ),
-                  child: _ChromiumCheckbox(
-                    value: enabled,
-                    onChanged: onChanged,
-                  ),
+    return MergeSemantics(
+      child: Pressable(
+        onPressed: () => onChanged(!enabled),
+        focusRadius: focusRadius,
+        builder: (context, _) => Container(
+          padding: const EdgeInsets.symmetric(vertical: _SettingRow.padding),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: tokens.line)),
+          ),
+          child: Row(
+            spacing: gap,
+            children: [
+              const Expanded(
+                child: _RowLabel(
+                  title: SettingsScreen.autoCheckTitle,
+                  note: SettingsScreen.autoCheckNote,
                 ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Automatically check for updates',
-                        style: labelStyle,
-                      ),
-                      Text(
-                        SettingsScreen.telemetryNote,
-                        style: labelStyle.copyWith(
-                          fontSize: SettingsScreen.finePrintSize,
-                          color: tokens.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+              Semantics(
+                toggled: enabled,
+                child: _Switch(on: enabled),
+              ),
+            ],
           ),
         ),
       ),
@@ -750,363 +998,227 @@ class _AutoCheckToggle extends StatelessWidget {
   }
 }
 
-class _ChromiumCheckbox extends StatelessWidget {
-  const _ChromiumCheckbox({required this.value, required this.onChanged});
+class _Switch extends StatelessWidget {
+  const _Switch({required this.on});
 
-  static const double size = 13;
-  static const double radius = 2;
-  static const double borderWidth = 1;
-  static const double scale = size / Checkbox.width;
+  static const Size trackSize = Size(36, 20);
+  static const double inset = 2;
+  static const double knob = 16;
+  static const Color knobColor = Color(0xFFFFFFFF);
+  static const Color knobShadow = Color.from(
+    alpha: 0.25,
+    red: 0,
+    green: 0,
+    blue: 0,
+  );
+  static const BorderRadius radius = BorderRadius.all(Radius.circular(999));
 
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final themeSide = CheckboxTheme.of(context).side;
-    return SizedBox.square(
-      dimension: size,
-      child: FittedBox(
-        child: SizedBox.square(
-          dimension: Checkbox.width,
-          child: Checkbox(
-            value: value,
-            onChanged: (next) => onChanged(next ?? false),
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(radius / scale)),
-            ),
-            side: WidgetStateBorderSide.resolveWith((states) {
-              final side = WidgetStateProperty.resolveAs<BorderSide?>(
-                themeSide,
-                states,
-              );
-              return side == null || side.style == BorderStyle.none
-                  ? side
-                  : side.copyWith(width: borderWidth / scale);
-            }),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BackupsSection extends StatelessWidget {
-  const _BackupsSection({required this.backups, required this.onRestore});
-
-  final List<BackupEntry> backups;
-  final ValueChanged<int> onRestore;
+  final bool on;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final locale = LocalDates.systemLocale(context);
-    final textStyle = AppText.xs.copyWith(color: tokens.foreground);
-    return Padding(
-      padding: const EdgeInsets.all(SettingsScreen.sectionPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: _SectionLabel(
-              glyph: LucideGlyph.archive,
-              title: 'Backups',
-              subtitle: 'The 3 most recent automatic save backups are kept.',
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (backups.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: SettingsScreen.indent),
-              child: Text(
-                'No backups yet.',
-                style: AppText.xs.copyWith(color: tokens.mutedForeground),
-              ),
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 8,
-              children: [
-                for (final backup in backups)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.card,
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                      border: Border.all(color: tokens.border),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                LocalDates.dateTime(
-                                  DateTime.fromMillisecondsSinceEpoch(
-                                    backup.timestamp *
-                                        Duration.millisecondsPerSecond,
-                                  ),
-                                  locale,
-                                ),
-                                style: textStyle,
-                              ),
-                              Text(
-                                '${(backup.sizeBytes / 1024).toStringAsFixed(1)} KB',
-                                style: textStyle.copyWith(
-                                  fontSize: SettingsScreen.finePrintSize,
-                                  color: tokens.mutedForeground,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        _OutlinedButton(
-                          label: 'Restore',
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          onPressed: () => onRestore(backup.timestamp),
-                        ),
-                      ],
-                    ),
-                  ),
+    final shift = AppMotion.duration(context, AppMotion.selectionShift);
+    return AnimatedContainer(
+      duration: shift,
+      curve: Curves.ease,
+      width: trackSize.width,
+      height: trackSize.height,
+      padding: const EdgeInsets.all(inset),
+      decoration: BoxDecoration(
+        color: on ? tokens.coral : tokens.line2,
+        borderRadius: radius,
+      ),
+      child: AnimatedAlign(
+        alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+        duration: shift,
+        curve: AppMotion.hoverLiftCurve,
+        child: const SizedBox.square(
+          dimension: knob,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: knobColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: knobShadow,
+                  offset: Offset(0, 1),
+                  blurRadius: 3,
+                ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Backups extends StatelessWidget {
+  const _Backups({required this.backups, required this.onRestore});
+
+  static const EdgeInsets notePadding = EdgeInsets.only(top: 12, bottom: 6);
+  static const double rowPadding = 12;
+  static const double gap = 16;
+
+  final List<BackupEntry> backups;
+  final ValueChanged<BackupEntry> onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: notePadding,
+          child: Text(
+            SettingsScreen.backupsNote,
+            style: AppType.small.copyWith(color: tokens.mut),
+          ),
+        ),
+        for (final backup in backups)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: rowPadding),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: tokens.line)),
+            ),
+            child: Row(
+              spacing: gap,
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatMoment(
+                          DateTime.fromMillisecondsSinceEpoch(
+                            backup.timestamp * Duration.millisecondsPerSecond,
+                          ),
+                        ),
+                        style: AppType.sized(14, 20).copyWith(color: tokens.fg),
+                      ),
+                      Text(
+                        '${(backup.sizeBytes / 1024).toStringAsFixed(1)} KB',
+                        style: AppType.caption.copyWith(color: tokens.mut),
+                      ),
+                    ],
+                  ),
+                ),
+                _LinePill(
+                  label: SettingsScreen.restore,
+                  padding: _LinePill.compact,
+                  onPressed: () => onRestore(backup),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _About extends StatelessWidget {
+  const _About({required this.line});
+
+  static const double top = 28;
+  static const double gap = 12;
+  static const double iconSize = 40;
+  static const BorderRadius iconRadius = BorderRadius.all(Radius.circular(9));
+
+  final String line;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: top),
+      child: Row(
+        spacing: gap,
+        children: [
+          ClipRRect(
+            borderRadius: iconRadius,
+            child: SvgPicture.asset(
+              SettingsScreen.appIcon,
+              width: iconSize,
+              height: iconSize,
+              excludeFromSemantics: true,
+            ),
+          ),
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  SettingsScreen.appName,
+                  style: AppType.sized(14, 20).copyWith(color: tokens.fg),
+                ),
+                Text(line, style: AppType.caption.copyWith(color: tokens.mut)),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _OutlinedButton extends StatelessWidget {
-  const _OutlinedButton({
+enum _PillTone { neutral, rose }
+
+class _LinePill extends StatelessWidget {
+  const _LinePill({
     required this.label,
     required this.padding,
     required this.onPressed,
+    this.tone = _PillTone.neutral,
+    this.leading,
   });
+
+  static const EdgeInsets wide = EdgeInsets.symmetric(
+    vertical: 8,
+    horizontal: 16,
+  );
+  static const EdgeInsets compact = EdgeInsets.symmetric(
+    vertical: 6,
+    horizontal: 14,
+  );
+  static const double leadingGap = 8;
 
   final String label;
   final EdgeInsets padding;
   final VoidCallback onPressed;
+  final _PillTone tone;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    return PlainButton(
+    final (border, ink, hoverFill) = switch (tone) {
+      _PillTone.neutral => (tokens.line2, tokens.fg, tokens.hover),
+      _PillTone.rose => (tokens.rose, tokens.rose, tokens.roseBg),
+    };
+    return Pressable(
       onPressed: onPressed,
-      duration: Duration.zero,
-      builder: (context, hover) => Container(
+      focusRadius: PillButton.radius,
+      builder: (context, state) => Container(
         padding: padding,
         decoration: BoxDecoration(
-          color: tokens.muted.withValues(alpha: tokens.muted.a * 0.4 * hover),
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          border: Border.all(color: tokens.border),
+          color: state.hovered ? hoverFill : null,
+          borderRadius: PillButton.radius,
+          border: Border.all(color: border),
         ),
-        child: Text(
-          label,
-          style: AppText.xs.copyWith(color: tokens.foreground),
-        ),
-      ),
-    );
-  }
-}
-
-enum _DialogActionStyle { quiet, outlined, destructive }
-
-@immutable
-class _DialogAction {
-  const _DialogAction(this.label, this.style, {required this.result});
-
-  final String label;
-  final _DialogActionStyle style;
-  final bool result;
-}
-
-Future<bool?> _showSettingsDialog(
-  BuildContext context, {
-  String? title,
-  required String message,
-  required List<_DialogAction> actions,
-}) {
-  final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-  return showGeneralDialog<bool>(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-    barrierColor: _SettingsDialog.backdropColor,
-    transitionDuration: reduceMotion
-        ? Duration.zero
-        : AppMotion.defaultOpacityDuration,
-    pageBuilder: (context, _, _) =>
-        _SettingsDialog(title: title, message: message, actions: actions),
-    transitionBuilder: (context, animation, _, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: AppMotion.defaultOpacityCurve,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(
-            begin: _SettingsDialog.hiddenScale,
-            end: 1,
-          ).animate(curved),
-          child: child,
-        ),
-      );
-    },
-  );
-}
-
-class _SettingsDialog extends StatelessWidget {
-  const _SettingsDialog({
-    required this.title,
-    required this.message,
-    required this.actions,
-  });
-
-  static const Color backdropColor = Color.from(
-    alpha: 0.6,
-    red: 0,
-    green: 0,
-    blue: 0,
-  );
-  static const double hiddenScale = 0.95;
-  static const double padding = 24;
-  static const double titleGap = 12;
-  static const double actionsGap = 16;
-
-  final String? title;
-  final String message;
-  final List<_DialogAction> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
-    return Material(
-      type: MaterialType.transparency,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: padding),
-          child: MaxWidthBox(
-            maxWidth: TailwindContainers.lg,
-            child: Container(
-              padding: const EdgeInsets.all(padding),
-              decoration: BoxDecoration(
-                color: tokens.card,
-                borderRadius: BorderRadius.circular(AppRadii.xl2),
-                border: Border.all(color: tokens.border),
-                boxShadow: AppShadows.xl2,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (title case final title?) ...[
-                    Text(
-                      title,
-                      style: AppText.xl.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: tokens.foreground,
-                      ),
-                    ),
-                    const SizedBox(height: titleGap),
-                  ],
-                  Text(
-                    message,
-                    style: AppText.base.copyWith(color: tokens.mutedForeground),
-                  ),
-                  const SizedBox(height: actionsGap),
-                  Wrap(
-                    alignment: WrapAlignment.end,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final action in actions)
-                        _DialogButton(
-                          action: action,
-                          autofocus: action == actions.last,
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: leadingGap,
+          children: [
+            ?leading,
+            Text(label, style: AppType.small.copyWith(color: ink)),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class _DialogButton extends StatelessWidget {
-  const _DialogButton({required this.action, required this.autofocus});
-
-  static const EdgeInsets padding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 8,
-  );
-
-  final _DialogAction action;
-  final bool autofocus;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
-    void close() => Navigator.of(context).pop(action.result);
-    return PlainButton(
-      onPressed: close,
-      autofocus: autofocus,
-      duration: Duration.zero,
-      builder: (context, hover) => switch (action.style) {
-        _DialogActionStyle.quiet => Padding(
-          padding: padding,
-          child: Text(
-            action.label,
-            style: AppText.xs.copyWith(
-              color: Oklab.mix(
-                tokens.mutedForeground,
-                tokens.foreground,
-                hover,
-              ),
-            ),
-          ),
-        ),
-        _DialogActionStyle.outlined => Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Oklab.mix(tokens.card, tokens.muted.slashOpacity(40), hover),
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(color: tokens.border),
-          ),
-          child: Text(
-            action.label,
-            style: AppText.xs.copyWith(color: tokens.foreground),
-          ),
-        ),
-        _DialogActionStyle.destructive => Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: tokens.destructive,
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-          ),
-          child: Text(
-            action.label,
-            style: AppText.xs.copyWith(
-              fontWeight: FontWeight.w500,
-              color: AppPalette.white,
-            ),
-          ),
-        ),
-      },
     );
   }
 }
