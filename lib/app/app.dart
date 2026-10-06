@@ -151,7 +151,13 @@ class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ref.watch(themeModeProvider),
-      themeAnimationDuration: AppMotion.duration(context, AppMotion.themeFade),
+      themeAnimationDuration: switch (ref.watch(
+        persistenceControllerProvider,
+      )) {
+        PersistenceStatus.loaded || PersistenceStatus.failed =>
+          AppMotion.duration(context, AppMotion.themeFade),
+        PersistenceStatus.idle || PersistenceStatus.loading => Duration.zero,
+      },
       home: ValueListenableBuilder<Object?>(
         valueListenable: failures,
         builder: (context, failure, shell) => failure == null
