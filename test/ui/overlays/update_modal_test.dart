@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -7,17 +6,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
+import 'package:swiftie_quiz/ui/kit/modal_stack.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/overlays/update_modal.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 const Size surface = Size(800, 600);
-const UpdateManifest bareManifest = UpdateManifest(
-  version: '0.3.0',
-  notes: '',
-  pubDate: '',
+const String notes = '• Records everywhere.\n  • Misu drops by now and then.';
+const UpdateManifest manifest = UpdateManifest(
+  version: '0.3.1',
+  notes: notes,
+  pubDate: '2026-10-05T00:00:00Z',
 );
 const String behindTheDialog = 'Main menu behind the dialog';
+const String restarting = 'Restarting Project Swiftie...';
+
+typedef Press = ({String label, PillKind kind, String? call, bool closes});
 
 final class _RecordingUpdater implements UpdaterController {
   final List<String> calls = [];
@@ -52,938 +58,685 @@ final class _RecordingUpdater implements UpdaterController {
 }
 
 void main() {
-  group('update modal parity', () {
-    late ProviderContainer container;
-    late _RecordingUpdater updater;
-    late int closes;
-    late int screenTaps;
+  late ProviderContainer container;
+  late _RecordingUpdater updater;
+  late int closes;
+  late int screenTaps;
 
-    setUp(() {
-      updater = _RecordingUpdater();
-      container = ProviderContainer.test(
-        overrides: [updaterControllerProvider.overrideWithValue(updater)],
-      );
-      closes = 0;
-      screenTaps = 0;
-    });
+  setUp(() {
+    updater = _RecordingUpdater();
+    container = ProviderContainer.test(
+      overrides: [updaterControllerProvider.overrideWithValue(updater)],
+    );
+    closes = 0;
+    screenTaps = 0;
+  });
 
-    void setState(UpdaterMachineState state) =>
-        container.read(gameControllerProvider.notifier).setUpdaterState(state);
+  void setUpdater(UpdaterMachineState state) =>
+      container.read(gameControllerProvider.notifier).setUpdaterState(state);
 
-    Future<void> pumpModal(
-      WidgetTester tester, {
-      bool isOpen = true,
-      VoidCallback? onClose,
-    }) => tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: AppTheme.dark,
-          home: Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => screenTaps++,
-                  child: const Align(
-                    alignment: Alignment.topLeft,
-                    child: Text(behindTheDialog),
-                  ),
+  Future<void> pumpModal(
+    WidgetTester tester, {
+    bool isOpen = true,
+    ThemeData? theme,
+  }) => tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: theme ?? AppTheme.dark,
+        home: Stack(
+          fit: StackFit.expand,
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => screenTaps++,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: PillButton(
+                  label: behindTheDialog,
+                  onPressed: () => screenTaps++,
                 ),
               ),
-              UpdateModal(isOpen: isOpen, onClose: onClose ?? () => closes++),
+            ),
+            UpdateModal(isOpen: isOpen, onClose: () => closes++),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Future<void> openWith(
+    WidgetTester tester,
+    UpdaterMachineState state, {
+    ThemeData? theme,
+  }) async {
+    setUpdater(state);
+    await pumpModal(tester, theme: theme);
+    await tester.pumpAndSettle();
+  }
+
+  List<String> buttonLabels() => [
+    for (final node
+        in find.semantics
+            .byPredicate(
+              (node) => node.getSemanticsData().flagsCollection.isButton,
+            )
+            .evaluate())
+      node.getSemanticsData().label,
+  ];
+
+  SemanticsFinder dialogNode() => find.semantics.byPredicate(
+    (node) => node.getSemanticsData().role == SemanticsRole.dialog,
+  );
+
+  Finder pill(String label) =>
+      find.ancestor(of: find.text(label), matching: find.byType(PillButton));
+
+  Finder boxAround(String text) => find
+      .ancestor(
+        of: find.text(text),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Container && widget.decoration is BoxDecoration,
+        ),
+      )
+      .first;
+
+  Finder panel() => find
+      .ancestor(
+        of: find.byType(Column),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.decoration is BoxDecoration &&
+              (widget.decoration as BoxDecoration).borderRadius ==
+                  const BorderRadius.all(Radius.circular(16)),
+        ),
+      )
+      .first;
+
+  Finder progressTrack([AppTokens tokens = AppTokens.dark]) => find.descendant(
+    of: find.byType(UpdateModal),
+    matching: find.byWidgetPredicate(
+      (widget) => widget is ColoredBox && widget.color == tokens.line,
+    ),
+  );
+
+  bool focused(WidgetTester tester, String label) =>
+      Focus.of(tester.element(find.text(label))).hasPrimaryFocus;
+
+  Finder progressFill() => find.descendant(
+    of: find.byType(FractionallySizedBox),
+    matching: find.byType(ColoredBox),
+  );
+
+  testWidgets('the update dialog shows the design copy for each state', (
+    tester,
+  ) async {
+    final cases =
+        <
+          ({UpdaterMachineState state, List<String> texts, List<Press> presses})
+        >[
+          (
+            state: const UpdaterAvailable(manifest: manifest),
+            texts: ['Version 0.3.1 is here', notes],
+            presses: [
+              (
+                label: 'Remind me later',
+                kind: PillKind.quiet,
+                call: 'remindLater',
+                closes: true,
+              ),
+              (
+                label: 'Skip this version',
+                kind: PillKind.outline,
+                call: 'skipVersion(0.3.1)',
+                closes: true,
+              ),
+              (
+                label: 'Download',
+                kind: PillKind.coral,
+                call: 'download',
+                closes: false,
+              ),
             ],
           ),
-        ),
-      ),
-    );
+          (
+            state: const UpdaterDownloading(manifest: manifest, progress: 42),
+            texts: ['Downloading 0.3.1', '42%'],
+            presses: [
+              (label: 'Hide', kind: PillKind.quiet, call: null, closes: true),
+              (
+                label: 'Cancel download',
+                kind: PillKind.outline,
+                call: 'cancel',
+                closes: true,
+              ),
+            ],
+          ),
+          (
+            state: const UpdaterReady(manifest: manifest),
+            texts: [
+              '0.3.1 is ready',
+              'Restart Project Swiftie to finish updating. Your progress is '
+                  'saved.',
+            ],
+            presses: [
+              (label: 'Later', kind: PillKind.quiet, call: null, closes: true),
+              (
+                label: 'Restart now',
+                kind: PillKind.coral,
+                call: 'install',
+                closes: false,
+              ),
+            ],
+          ),
+          (
+            state: const UpdaterError(
+              subtype: UpdaterErrorSubtype.download,
+              message: 'Connection reset by peer',
+            ),
+            texts: ['The update hit a snag', 'Connection reset by peer'],
+            presses: [
+              (
+                label: 'Close',
+                kind: PillKind.quiet,
+                call: 'dismiss',
+                closes: true,
+              ),
+              (
+                label: 'Try again',
+                kind: PillKind.coral,
+                call: 'retry',
+                closes: false,
+              ),
+            ],
+          ),
+          (
+            state: const UpdaterError(
+              subtype: UpdaterErrorSubtype.check,
+              message: '',
+            ),
+            texts: [
+              'The update hit a snag',
+              'Could not reach the update server.',
+            ],
+            presses: [
+              (
+                label: 'Close',
+                kind: PillKind.quiet,
+                call: 'dismiss',
+                closes: true,
+              ),
+              (
+                label: 'Try again',
+                kind: PillKind.coral,
+                call: 'retry',
+                closes: false,
+              ),
+            ],
+          ),
+          (
+            state: const UpdaterUpToDate(),
+            texts: ['No updates', "You're on the latest version."],
+            presses: [
+              (label: 'Close', kind: PillKind.quiet, call: null, closes: true),
+            ],
+          ),
+        ];
 
-    Future<void> openWith(
-      WidgetTester tester,
-      UpdaterMachineState state,
-    ) async {
-      setState(state);
-      await pumpModal(tester);
-      await tester.pumpAndSettle();
+    for (final (:state, :texts, :presses) in cases) {
+      await openWith(tester, state);
+
+      expect(dialogNode(), findsOne, reason: '$state');
+      for (final text in texts) {
+        expect(find.text(text), findsOneWidget, reason: '$state "$text"');
+      }
+      expect(buttonLabels(), [
+        for (final press in presses) press.label,
+      ], reason: '$state');
+
+      for (final press in presses) {
+        expect(
+          tester.widget<PillButton>(pill(press.label)).kind,
+          press.kind,
+          reason: '$state ${press.label}',
+        );
+        updater.calls.clear();
+        closes = 0;
+        await tester.tap(find.text(press.label));
+        await tester.pump();
+        expect(updater.calls, [?press.call], reason: '$state ${press.label}');
+        expect(closes, press.closes ? 1 : 0, reason: '$state ${press.label}');
+      }
     }
 
-    SemanticsFinder buttonNamed(RegExp name) =>
-        find.semantics.byPredicate((node) {
-          final data = node.getSemanticsData();
-          return data.flagsCollection.isButton && name.hasMatch(data.label);
-        });
+    await openWith(
+      tester,
+      const UpdaterDownloading(manifest: manifest, progress: 42),
+    );
+    final bar = find.semantics.byPredicate(
+      (node) => node.getSemanticsData().role == SemanticsRole.progressBar,
+    );
+    expect(bar, findsOne);
+    expect(bar.evaluate().single.getSemanticsData().value, '42');
+    final track = tester.getRect(progressTrack());
+    expect(track.height, 4);
+    expect(
+      tester.getRect(progressFill()).width,
+      closeTo(track.width * 0.42, 0.01),
+    );
+    expect(
+      tester.widget<ColoredBox>(progressFill()).color,
+      AppTokens.dark.coral,
+    );
 
-    RegExp exactly(String name) =>
-        RegExp('^${RegExp.escape(name)}\$', caseSensitive: false);
+    setUpdater(const UpdaterInstalling());
+    await tester.pump();
+    expect(dialogNode(), findsNothing);
+    expect(buttonLabels(), isEmpty);
+    final loader = tester.widget<CatLoader>(find.byType(CatLoader));
+    expect(loader.size, CatLoaderSize.lg);
+    expect(loader.px, 200);
+    expect(loader.label, restarting);
+    expect(find.text(restarting), findsOneWidget);
+  });
 
-    Finder dialogCard() => find.descendant(
+  testWidgets('a closed dialog draws and announces nothing', (tester) async {
+    setUpdater(const UpdaterAvailable(manifest: manifest));
+    await pumpModal(tester, isOpen: false);
+
+    expect(find.textContaining('0.3.1'), findsNothing);
+    expect(dialogNode(), findsNothing);
+    expect(find.semantics.byLabel(behindTheDialog), findsOne);
+    expect(container.read(modalStackProvider), isEmpty);
+    await tester.tapAt(surface.center(Offset.zero));
+    expect(screenTaps, 1);
+  });
+
+  testWidgets('the panel follows the design measurements', (tester) async {
+    await openWith(tester, const UpdaterAvailable(manifest: manifest));
+    const tokens = AppTokens.dark;
+
+    final card = tester.getRect(panel());
+    expect(card.width, 480);
+    expect(card.center, surface.center(Offset.zero));
+    final title = tester.widget<Text>(find.text('Version 0.3.1 is here'));
+    expect(title.style!.fontFamily, 'Instrument Serif');
+    expect(title.style!.fontSize, 32);
+    expect(title.style!.height, 36 / 32);
+    expect(title.style!.color, tokens.fg);
+
+    final notesBox = tester.getRect(boxAround(notes));
+    final notesDecoration =
+        tester.widget<Container>(boxAround(notes)).decoration! as BoxDecoration;
+    expect(
+      notesBox.top - tester.getRect(find.text('Version 0.3.1 is here')).bottom,
+      12,
+    );
+    expect(notesDecoration.color, tokens.designCard);
+    expect(notesDecoration.border, Border.all(color: tokens.line));
+    expect(
+      notesDecoration.borderRadius,
+      const BorderRadius.all(Radius.circular(10)),
+    );
+    final notesStyle = tester.widget<Text>(find.text(notes)).style!;
+    expect(notesStyle.fontSize, 14);
+    expect(notesStyle.height, 22 / 14);
+    expect(notesStyle.color, tokens.mut);
+    expect(
+      tester.getTopLeft(find.text(notes)) - notesBox.topLeft,
+      const Offset(17, 15),
+    );
+    final firstAction = tester.getRect(pill('Remind me later'));
+    expect(firstAction.top - notesBox.bottom, 12 + 8);
+
+    setUpdater(const UpdaterReady(manifest: manifest));
+    await tester.pumpAndSettle();
+    final paragraph = tester
+        .widget<Text>(
+          find.text(
+            'Restart Project Swiftie to finish updating. Your progress is '
+            'saved.',
+          ),
+        )
+        .style!;
+    expect(paragraph.fontSize, 15);
+    expect(paragraph.height, 22 / 15);
+    expect(paragraph.color, tokens.mut);
+    final later = tester.getRect(pill('Later'));
+    final restart = tester.getRect(pill('Restart now'));
+    expect(restart.left - later.right, 8);
+    expect(restart.top, later.top);
+    expect(restart.right, tester.getRect(panel()).right - 26);
+
+    setUpdater(
+      const UpdaterError(
+        subtype: UpdaterErrorSubtype.install,
+        message: 'Disk full',
+      ),
+    );
+    await tester.pumpAndSettle();
+    final banner =
+        tester.widget<Container>(boxAround('Disk full')).decoration!
+            as BoxDecoration;
+    expect(banner.color, tokens.roseBg);
+    expect(banner.borderRadius, const BorderRadius.all(Radius.circular(10)));
+    final bannerText = tester.widget<Text>(find.text('Disk full')).style!;
+    expect(bannerText.fontSize, 14);
+    expect(bannerText.height, 20 / 14);
+    expect(bannerText.color, tokens.rose);
+    expect(
+      tester.getTopLeft(find.text('Disk full')) -
+          tester.getTopLeft(boxAround('Disk full')),
+      const Offset(14, 12),
+    );
+  });
+
+  testWidgets('the panel takes the light theme colours', (tester) async {
+    const tokens = AppTokens.light;
+    await openWith(
+      tester,
+      const UpdaterAvailable(manifest: manifest),
+      theme: AppTheme.light,
+    );
+    final notesBox =
+        tester.widget<Container>(boxAround(notes)).decoration! as BoxDecoration;
+    expect(notesBox.color, tokens.designCard);
+    expect(notesBox.border, Border.all(color: tokens.line));
+    expect(tester.widget<Text>(find.text(notes)).style!.color, tokens.mut);
+
+    setUpdater(const UpdaterDownloading(manifest: manifest, progress: 30));
+    await tester.pumpAndSettle();
+    expect(progressTrack(tokens), findsOneWidget);
+    expect(tester.widget<ColoredBox>(progressFill()).color, tokens.coral);
+    expect(tester.widget<Text>(find.text('30%')).style!.color, tokens.mut);
+
+    setUpdater(
+      const UpdaterError(
+        subtype: UpdaterErrorSubtype.download,
+        message: 'Connection reset by peer',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<Text>(find.text('The update hit a snag')).style!.color,
+      tokens.fg,
+    );
+    expect(
+      (tester
+                  .widget<Container>(boxAround('Connection reset by peer'))
+                  .decoration!
+              as BoxDecoration)
+          .color,
+      tokens.roseBg,
+    );
+    expect(
+      tester.widget<Text>(find.text('Connection reset by peer')).style!.color,
+      tokens.rose,
+    );
+  });
+
+  testWidgets('long release notes scroll inside the panel', (tester) async {
+    final longNotes = List.generate(80, (line) => 'Line $line').join('\n');
+    await openWith(
+      tester,
+      UpdaterAvailable(
+        manifest: UpdateManifest(
+          version: '0.3.1',
+          notes: longNotes,
+          pubDate: '',
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(tester.getRect(panel()).height, lessThanOrEqualTo(600 - 48));
+    expect(
+      tester.getRect(pill('Download')).bottom,
+      lessThanOrEqualTo(tester.getRect(panel()).bottom),
+    );
+    final before = tester.getTopLeft(find.text(longNotes)).dy;
+    await tester.drag(boxAround(longNotes), const Offset(0, -200));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text(longNotes)).dy, lessThan(before));
+  });
+
+  testWidgets('empty release notes leave the notes box out', (tester) async {
+    await openWith(
+      tester,
+      const UpdaterAvailable(
+        manifest: UpdateManifest(version: '0.3.1', notes: '', pubDate: ''),
+      ),
+    );
+
+    expect(
+      tester.getRect(pill('Remind me later')).top -
+          tester.getRect(find.text('Version 0.3.1 is here')).bottom,
+      12 + 8,
+    );
+  });
+
+  testWidgets('a failed signature check offers no retry', (tester) async {
+    await openWith(
+      tester,
+      const UpdaterError(
+        subtype: UpdaterErrorSubtype.signature,
+        message: 'The signature verification failed',
+      ),
+    );
+
+    expect(find.text('The update hit a snag'), findsOneWidget);
+    expect(find.text('The signature verification failed'), findsOneWidget);
+    expect(buttonLabels(), ['Close']);
+    await tester.tap(find.text('Close'));
+    expect(updater.calls, ['dismiss']);
+    expect(closes, 1);
+  });
+
+  testWidgets('a failed relaunch asks the player to reopen the app', (
+    tester,
+  ) async {
+    await openWith(tester, const UpdaterInstalled(manifest: manifest));
+
+    expect(find.text('0.3.1 is installed'), findsOneWidget);
+    expect(
+      find.text('Quit and reopen Project Swiftie to start using it.'),
+      findsOneWidget,
+    );
+    expect(buttonLabels(), ['Close']);
+    await tester.tap(find.text('Close'));
+    expect(updater.calls, isEmpty);
+    expect(closes, 1);
+  });
+
+  testWidgets('a running check keeps the panel it interrupted', (tester) async {
+    await openWith(tester, const UpdaterAvailable(manifest: manifest));
+
+    setUpdater(const UpdaterChecking());
+    await tester.pumpAndSettle();
+    expect(find.text('Version 0.3.1 is here'), findsOneWidget);
+    expect(find.text('No updates'), findsNothing);
+
+    setUpdater(
+      const UpdaterError(subtype: UpdaterErrorSubtype.check, message: ''),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Try again'));
+    setUpdater(const UpdaterChecking());
+    await tester.pumpAndSettle();
+    expect(updater.calls, ['retry']);
+    expect(closes, 0);
+    expect(find.text('The update hit a snag'), findsOneWidget);
+
+    setUpdater(const UpdaterUpToDate());
+    await tester.pumpAndSettle();
+    expect(find.text('No updates'), findsOneWidget);
+  });
+
+  testWidgets('a focused action never turns into another one', (tester) async {
+    await openWith(
+      tester,
+      const UpdaterDownloading(manifest: manifest, progress: 90),
+    );
+    for (
+      var press = 0;
+      press < 3 && !focused(tester, 'Cancel download');
+      press++
+    ) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    expect(focused(tester, 'Cancel download'), isTrue);
+
+    setUpdater(const UpdaterReady(manifest: manifest));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(updater.calls, isEmpty);
+  });
+
+  testWidgets('the progress bar slides to the new percentage, or jumps with '
+      'reduced motion', (tester) async {
+    double fillShare() =>
+        tester.getSize(progressFill()).width /
+        tester.getSize(progressTrack()).width;
+
+    await openWith(
+      tester,
+      const UpdaterDownloading(manifest: manifest, progress: 10),
+    );
+    setUpdater(const UpdaterDownloading(manifest: manifest, progress: 60));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(fillShare(), closeTo(0.35, 0.01));
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(fillShare(), closeTo(0.6, 0.001));
+
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await tester.pump();
+    setUpdater(const UpdaterDownloading(manifest: manifest, progress: 20));
+    await tester.pump();
+    expect(fillShare(), closeTo(0.2, 0.001));
+  });
+
+  testWidgets('Escape and the backdrop close it only while it is topmost', (
+    tester,
+  ) async {
+    await openWith(tester, const UpdaterReady(manifest: manifest));
+    expect(container.read(modalStackProvider), hasLength(1));
+
+    final above = Object();
+    container.read(modalStackProvider.notifier).push(above);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    expect(closes, 0);
+
+    container.read(modalStackProvider.notifier).remove(above);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    expect(closes, 1);
+
+    await tester.tap(find.text('0.3.1 is ready'));
+    expect(closes, 1);
+    await tester.tapAt(const Offset(10, 10));
+    expect(closes, 2);
+    expect(screenTaps, 0);
+  });
+
+  testWidgets('the dialog is announced as a modal dialog with a heading', (
+    tester,
+  ) async {
+    setUpdater(const UpdaterReady(manifest: manifest));
+    await pumpModal(tester, isOpen: false);
+    expect(find.semantics.byLabel(behindTheDialog), findsOne);
+
+    await pumpModal(tester);
+    await tester.pumpAndSettle();
+
+    expect(dialogNode(), findsOne);
+    expect(
+      dialogNode()
+          .evaluate()
+          .single
+          .getSemanticsData()
+          .flagsCollection
+          .scopesRoute,
+      isTrue,
+    );
+    expect(find.semantics.byLabel(behindTheDialog), findsNothing);
+    expect(
+      find.semantics.byPredicate((node) {
+        final data = node.getSemanticsData();
+        return data.flagsCollection.isHeader && data.label == '0.3.1 is ready';
+      }),
+      findsOne,
+    );
+  });
+
+  testWidgets('the restarting cover fills the window and blocks the screen', (
+    tester,
+  ) async {
+    setUpdater(const UpdaterReady(manifest: manifest));
+    await pumpModal(tester, isOpen: false);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(focused(tester, behindTheDialog), isTrue);
+
+    setUpdater(const UpdaterInstalling());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final cover = find.descendant(
       of: find.byType(UpdateModal),
       matching: find.byWidgetPredicate(
-        (widget) =>
-            widget is Container &&
-            widget.decoration is BoxDecoration &&
-            (widget.decoration! as BoxDecoration).boxShadow == AppShadows.xl2,
+        (widget) => widget is ColoredBox && widget.color == AppTokens.dark.bg,
       ),
     );
-
-    Finder buttonBox(String label) => find.ancestor(
-      of: find.text(label),
-      matching: find.byWidgetPredicate(
-        (widget) => widget is Container && widget.decoration != null,
-      ),
+    expect(tester.getRect(cover), Offset.zero & surface);
+    expect(find.text(restarting), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text(restarting)).style!.color,
+      AppTokens.dark.mut,
     );
-
-    BoxDecoration buttonDecoration(WidgetTester tester, String label) =>
-        tester.widget<Container>(buttonBox(label).first).decoration!
-            as BoxDecoration;
-
-    Finder progressTrack() => find
-        .ancestor(
-          of: find.byType(FractionallySizedBox),
-          matching: find.byType(ClipRRect),
-        )
-        .first;
-
-    ScaleTransition cardScale(WidgetTester tester) => tester.widget(
-      find
-          .ancestor(of: dialogCard(), matching: find.byType(ScaleTransition))
-          .first,
-    );
-
-    testWidgets('returns null when isOpen is false', (tester) async {
-      setState(const UpdaterAvailable(manifest: bareManifest));
-      await pumpModal(tester, isOpen: false);
-
-      expect(tester.getSize(find.byType(UpdateModal)), Size.zero);
-      expect(find.textContaining('0.3.0'), findsNothing);
-      expect(
-        find.semantics.byPredicate(
-          (node) => node.getSemanticsData().role == SemanticsRole.dialog,
-        ),
-        findsNothing,
-      );
-    });
-
-    testWidgets(
-      'renders release notes and Download/Skip/Remind buttons when state is available',
-      (tester) async {
-        await openWith(
-          tester,
-          const UpdaterAvailable(
-            manifest: UpdateManifest(
-              version: '0.3.0',
-              notes: "## What's new\n- foo\n- bar",
-              pubDate: '2026-05-01T00:00:00Z',
-            ),
-          ),
-        );
-
-        expect(find.textContaining(RegExp(r'0\.3\.0')), findsOneWidget);
-        expect(find.text("## What's new\n- foo\n- bar"), findsOneWidget);
-        expect(buttonNamed(exactly('Download')), findsOne);
-        expect(
-          buttonNamed(RegExp('skip this version', caseSensitive: false)),
-          findsOne,
-        );
-        expect(
-          buttonNamed(RegExp('remind me later', caseSensitive: false)),
-          findsOne,
-        );
-      },
-    );
-
-    testWidgets('clicking Download invokes useUpdater.download()', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-
-      await tester.tap(find.text('Download'));
-
-      expect(updater.calls, ['download']);
-    });
-
-    testWidgets(
-      'clicking Skip this version invokes useUpdater.skipVersion(version)',
-      (tester) async {
-        await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-
-        await tester.tap(find.text('Skip this version'));
-
-        expect(updater.calls, ['skipVersion(0.3.0)']);
-      },
-    );
-
-    testWidgets('clicking Remind me later invokes useUpdater.remindLater()', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-
-      await tester.tap(find.text('Remind me later'));
-
-      expect(updater.calls, ['remindLater']);
-    });
-
-    testWidgets('renders progress bar with aria-valuenow when downloading', (
-      tester,
-    ) async {
-      await openWith(
-        tester,
-        const UpdaterDownloading(manifest: bareManifest, progress: 73),
-      );
-
-      final bar = find.semantics.byPredicate(
-        (node) => node.getSemanticsData().role == SemanticsRole.progressBar,
-      );
-      expect(bar, findsOne);
-      final data = bar.evaluate().single.getSemanticsData();
-      expect(data.value, '73');
-      expect(data.minValue, '0');
-      expect(data.maxValue, '100');
-    });
-
-    testWidgets(
-      'clicking Cancel during downloading invokes useUpdater.cancel()',
-      (tester) async {
-        await openWith(
-          tester,
-          const UpdaterDownloading(manifest: bareManifest, progress: 50),
-        );
-
-        expect(buttonNamed(exactly('Cancel')), findsOne);
-        await tester.tap(find.text('Cancel'));
-
-        expect(updater.calls, ['cancel']);
-      },
-    );
-
-    testWidgets('renders Install & Restart button when state is ready', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-
-      expect(
-        buttonNamed(RegExp('install.*restart', caseSensitive: false)),
-        findsOne,
-      );
-    });
-
-    testWidgets('clicking Install & Restart invokes useUpdater.install()', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-
-      await tester.tap(find.text('Install & Restart'));
-
-      expect(updater.calls, ['install']);
-    });
-
-    testWidgets(
-      'renders red signature-error banner with no auto-retry button',
-      (tester) async {
-        await openWith(
-          tester,
-          const UpdaterError(
-            subtype: UpdaterErrorSubtype.signature,
-            message: 'Signature mismatch',
-          ),
-        );
-
-        expect(
-          find.textContaining(
-            RegExp('verification failed', caseSensitive: false),
-          ),
-          findsOneWidget,
-        );
-        expect(buttonNamed(exactly('Retry')), findsNothing);
-      },
-    );
-
-    testWidgets('renders Retry button for download error', (tester) async {
-      await openWith(
-        tester,
-        const UpdaterError(
-          subtype: UpdaterErrorSubtype.download,
-          message: 'Connection reset',
-        ),
-      );
-
-      expect(buttonNamed(exactly('Retry')), findsOne);
-    });
-
-    testWidgets('Retry on download error invokes useUpdater.download()', (
-      tester,
-    ) async {
-      await openWith(
-        tester,
-        const UpdaterError(
-          subtype: UpdaterErrorSubtype.download,
-          message: 'Connection reset',
-        ),
-      );
-
-      await tester.tap(find.text('Retry'));
-
-      expect(updater.calls, ['download']);
-    });
-
-    testWidgets('Retry on check error checks again instead of installing', (
-      tester,
-    ) async {
-      await openWith(
-        tester,
-        const UpdaterError(
-          subtype: UpdaterErrorSubtype.check,
-          message: 'network down',
-        ),
-      );
-
-      await tester.tap(find.text('Retry'));
-
-      expect(updater.calls, ['check(manual: true)']);
-      expect(updater.calls, isNot(contains('install')));
-    });
-
-    testWidgets(
-      'installed state asks the user to reopen the app and offers no retry',
-      (tester) async {
-        await openWith(tester, const UpdaterInstalled(manifest: bareManifest));
-
-        expect(
-          find.textContaining(
-            RegExp(r'0\.3\.0 installed', caseSensitive: false),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.textContaining(RegExp('quit and reopen', caseSensitive: false)),
-          findsOneWidget,
-        );
-        expect(
-          buttonNamed(RegExp('retry|install', caseSensitive: false)),
-          findsNothing,
-        );
-      },
-    );
-
-    testWidgets('Escape key closes the modal', (tester) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-
-      expect(closes, greaterThan(0));
-    });
-
-    testWidgets('dialog has aria-modal=true', (tester) async {
-      setState(const UpdaterAvailable(manifest: bareManifest));
-      await pumpModal(tester, isOpen: false);
-      expect(find.semantics.byLabel(behindTheDialog), findsOne);
-
-      await pumpModal(tester);
-      await tester.pumpAndSettle();
-
-      final dialog = find.semantics.byPredicate(
-        (node) => node.getSemanticsData().role == SemanticsRole.dialog,
-      );
-      expect(dialog, findsOne);
-      expect(
-        dialog.evaluate().single.getSemanticsData().flagsCollection.scopesRoute,
-        isTrue,
-      );
-      expect(find.semantics.byLabel(behindTheDialog), findsNothing);
-    });
-
-    testWidgets('each state shows the same heading and body as today', (
-      tester,
-    ) async {
-      final cases = <(UpdaterMachineState, List<String>, List<String>)>[
-        (
-          const UpdaterAvailable(manifest: bareManifest),
-          ['Version 0.3.0 available'],
-          ['Download', 'Skip this version', 'Remind me later', 'Close'],
-        ),
-        (
-          const UpdaterDownloading(manifest: bareManifest, progress: 5),
-          ['Downloading 0.3.0'],
-          ['Cancel', 'Hide'],
-        ),
-        (
-          const UpdaterReady(manifest: bareManifest),
-          ['Version 0.3.0 ready', 'Restart the app to apply the update.'],
-          ['Install & Restart', 'Close'],
-        ),
-        (
-          const UpdaterError(
-            subtype: UpdaterErrorSubtype.signature,
-            message: 'Signature mismatch',
-          ),
-          [
-            'Update verification failed',
-            'The downloaded update could not be verified. The download may '
-                'be corrupted or the release may be misconfigured.',
-          ],
-          ['Dismiss'],
-        ),
-        (
-          const UpdaterError(
-            subtype: UpdaterErrorSubtype.install,
-            message: 'Disk full',
-          ),
-          ['Update failed', 'Disk full'],
-          ['Retry', 'Close'],
-        ),
-        (
-          const UpdaterInstalled(manifest: bareManifest),
-          [
-            'Version 0.3.0 installed',
-            'Quit and reopen Swiftie Quiz to start using it.',
-          ],
-          ['Close'],
-        ),
-        (const UpdaterIdle(), ['No update information'], ['Close']),
-        (const UpdaterChecking(), ['No update information'], ['Close']),
-        (const UpdaterUpToDate(), ['No update information'], ['Close']),
-        (const UpdaterInstalling(), ['No update information'], ['Close']),
-      ];
-      for (final (state, texts, buttons) in cases) {
-        setState(state);
-        await pumpModal(tester);
-        await tester.pump();
-
-        for (final text in texts) {
-          expect(find.text(text), findsOneWidget, reason: '$state $text');
-        }
-        final labels = [
-          for (final node in buttonNamed(RegExp('.')).evaluate())
-            node.getSemanticsData().label,
-        ];
-        expect(labels, buttons, reason: '$state');
-      }
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('headings are 20 px semibold, tinted by tone', (tester) async {
-      final cases = <(UpdaterMachineState, String, Color)>[
-        (
-          const UpdaterReady(manifest: bareManifest),
-          'Version 0.3.0 ready',
-          AppTokens.dark.foreground,
-        ),
-        (
-          const UpdaterError(
-            subtype: UpdaterErrorSubtype.download,
-            message: 'x',
-          ),
-          'Update failed',
-          const Color(0xFFFFF085),
-        ),
-        (
-          const UpdaterError(
-            subtype: UpdaterErrorSubtype.signature,
-            message: 'x',
-          ),
-          'Update verification failed',
-          const Color(0xFFFFC9C9),
-        ),
-      ];
-      for (final (state, title, color) in cases) {
-        setState(state);
-        await pumpModal(tester);
-        await tester.pump();
-
-        final style = tester.widget<Text>(find.text(title)).style!;
-        expect(style.fontSize, 20, reason: title);
-        expect(style.height, 28 / 20);
-        expect(style.fontWeight, FontWeight.w600);
-        expect(style.letterSpacing, 20 * -0.025);
-        expect(style.color, color, reason: title);
-        expect(
-          find.semantics.byPredicate((node) {
-            final data = node.getSemanticsData();
-            return data.flagsCollection.isHeader && data.label == title;
-          }),
-          findsOne,
-        );
-      }
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('error banners tint the message red or yellow', (tester) async {
-      setState(
-        const UpdaterError(
-          subtype: UpdaterErrorSubtype.check,
-          message: 'network down',
-        ),
-      );
-      await pumpModal(tester);
-      await tester.pumpAndSettle();
-
-      Container banner(String text) => tester.widget<Container>(
-        find
-            .ancestor(of: find.text(text), matching: find.byType(Container))
-            .first,
-      );
-      expect(
-        (banner('network down').decoration! as BoxDecoration).color,
-        AppPalette.yellow500.slashOpacity(10),
-      );
-      expect(
-        tester.widget<Text>(find.text('network down')).style!.color,
-        AppPalette.yellow200,
-      );
-
-      setState(
-        const UpdaterError(
-          subtype: UpdaterErrorSubtype.signature,
-          message: 'x',
-        ),
-      );
-      await tester.pump();
-      const text = _UpdateModalText.verificationFailure;
-      expect(
-        (banner(text).decoration! as BoxDecoration).color,
-        AppPalette.red500.slashOpacity(10),
-      );
-      expect(
-        tester.widget<Text>(find.text(text)).style!.color,
-        AppPalette.red200,
-      );
-    });
-
-    testWidgets('the card is a 512 px rounded card with a 24 px inset', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-
-      final card = tester.getRect(dialogCard());
-      expect(card.width, 512);
-      expect(card.center, surface.center(Offset.zero));
-      final decoration =
-          tester.widget<Container>(dialogCard()).decoration! as BoxDecoration;
-      expect(decoration.color, AppTokens.dark.card);
-      expect(decoration.border, Border.all(color: AppTokens.dark.border));
-      expect(
-        decoration.borderRadius,
-        const BorderRadius.all(Radius.circular(16)),
-      );
-      expect(
-        tester.getTopLeft(find.text('Version 0.3.0 ready')) - card.topLeft,
-        const Offset(25, 25),
-      );
-    });
-
-    testWidgets('narrow windows keep 24 px of backdrop either side', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(500, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-
-      final card = tester.getRect(dialogCard());
-      expect(card.left, 24);
-      expect(card.right, 500 - 24);
-    });
-
-    testWidgets('margins collapse between blocks as the browser does', (
-      tester,
-    ) async {
-      await openWith(
-        tester,
-        const UpdaterAvailable(
-          manifest: UpdateManifest(version: '0.3.0', notes: 'n', pubDate: ''),
-        ),
-      );
-      final heading = tester.getRect(find.text('Version 0.3.0 available'));
-      final notes = tester.getRect(
-        find
-            .ancestor(of: find.text('n'), matching: find.byType(Container))
-            .first,
-      );
-      final download = tester.getRect(buttonBox('Download').first);
-      expect(notes.top - heading.bottom, 12);
-      expect(download.top - notes.bottom, 16);
-
-      setState(const UpdaterDownloading(manifest: bareManifest, progress: 5));
-      await tester.pump();
-      final title = tester.getRect(find.text('Downloading 0.3.0'));
-      final bar = tester.getRect(progressTrack());
-      final cancel = tester.getRect(buttonBox('Cancel').first);
-      expect(bar.top - title.bottom, 16);
-      expect(bar.height, 8);
-      expect(cancel.top - bar.bottom, 16);
-
-      setState(const UpdaterIdle());
-      await tester.pump();
-      final empty = tester.getRect(find.text('No update information'));
-      final close = tester.getRect(buttonBox('Close').first);
-      expect(close.top - empty.bottom, 16);
-    });
-
-    testWidgets('long notes scroll inside a 256 px area', (tester) async {
-      final notes = List.generate(60, (line) => 'Line $line').join('\n');
-      await openWith(
-        tester,
-        UpdaterAvailable(
-          manifest: UpdateManifest(version: '0.3.0', notes: notes, pubDate: ''),
-        ),
-      );
-
-      final area = find.ancestor(
-        of: find.text(notes),
-        matching: find.byType(SingleChildScrollView),
-      );
-      expect(tester.getSize(area).height, UpdateModal.notesMaxHeight);
-      final style = tester.widget<Text>(find.text(notes)).style!;
-      expect(style.fontSize, 14);
-      expect(style.color, AppTokens.dark.mutedForeground);
-      expect(style.fontFamily, '.AppleSystemUIFontMonospaced');
-      expect(
-        style.fontFamilyFallback,
-        containsAllInOrder(['Menlo', 'Consolas']),
-      );
-
-      final before = tester.getTopLeft(find.text(notes)).dy;
-      await tester.drag(area, const Offset(0, -200));
-      await tester.pumpAndSettle();
-      expect(tester.getTopLeft(find.text(notes)).dy, lessThan(before));
-    });
-
-    testWidgets('empty notes leave the notes area out', (tester) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-
-      expect(
-        find.descendant(
-          of: find.byType(UpdateModal),
-          matching: find.byType(SingleChildScrollView),
-        ),
-        findsNothing,
-      );
-    });
-
-    testWidgets('the progress bar fills blue to the percentage', (
-      tester,
-    ) async {
-      await openWith(
-        tester,
-        const UpdaterDownloading(manifest: bareManifest, progress: 25),
-      );
-
-      final track = tester.getRect(progressTrack());
-      final fill = tester.getRect(
-        find.descendant(
-          of: find.byType(FractionallySizedBox),
-          matching: find.byType(ColoredBox),
-        ),
-      );
-      expect(track.width, 512 - 50);
-      expect(fill.width, track.width * 0.25);
-      expect(fill.left, track.left);
-      expect(
-        tester
-            .widget<ColoredBox>(
-              find.descendant(
-                of: find.byType(FractionallySizedBox),
-                matching: find.byType(ColoredBox),
-              ),
-            )
-            .color,
-        AppPalette.blue600,
-      );
-    });
-
-    testWidgets('primary, secondary and tertiary buttons look as today', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-
-      final primary = buttonDecoration(tester, 'Download');
-      expect(primary.color, const Color(0xFF7F22FE));
-      expect(primary.border, isNull);
-      expect(primary.borderRadius, const BorderRadius.all(Radius.circular(6)));
-      final primaryText = tester.widget<Text>(find.text('Download')).style!;
-      expect(primaryText.color, AppPalette.white);
-      expect(primaryText.fontWeight, FontWeight.w500);
-      expect(primaryText.fontSize, 14);
-
-      final secondary = buttonDecoration(tester, 'Skip this version');
-      expect(secondary.color, AppTokens.dark.card);
-      expect(secondary.border, Border.all(color: AppTokens.dark.border));
-      expect(
-        tester.widget<Text>(find.text('Skip this version')).style!.color,
-        AppTokens.dark.foreground,
-      );
-
-      final tertiary = buttonDecoration(tester, 'Close');
-      expect(tertiary.color, isNull);
-      expect(tertiary.border, isNull);
-      expect(
-        tester.widget<Text>(find.text('Close')).style!.color,
-        AppTokens.dark.mutedForeground,
-      );
-    });
-
-    testWidgets('hover darkens primary, tints secondary, lights tertiary', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await mouse.addPointer(location: Offset.zero);
-      addTearDown(mouse.removePointer);
-
-      await mouse.moveTo(tester.getCenter(find.text('Download')));
-      await tester.pump();
-      expect(buttonDecoration(tester, 'Download').color, AppPalette.violet700);
-
-      await mouse.moveTo(tester.getCenter(find.text('Skip this version')));
-      await tester.pump();
-      expect(
-        buttonDecoration(tester, 'Skip this version').color,
-        AppTokens.dark.muted.slashOpacity(40),
-      );
-      expect(buttonDecoration(tester, 'Download').color, AppPalette.violet600);
-
-      await mouse.moveTo(tester.getCenter(find.text('Close')));
-      await tester.pump();
-      expect(
-        tester.widget<Text>(find.text('Close')).style!.color,
-        AppTokens.dark.foreground,
-      );
-    });
-
-    testWidgets('a wrapped line of buttons stretches to its tallest button', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-      final card = tester.getRect(dialogCard());
-      final innerRight = card.right - 25;
-
-      final download = tester.getRect(buttonBox('Download').first);
-      final skip = tester.getRect(buttonBox('Skip this version').first);
-      final remind = tester.getRect(buttonBox('Remind me later').first);
-      final close = tester.getRect(buttonBox('Close').first);
-
-      expect(skip.height, 20 + 16 + 2);
-      expect(download.height, skip.height);
-      expect(download.top, skip.top);
-      expect(skip.left - download.right, 8);
-      expect(skip.right, innerRight);
-      expect(remind.top, skip.bottom + 8);
-      expect(close.height, remind.height);
-      expect(close.right, innerRight);
-      expect(tester.getCenter(find.text('Download')).dy, download.center.dy);
-
-      setState(const UpdaterReady(manifest: bareManifest));
-      await tester.pump();
-      final install = tester.getRect(buttonBox('Install & Restart').first);
-      final readyClose = tester.getRect(buttonBox('Close').first);
-      expect(install.height, 20 + 16);
-      expect(readyClose.height, 20 + 16);
-      expect(readyClose.right, innerRight);
-      expect(readyClose.left - install.right, 8);
-    });
-
-    testWidgets('Close and Hide close the dialog; error Close dismisses', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-      await tester.tap(find.text('Close'));
-      expect(closes, 1);
-
-      setState(const UpdaterDownloading(manifest: bareManifest, progress: 9));
-      await tester.pump();
-      await tester.tap(find.text('Hide'));
-      expect(closes, 2);
-
-      setState(
-        const UpdaterError(subtype: UpdaterErrorSubtype.download, message: 'x'),
-      );
-      await tester.pump();
-      await tester.tap(find.text('Close'));
-      expect(closes, 2);
-      expect(updater.calls, ['dismiss']);
-
-      setState(
-        const UpdaterError(
-          subtype: UpdaterErrorSubtype.signature,
-          message: 'x',
-        ),
-      );
-      await tester.pump();
-      await tester.tap(find.text('Dismiss'));
-      expect(updater.calls, ['dismiss', 'dismiss']);
-
-      setState(
-        const UpdaterError(subtype: UpdaterErrorSubtype.install, message: 'x'),
-      );
-      await tester.pump();
-      await tester.tap(find.text('Retry'));
-      expect(updater.calls, ['dismiss', 'dismiss', 'install']);
-    });
-
-    testWidgets('clicking the backdrop closes; clicking the card does not', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-
-      await tester.tap(find.text('Restart the app to apply the update.'));
-      await tester.tapAt(
-        tester.getRect(dialogCard()).topLeft + const Offset(30, 30),
-      );
-      expect(closes, 0);
-
-      await tester.tapAt(const Offset(10, 10));
-      expect(closes, 1);
-      expect(screenTaps, 0);
-    });
-
-    testWidgets('scales in from 0.95 and fades in', (tester) async {
-      setState(const UpdaterReady(manifest: bareManifest));
-      await pumpModal(tester);
-
-      final opacity = tester.widget<FadeTransition>(
-        find
-            .ancestor(of: dialogCard(), matching: find.byType(FadeTransition))
-            .first,
-      );
-      expect(cardScale(tester).scale.value, UpdateModal.hiddenScale);
-      expect(opacity.opacity.value, 0);
-
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(cardScale(tester).scale.value, greaterThan(0.95));
-      expect(opacity.opacity.value, inExclusiveRange(0, 1));
-
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(opacity.opacity.value, 1);
-
-      await tester.pumpAndSettle();
-      expect(cardScale(tester).scale.value, 1);
-    });
-
-    testWidgets('animates out before it disappears', (tester) async {
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-
-      await pumpModal(tester, isOpen: false);
-      await tester.pump(const Duration(milliseconds: 150));
-      expect(find.text('Version 0.3.0 ready'), findsOneWidget);
-      expect(cardScale(tester).scale.value, lessThan(1));
-      expect(
-        tester
-            .widget<FadeTransition>(
-              find
-                  .ancestor(
-                    of: dialogCard(),
-                    matching: find.byType(FadeTransition),
-                  )
-                  .first,
-            )
-            .opacity
-            .value,
-        inExclusiveRange(0, 1),
-      );
-
-      await tester.tapAt(const Offset(10, 10));
-      expect(closes, 0);
-      expect(find.semantics.byLabel(behindTheDialog), findsOne);
-      expect(
-        find.semantics.byPredicate(
-          (node) => node.getSemanticsData().role == SemanticsRole.dialog,
-        ),
-        findsNothing,
-      );
-
-      await tester.pumpAndSettle();
-      expect(find.text('Version 0.3.0 ready'), findsNothing);
-      expect(tester.getSize(find.byType(UpdateModal)), Size.zero);
-    });
-
-    testWidgets('reopening while it animates out keeps it open', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterReady(manifest: bareManifest));
-
-      await pumpModal(tester, isOpen: false);
-      await tester.pump(const Duration(milliseconds: 100));
-      await pumpModal(tester);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Version 0.3.0 ready'), findsOneWidget);
-      expect(cardScale(tester).scale.value, 1);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      expect(closes, 1);
-    });
-
-    testWidgets('keyboard activates buttons only while it is open', (
-      tester,
-    ) async {
-      await openWith(tester, const UpdaterAvailable(manifest: bareManifest));
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      expect(updater.calls, ['download']);
-
-      await pumpModal(tester, isOpen: false);
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Download'), findsOneWidget);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.sendKeyEvent(LogicalKeyboardKey.space);
-      await tester.pumpAndSettle();
-      expect(updater.calls, ['download']);
-    });
-
-    testWidgets('reduced motion shows and hides it without animating', (
-      tester,
-    ) async {
-      tester.platformDispatcher.accessibilityFeaturesTestValue =
-          const FakeAccessibilityFeatures(disableAnimations: true);
-      addTearDown(
-        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
-      );
-      setState(const UpdaterReady(manifest: bareManifest));
-
-      await pumpModal(tester);
-      expect(cardScale(tester).scale.value, 1);
-      expect(
-        tester
-            .widget<FadeTransition>(
-              find
-                  .ancestor(
-                    of: dialogCard(),
-                    matching: find.byType(FadeTransition),
-                  )
-                  .first,
-            )
-            .opacity
-            .value,
-        1,
-      );
-      expect(tester.hasRunningAnimations, isFalse);
-
-      await pumpModal(tester, isOpen: false);
-      expect(find.text('Version 0.3.0 ready'), findsNothing);
-    });
-
-    testWidgets('Escape does nothing while the dialog is closed', (
-      tester,
-    ) async {
-      setState(const UpdaterAvailable(manifest: bareManifest));
-      await pumpModal(tester, isOpen: false);
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      expect(closes, 0);
-
-      await pumpModal(tester);
-      await tester.pumpAndSettle();
-      await pumpModal(tester, isOpen: false);
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      expect(closes, 0);
-    });
+    expect(find.semantics.byLabel(behindTheDialog), findsNothing);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(screenTaps, 0);
+    expect(closes, 0);
   });
-}
 
-abstract final class _UpdateModalText {
-  static const String verificationFailure =
-      'The downloaded update could not be verified. The download may be '
-      'corrupted or the release may be misconfigured.';
+  testWidgets('the restarting cover rises in, or appears at once with '
+      'reduced motion', (tester) async {
+    double coverOpacity() => tester
+        .widget<Opacity>(
+          find
+              .ancestor(
+                of: find.byType(CatLoader),
+                matching: find.byType(Opacity),
+              )
+              .first,
+        )
+        .opacity;
+
+    setUpdater(const UpdaterInstalling());
+    await pumpModal(tester);
+    expect(coverOpacity(), 0);
+    await tester.pump(const Duration(milliseconds: 125));
+    expect(coverOpacity(), inExclusiveRange(0, 1));
+    await tester.pump(const Duration(milliseconds: 125));
+    expect(coverOpacity(), 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await pumpModal(tester);
+    expect(coverOpacity(), 1);
+  });
 }

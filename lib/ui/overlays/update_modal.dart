@@ -2,238 +2,183 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
+import 'package:swiftie_quiz/ui/kit/swiftie_modal.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
-import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
 
 class UpdateModal extends ConsumerStatefulWidget {
   const UpdateModal({super.key, required this.isOpen, required this.onClose});
 
-  static const double hiddenScale = 0.95;
-  static const double maxWidth = 512;
-  static const double horizontalInset = 24;
-  static const double padding = 24;
-  static const double radius = AppRadii.xl2;
-  static const double notesMaxHeight = 256;
-  static const Color backdrop = Color.from(
-    alpha: 0.6,
-    red: 0,
-    green: 0,
-    blue: 0,
+  static const double maxWidth = 480;
+  static const double gap = 12;
+  static const double actionsTop = 8;
+  static const double actionGap = 8;
+  static const double titleSize = 32;
+  static const double titleLineHeight = 36;
+  static const BorderRadius boxRadius = BorderRadius.all(Radius.circular(10));
+  static const EdgeInsets notesPadding = EdgeInsets.symmetric(
+    vertical: 14,
+    horizontal: 16,
   );
+  static const EdgeInsets bannerPadding = EdgeInsets.symmetric(
+    vertical: 12,
+    horizontal: 14,
+  );
+  static const double progressHeight = 4;
+  static const BorderRadius progressRadius = BorderRadius.all(
+    Radius.circular(2),
+  );
+  static const Duration progressShift = Duration(milliseconds: 120);
+  static const double restartingLoaderSize = 200;
+  static const Duration restartingRise = Duration(milliseconds: 250);
+  static const String restartingLabel = 'Restarting Project Swiftie...';
+  static const String unreachableMessage = 'Could not reach the update server.';
 
   final bool isOpen;
   final VoidCallback onClose;
 
   @override
   ConsumerState<UpdateModal> createState() => _UpdateModalState();
+
+  static _Panel _panelFor(
+    UpdaterMachineState state,
+    _UpdaterAccess updater,
+    VoidCallback close,
+  ) {
+    VoidCallback closing(void Function(UpdaterController updater) action) =>
+        () {
+          action(updater());
+          close();
+        };
+    final closeOnly = (label: 'Close', kind: PillKind.quiet, onPressed: close);
+    return switch (state) {
+      UpdaterAvailable(:final manifest) => _Panel(
+        title: 'Version ${manifest.version} is here',
+        notes: manifest.notes.trim().isEmpty ? null : manifest.notes,
+        actions: [
+          (
+            label: 'Remind me later',
+            kind: PillKind.quiet,
+            onPressed: closing((updater) => updater.remindLater()),
+          ),
+          (
+            label: 'Skip this version',
+            kind: PillKind.outline,
+            onPressed: closing(
+              (updater) => updater.skipVersion(manifest.version),
+            ),
+          ),
+          (
+            label: 'Download',
+            kind: PillKind.coral,
+            onPressed: () => unawaited(updater().download()),
+          ),
+        ],
+      ),
+      UpdaterDownloading(:final manifest, :final progress) => _Panel(
+        title: 'Downloading ${manifest.version}',
+        progress: progress,
+        paragraph: '$progress%',
+        actions: [
+          (label: 'Hide', kind: PillKind.quiet, onPressed: close),
+          (
+            label: 'Cancel download',
+            kind: PillKind.outline,
+            onPressed: closing((updater) => updater.cancel()),
+          ),
+        ],
+      ),
+      UpdaterReady(:final manifest) => _Panel(
+        title: '${manifest.version} is ready',
+        paragraph:
+            'Restart Project Swiftie to finish updating. Your progress is '
+            'saved.',
+        actions: [
+          (label: 'Later', kind: PillKind.quiet, onPressed: close),
+          (
+            label: 'Restart now',
+            kind: PillKind.coral,
+            onPressed: () => unawaited(updater().install()),
+          ),
+        ],
+      ),
+      UpdaterError(:final subtype, :final message) => _Panel(
+        title: 'The update hit a snag',
+        banner: message.trim().isEmpty ? unreachableMessage : message,
+        actions: [
+          (
+            label: 'Close',
+            kind: PillKind.quiet,
+            onPressed: closing((updater) => updater.dismiss()),
+          ),
+          if (subtype != UpdaterErrorSubtype.signature)
+            (
+              label: 'Try again',
+              kind: PillKind.coral,
+              onPressed: () => unawaited(updater().retry()),
+            ),
+        ],
+      ),
+      UpdaterInstalled(:final manifest) => _Panel(
+        title: '${manifest.version} is installed',
+        paragraph: 'Quit and reopen Project Swiftie to start using it.',
+        actions: [closeOnly],
+      ),
+      UpdaterIdle() ||
+      UpdaterChecking() ||
+      UpdaterUpToDate() ||
+      UpdaterInstalling() => _Panel(
+        title: 'No updates',
+        paragraph: "You're on the latest version.",
+        actions: [closeOnly],
+      ),
+    };
+  }
 }
 
-class _UpdateModalState extends ConsumerState<UpdateModal>
-    with TickerProviderStateMixin {
-  late final AnimationController _opacity = AnimationController(
-    vsync: this,
-    duration: AppMotion.defaultOpacityDuration,
-  );
-  late final AnimationController _scale = AnimationController.unbounded(
-    vsync: this,
-    value: UpdateModal.hiddenScale,
-  );
-  late bool _present = widget.isOpen;
-  bool _reduceMotion = false;
-  bool _listening = false;
-  bool _entered = false;
+class _UpdateModalState extends ConsumerState<UpdateModal> {
+  UpdaterMachineState _settled = const UpdaterIdle();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (!_entered && widget.isOpen) {
-      _enter();
-    }
-  }
-
-  @override
-  void didUpdateWidget(UpdateModal oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isOpen == oldWidget.isOpen) {
-      return;
-    }
-    if (widget.isOpen) {
-      _enter();
-    } else {
-      _exit();
-    }
-  }
-
-  @override
-  void dispose() {
-    _listenForEscape(false);
-    _opacity.dispose();
-    _scale.dispose();
-    super.dispose();
-  }
-
-  void _enter() {
-    _entered = true;
-    _present = true;
-    _listenForEscape(true);
-    if (_reduceMotion) {
-      _opacity.value = 1;
-      _scale.value = 1;
-      return;
-    }
-    unawaited(_fadeTo(1));
-    unawaited(_springScaleTo(1));
-  }
-
-  void _exit() {
-    _listenForEscape(false);
-    if (_reduceMotion) {
-      _opacity.value = 0;
-      _scale.value = UpdateModal.hiddenScale;
-      _present = false;
-      return;
-    }
-    unawaited(_animateOut());
-  }
-
-  Future<void> _animateOut() async {
-    try {
-      await Future.wait([
-        _fadeTo(0).orCancel,
-        _springScaleTo(UpdateModal.hiddenScale).orCancel,
-      ]);
-    } on TickerCanceled {
-      return;
-    }
-    if (mounted && !widget.isOpen) {
-      setState(() => _present = false);
-    }
-  }
-
-  TickerFuture _fadeTo(double target) => _opacity.animateTo(
-    target,
-    duration: AppMotion.defaultOpacityDuration,
-    curve: AppMotion.defaultOpacityCurve,
-  );
-
-  TickerFuture _springScaleTo(double target) {
-    final start = _scale.value;
-    return _scale.animateWith(
-      SpringSimulation(
-        AppMotion.defaultScaleSpring,
-        start,
-        target,
-        _scale.velocity,
-        tolerance: AppMotion.restTolerance(target - start),
-        snapToEnd: true,
-      ),
-    );
-  }
-
-  void _listenForEscape(bool listen) {
-    if (listen == _listening) {
-      return;
-    }
-    _listening = listen;
-    if (listen) {
-      HardwareKeyboard.instance.addHandler(_handleKey);
-    } else {
-      HardwareKeyboard.instance.removeHandler(_handleKey);
-    }
-  }
-
-  bool _handleKey(KeyEvent event) {
-    if (event is! KeyUpEvent && event.logicalKey == LogicalKeyboardKey.escape) {
-      widget.onClose();
-    }
-    return false;
+  void initState() {
+    super.initState();
+    ref.listenManual(updaterStateProvider, (_, next) {
+      if (next is! UpdaterChecking) {
+        _settled = next;
+      }
+    }, fireImmediately: true);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_present) {
+    final state = ref.watch(updaterStateProvider);
+    if (state is UpdaterInstalling) {
+      return const _RestartingCover();
+    }
+    if (!widget.isOpen) {
       return const SizedBox.shrink();
     }
-    final tokens = AppTokens.of(context);
-    final state = ref.watch(updaterStateProvider);
-    final card = Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(UpdateModal.padding),
-      decoration: BoxDecoration(
-        color: tokens.card,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(UpdateModal.radius),
-        ),
-        border: Border.all(color: tokens.border),
-        boxShadow: AppShadows.xl2,
-      ),
-      child: _ModalContent(
-        state: state,
-        updater: () => ref.read(updaterControllerProvider),
-        onClose: widget.onClose,
-      ),
-    );
-    return IgnorePointer(
-      ignoring: !widget.isOpen,
-      child: ExcludeFocus(
-        excluding: !widget.isOpen,
-        child: ExcludeSemantics(
-          excluding: !widget.isOpen,
-          child: BlockSemantics(
-            blocking: widget.isOpen,
-            child: FadeTransition(
-              opacity: _opacity,
-              alwaysIncludeSemantics: true,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                excludeFromSemantics: true,
-                onTap: widget.onClose,
-                child: ColoredBox(
-                  color: UpdateModal.backdrop,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: UpdateModal.horizontalInset,
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: UpdateModal.maxWidth,
-                        ),
-                        child: ScaleTransition(
-                          scale: _scale,
-                          child: FadeTransition(
-                            opacity: _opacity,
-                            alwaysIncludeSemantics: true,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              excludeFromSemantics: true,
-                              onTap: () {},
-                              child: Semantics(
-                                container: true,
-                                explicitChildNodes: true,
-                                scopesRoute: true,
-                                role: SemanticsRole.dialog,
-                                child: Material(
-                                  type: MaterialType.transparency,
-                                  child: card,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+    return BlockSemantics(
+      child: SwiftieModal(
+        maxWidth: UpdateModal.maxWidth,
+        onDismiss: widget.onClose,
+        child: Semantics(
+          container: true,
+          explicitChildNodes: true,
+          scopesRoute: true,
+          role: SemanticsRole.dialog,
+          child: _PanelBody(
+            panel: UpdateModal._panelFor(
+              state is UpdaterChecking ? _settled : state,
+              () => ref.read(updaterControllerProvider),
+              widget.onClose,
             ),
           ),
         ),
@@ -244,215 +189,103 @@ class _UpdateModalState extends ConsumerState<UpdateModal>
 
 typedef _UpdaterAccess = UpdaterController Function();
 
-final class _Block {
-  const _Block(this.child, {this.top = 0, this.bottom = 0});
+typedef _Action = ({String label, PillKind kind, VoidCallback onPressed});
 
-  final Widget child;
-  final double top;
-  final double bottom;
+final class _Panel {
+  _Panel({
+    required this.title,
+    this.notes,
+    this.progress,
+    this.paragraph,
+    this.banner,
+    required List<_Action> actions,
+  }) : actions = List.unmodifiable(actions);
+
+  final String title;
+  final String? notes;
+  final int? progress;
+  final String? paragraph;
+  final String? banner;
+  final List<_Action> actions;
 }
 
-class _ModalContent extends StatelessWidget {
-  const _ModalContent({
-    required this.state,
-    required this.updater,
-    required this.onClose,
-  });
+class _PanelBody extends StatelessWidget {
+  const _PanelBody({required this.panel});
 
-  static const String verificationFailure =
-      'The downloaded update could not be verified. The download may be '
-      'corrupted or the release may be misconfigured.';
-
-  final UpdaterMachineState state;
-  final _UpdaterAccess updater;
-  final VoidCallback onClose;
+  final _Panel panel;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final blocks = _blocksFor(tokens);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: _collapseMargins(blocks),
-    );
-  }
-
-  List<_Block> _blocksFor(AppTokens tokens) => switch (state) {
-    UpdaterAvailable(:final manifest) => [
-      _header('Version ${manifest.version} available', tokens.foreground),
-      if (manifest.notes.isNotEmpty) _notes(manifest.notes, tokens),
-      _actions([
-        _ModalButton(
-          'Download',
-          kind: _ButtonKind.primary,
-          onPressed: () => updater().download(),
-        ),
-        _ModalButton(
-          'Skip this version',
-          kind: _ButtonKind.secondary,
-          onPressed: () => updater().skipVersion(manifest.version),
-        ),
-        _ModalButton(
-          'Remind me later',
-          kind: _ButtonKind.secondary,
-          onPressed: () => updater().remindLater(),
-        ),
-        _ModalButton('Close', kind: _ButtonKind.tertiary, onPressed: onClose),
-      ]),
-    ],
-    UpdaterDownloading(:final manifest, :final progress) => [
-      _header('Downloading ${manifest.version}', tokens.foreground),
-      _Block(_ProgressBar(value: progress), top: 16, bottom: 16),
-      _actions([
-        _ModalButton(
-          'Cancel',
-          kind: _ButtonKind.secondary,
-          onPressed: () => updater().cancel(),
-        ),
-        _ModalButton('Hide', kind: _ButtonKind.tertiary, onPressed: onClose),
-      ]),
-    ],
-    UpdaterReady(:final manifest) => [
-      _header('Version ${manifest.version} ready', tokens.foreground),
-      _paragraph('Restart the app to apply the update.', tokens),
-      _actions([
-        _ModalButton(
-          'Install & Restart',
-          kind: _ButtonKind.primary,
-          onPressed: () => updater().install(),
-        ),
-        _ModalButton('Close', kind: _ButtonKind.tertiary, onPressed: onClose),
-      ]),
-    ],
-    UpdaterError(subtype: UpdaterErrorSubtype.signature) => [
-      _header('Update verification failed', AppPalette.red200),
-      _banner(verificationFailure, AppPalette.red500, AppPalette.red200),
-      _actions([
-        _ModalButton(
-          'Dismiss',
-          kind: _ButtonKind.primary,
-          onPressed: () => updater().dismiss(),
-        ),
-      ]),
-    ],
-    UpdaterError(:final subtype, :final message) => [
-      _header('Update failed', AppPalette.yellow200),
-      _banner(message, AppPalette.yellow500, AppPalette.yellow200),
-      _actions([
-        _ModalButton(
-          'Retry',
-          kind: _ButtonKind.primary,
-          onPressed: () => switch (subtype) {
-            UpdaterErrorSubtype.check => updater().check(manual: true),
-            UpdaterErrorSubtype.download => updater().download(),
-            _ => updater().install(),
-          },
-        ),
-        _ModalButton(
-          'Close',
-          kind: _ButtonKind.tertiary,
-          onPressed: () => updater().dismiss(),
-        ),
-      ]),
-    ],
-    UpdaterInstalled(:final manifest) => [
-      _header('Version ${manifest.version} installed', tokens.foreground),
-      _paragraph('Quit and reopen Swiftie Quiz to start using it.', tokens),
-      _actions([
-        _ModalButton('Close', kind: _ButtonKind.tertiary, onPressed: onClose),
-      ]),
-    ],
-    UpdaterIdle() ||
-    UpdaterChecking() ||
-    UpdaterUpToDate() ||
-    UpdaterInstalling() => [
-      _header('No update information', tokens.foreground),
-      _actions([
-        _ModalButton('Close', kind: _ButtonKind.tertiary, onPressed: onClose),
-      ]),
-    ],
-  };
-
-  static List<Widget> _collapseMargins(List<_Block> blocks) => [
-    if (blocks.first.top > 0) SizedBox(height: blocks.first.top),
-    for (final (index, block) in blocks.indexed) ...[
-      if (index > 0)
-        SizedBox(height: math.max(blocks[index - 1].bottom, block.top)),
-      block.child,
-    ],
-    if (blocks.last.bottom > 0) SizedBox(height: blocks.last.bottom),
-  ];
-
-  static _Block _header(String title, Color color) => _Block(
-    Semantics(
-      header: true,
-      child: Text(
-        title,
-        style: AppText.xl
-            .copyWith(fontWeight: FontWeight.w600, color: color)
-            .trackingTight,
-      ),
-    ),
-    bottom: 12,
-  );
-
-  static _Block _notes(String notes, AppTokens tokens) => _Block(
-    Container(
-      constraints: const BoxConstraints(maxHeight: UpdateModal.notesMaxHeight),
-      decoration: BoxDecoration(
-        color: tokens.muted.slashOpacity(40),
-        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.md)),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
-        child: Text(
-          notes,
-          style: AppText.sm.copyWith(
-            color: tokens.mutedForeground,
-            fontFamily: _monospaceFamily,
-            fontFamilyFallback: _monospaceFallback,
+      spacing: UpdateModal.gap,
+      children: [
+        Semantics(
+          header: true,
+          namesRoute: true,
+          child: Text(
+            panel.title,
+            style: AppType.display(
+              UpdateModal.titleSize,
+              height: UpdateModal.titleLineHeight / UpdateModal.titleSize,
+              color: tokens.fg,
+            ),
           ),
         ),
-      ),
-    ),
-    bottom: 16,
-  );
+        if (panel.notes case final notes?) Flexible(child: _Notes(notes)),
+        if (panel.progress case final progress?) _ProgressBar(value: progress),
+        if (panel.paragraph case final paragraph?)
+          Text(paragraph, style: AppType.body.copyWith(color: tokens.mut)),
+        if (panel.banner case final banner?) _Banner(banner),
+        Padding(
+          padding: const EdgeInsets.only(top: UpdateModal.actionsTop),
+          child: _ActionRow(
+            children: [
+              for (final action in panel.actions)
+                PillButton(
+                  key: ValueKey(action.label),
+                  label: action.label,
+                  kind: action.kind,
+                  onPressed: action.onPressed,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-  static _Block _paragraph(String text, AppTokens tokens) => _Block(
-    Text(text, style: AppText.base.copyWith(color: tokens.mutedForeground)),
-  );
+class _Notes extends StatelessWidget {
+  const _Notes(this.notes);
 
-  static _Block _banner(String text, Color tint, Color foreground) => _Block(
-    Container(
-      padding: const EdgeInsets.all(12),
+  final String notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: tint.slashOpacity(10),
-        borderRadius: const BorderRadius.all(Radius.circular(AppRadii.md)),
+        color: tokens.designCard,
+        border: Border.all(color: tokens.line),
+        borderRadius: UpdateModal.boxRadius,
       ),
-      child: Text(text, style: AppText.sm.copyWith(color: foreground)),
-    ),
-  );
-
-  static _Block _actions(List<Widget> buttons) =>
-      _Block(_ActionRow(children: buttons), top: 16);
-
-  static const String _monospaceFamily = '.AppleSystemUIFontMonospaced';
-  static const List<String> _monospaceFallback = [
-    'Menlo',
-    'Monaco',
-    'Consolas',
-    'Liberation Mono',
-    'Courier New',
-    'monospace',
-  ];
+      child: SingleChildScrollView(
+        padding: UpdateModal.notesPadding,
+        child: Text(
+          notes,
+          style: AppType.sized(14, 22).copyWith(color: tokens.mut),
+        ),
+      ),
+    );
+  }
 }
 
 class _ProgressBar extends StatelessWidget {
   const _ProgressBar({required this.value});
-
-  static const double height = 8;
-  static const Color fill = AppPalette.blue600;
 
   final int value;
 
@@ -466,18 +299,18 @@ class _ProgressBar extends StatelessWidget {
       minValue: '0',
       maxValue: '100',
       child: ClipRRect(
-        borderRadius: const BorderRadius.all(Radius.circular(height / 2)),
+        borderRadius: UpdateModal.progressRadius,
         child: ColoredBox(
-          color: tokens.muted,
+          color: tokens.line,
           child: SizedBox(
-            height: height,
+            height: UpdateModal.progressHeight,
             child: AnimatedFractionallySizedBox(
-              duration: AppMotion.cssTransitionDuration,
-              curve: AppMotion.cssTransitionCurve,
+              duration: AppMotion.duration(context, UpdateModal.progressShift),
+              curve: Curves.linear,
               alignment: Alignment.centerLeft,
               widthFactor: value.clamp(0, 100) / 100,
               heightFactor: 1,
-              child: const ColoredBox(color: fill),
+              child: ColoredBox(color: tokens.coral),
             ),
           ),
         ),
@@ -486,92 +319,63 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-enum _ButtonKind { primary, secondary, tertiary }
+class _Banner extends StatelessWidget {
+  const _Banner(this.message);
 
-class _ModalButton extends StatefulWidget {
-  const _ModalButton(this.label, {required this.kind, required this.onPressed});
-
-  static const EdgeInsets padding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 8,
-  );
-
-  final String label;
-  final _ButtonKind kind;
-  final VoidCallback onPressed;
-
-  @override
-  State<_ModalButton> createState() => _ModalButtonState();
-}
-
-class _ModalButtonState extends State<_ModalButton> {
-  bool _hovered = false;
-
-  void _setHovered(bool hovered) {
-    if (hovered != _hovered) {
-      setState(() => _hovered = hovered);
-    }
-  }
+  final String message;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final hovered = _hovered;
-    final (background, foreground, border, weight) = switch (widget.kind) {
-      _ButtonKind.primary => (
-        hovered ? AppPalette.violet700 : AppPalette.violet600,
-        AppPalette.white,
-        null,
-        FontWeight.w500,
+    return Container(
+      padding: UpdateModal.bannerPadding,
+      decoration: BoxDecoration(
+        color: tokens.roseBg,
+        borderRadius: UpdateModal.boxRadius,
       ),
-      _ButtonKind.secondary => (
-        hovered ? tokens.muted.slashOpacity(40) : tokens.card,
-        tokens.foreground,
-        Border.all(color: tokens.border),
-        FontWeight.w400,
+      child: Text(
+        message,
+        style: AppType.sized(14, 20).copyWith(color: tokens.rose),
       ),
-      _ButtonKind.tertiary => (
-        null,
-        hovered ? tokens.foreground : tokens.mutedForeground,
-        null,
-        FontWeight.w400,
-      ),
-    };
-    return Semantics(
-      container: true,
-      button: true,
-      child: FocusableActionDetector(
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              widget.onPressed();
-              return null;
-            },
-          ),
-        },
-        child: MouseRegion(
-          onEnter: (_) => _setHovered(true),
-          onExit: (_) => _setHovered(false),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onPressed,
-            child: Container(
-              padding: _ModalButton.padding,
-              decoration: BoxDecoration(
-                color: background,
-                border: border,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(AppRadii.md),
+    );
+  }
+}
+
+class _RestartingCover extends StatelessWidget {
+  const _RestartingCover();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    return BlockSemantics(
+      child: AbsorbPointer(
+        child: FocusScope(
+          child: Focus(
+            autofocus: true,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: AppMotion.duration(context, UpdateModal.restartingRise),
+              curve: Curves.ease,
+              builder: (context, shown, child) => Opacity(
+                opacity: shown,
+                child: Transform.translate(
+                  offset: Offset(0, AppMotion.modalRiseOffset * (1 - shown)),
+                  child: child,
                 ),
               ),
-              child: Align(
-                widthFactor: 1,
-                heightFactor: 1,
-                child: Text(
-                  widget.label,
-                  style: AppText.sm.copyWith(
-                    color: foreground,
-                    fontWeight: weight,
+              child: ColoredBox(
+                color: tokens.bg,
+                child: Semantics(
+                  liveRegion: true,
+                  child: Center(
+                    child: CatLoader(
+                      size: CatLoaderSize.lg,
+                      px: UpdateModal.restartingLoaderSize,
+                      label: UpdateModal.restartingLabel,
+                      labelStyle: CatLoader.defaultLabelStyle.copyWith(
+                        color: tokens.mut,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -586,7 +390,7 @@ class _ModalButtonState extends State<_ModalButton> {
 class _ActionRow extends MultiChildRenderObjectWidget {
   const _ActionRow({required super.children});
 
-  static const double gap = 8;
+  static const double gap = UpdateModal.actionGap;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
