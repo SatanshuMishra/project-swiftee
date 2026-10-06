@@ -1,283 +1,356 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/models/achievement_def.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
+import 'package:swiftie_quiz/state/game_state.dart';
+import 'package:swiftie_quiz/ui/kit/vinyl.dart';
+import 'package:swiftie_quiz/ui/overlays/toast_host.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
-import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 final Map<String, AchievementDef> _definitionsById = Map.unmodifiable({
   for (final definition in achievementDefs) definition.id: definition,
 });
 
+@immutable
+final class _ToastContent {
+  const _ToastContent({
+    required this.title,
+    this.song,
+    this.albumId,
+    this.coverUrl,
+    this.placeholder,
+  });
+
+  factory _ToastContent.of(AchievementDef definition, GameState game) {
+    final record = game.progress.achievements[definition.id];
+    final albumId = int.tryParse(record?.albumId ?? '');
+    final album = albumId == null
+        ? null
+        : [
+            ...game.albums,
+            ?game.currentTrack?.album,
+          ].firstWhereOrNull((album) => album.id == albumId);
+    final era = albumId == null ? null : eraForAlbumId(albumId);
+    return _ToastContent(
+      title: definition.name,
+      song: record?.song,
+      albumId: albumId,
+      coverUrl: album?.coverMedium,
+      placeholder: era == null ? null : Color(era.placeholderArgb),
+    );
+  }
+
+  final String title;
+  final String? song;
+  final int? albumId;
+  final String? coverUrl;
+  final Color? placeholder;
+}
+
+@immutable
+final class _ShownToast {
+  const _ShownToast({
+    required this.slot,
+    required this.id,
+    required this.content,
+    this.leaving = false,
+  });
+
+  final Object slot;
+  final String id;
+  final _ToastContent content;
+  final bool leaving;
+
+  _ShownToast leave() =>
+      _ShownToast(slot: slot, id: id, content: content, leaving: true);
+}
+
 class AchievementToasts extends ConsumerStatefulWidget {
   const AchievementToasts({super.key});
 
-  static const double inset = 16;
-  static const double gap = 8;
-  static const Duration displayDuration = Duration(seconds: 4);
-  static const Duration slideDuration = Duration(milliseconds: 300);
-  static const Curve slideCurve = Curves.easeOut;
-  static const Offset slideFrom = Offset(1, 0);
+  static const String kicker = 'New on your shelf';
+  static const Duration stagger = Duration(milliseconds: 350);
+  static const Size artSize = Size(52, 44);
+  static const double sleeveSize = 44;
+  static const double sleeveRadius = 3;
+  static const double discSize = 40;
+  static const Offset discOffset = Offset(14, 2);
+  static const VinylStyle discStyle = VinylStyle(
+    groove: 1,
+    gap: 1.4,
+    ringAlpha: 0,
+    shadowOffset: 0,
+    shadowBlur: 0,
+    hole: false,
+  );
+
+  static String songLine(String song) => 'on $song';
 
   @override
   ConsumerState<AchievementToasts> createState() => _AchievementToastsState();
 }
 
 class _AchievementToastsState extends ConsumerState<AchievementToasts> {
-  Map<String, Timer> _expiries = const {};
+  late final ToastStack _stack;
+  List<String> _pending = const [];
+  List<({String id, _ToastContent content})> _queue = const [];
+  List<_ShownToast> _shown = const [];
+  Map<Object, Timer> _expiries = const {};
+  Map<Object, Timer> _removals = const {};
+  Map<String, Timer> _orphans = const {};
+  Timer? _stagger;
+  bool _reduced = false;
 
   @override
   void initState() {
     super.initState();
+    _stack = ref.read(toastStackProvider.notifier);
     ref.listenManual(
       gameControllerProvider.select((game) => game.pendingToasts),
-      (_, ids) => _scheduleExpiries(ids),
-      fireImmediately: true,
+      (_, ids) => _sync(ids),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _sync(ref.read(gameControllerProvider).pendingToasts);
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = AppMotion.reduced(context);
   }
 
   @override
   void dispose() {
-    for (final expiry in _expiries.values) {
-      expiry.cancel();
+    _stagger?.cancel();
+    for (final timer in [
+      ..._expiries.values,
+      ..._removals.values,
+      ..._orphans.values,
+    ]) {
+      timer.cancel();
     }
+    final stack = _stack;
+    final slots = [for (final toast in _shown) toast.slot];
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) {
+        for (final slot in slots) {
+          stack.remove(slot);
+        }
+      })
+      ..ensureVisualUpdate();
     super.dispose();
   }
 
-  void _scheduleExpiries(List<String> ids) {
-    final pending = ids.toSet();
-    for (final MapEntry(key: id, value: expiry) in _expiries.entries) {
-      if (!pending.contains(id)) {
-        expiry.cancel();
-      }
+  void _sync(List<String> ids) {
+    final previous = _pending.toSet();
+    final current = ids.toSet();
+    _pending = List.unmodifiable(ids);
+    final game = ref.read(gameControllerProvider);
+    for (final id in current.where((id) => !previous.contains(id))) {
+      _arrive(id, game);
     }
+    for (final id in previous.where((id) => !current.contains(id))) {
+      _depart(id);
+    }
+    _revealNext();
+  }
+
+  void _arrive(String id, GameState game) {
+    final definition = _definitionsById[id];
+    if (definition == null) {
+      _orphans = Map.unmodifiable({
+        ..._orphans,
+        id: Timer(AppMotion.toastStay, () => _dismiss(id)),
+      });
+      return;
+    }
+    _queue = List.unmodifiable([
+      ..._queue,
+      (id: id, content: _ToastContent.of(definition, game)),
+    ]);
+  }
+
+  void _depart(String id) {
+    _orphans[id]?.cancel();
+    _orphans = Map.unmodifiable({
+      for (final MapEntry(:key, :value) in _orphans.entries)
+        if (key != id) key: value,
+    });
+    _queue = List.unmodifiable(_queue.where((queued) => queued.id != id));
+    for (final toast in _shown.where(
+      (toast) => toast.id == id && !toast.leaving,
+    )) {
+      _leave(toast);
+    }
+  }
+
+  void _revealNext() {
+    if (_stagger != null || _queue.isEmpty) {
+      return;
+    }
+    final next = _queue.first;
+    _queue = List.unmodifiable(_queue.skip(1));
+    final toast = _ShownToast(
+      slot: Object(),
+      id: next.id,
+      content: next.content,
+    );
+    _stack.add(toast.slot);
+    setState(() => _shown = List.unmodifiable([..._shown, toast]));
     _expiries = Map.unmodifiable({
-      for (final id in pending)
-        id:
-            _expiries[id] ??
-            Timer(AchievementToasts.displayDuration, () => _dismiss(id)),
+      ..._expiries,
+      toast.slot: Timer(AppMotion.toastStay, () => _dismiss(toast.id)),
+    });
+    if (_reduced) {
+      _revealNext();
+      return;
+    }
+    _stagger = Timer(AchievementToasts.stagger, () {
+      _stagger = null;
+      _revealNext();
     });
   }
+
+  void _leave(_ShownToast toast) {
+    _expiries[toast.slot]?.cancel();
+    _expiries = _without(_expiries, toast.slot);
+    if (_reduced) {
+      _remove(toast.slot);
+      return;
+    }
+    setState(
+      () => _shown = List.unmodifiable([
+        for (final shown in _shown)
+          shown.slot == toast.slot ? shown.leave() : shown,
+      ]),
+    );
+    _removals = Map.unmodifiable({
+      ..._removals,
+      toast.slot: Timer(ToastMotion.fade, () => _remove(toast.slot)),
+    });
+  }
+
+  void _remove(Object slot) {
+    _removals = _without(_removals, slot);
+    _stack.remove(slot);
+    setState(
+      () => _shown = List.unmodifiable(
+        _shown.where((toast) => toast.slot != slot),
+      ),
+    );
+  }
+
+  static Map<Object, Timer> _without(Map<Object, Timer> timers, Object slot) =>
+      Map.unmodifiable({
+        for (final MapEntry(:key, :value) in timers.entries)
+          if (key != slot) key: value,
+      });
 
   void _dismiss(String id) =>
       ref.read(gameControllerProvider.notifier).dismissToast(id);
 
   @override
   Widget build(BuildContext context) {
-    final ids = ref.watch(
-      gameControllerProvider.select((game) => game.pendingToasts),
-    );
-    final toasts = [
-      for (final id in ids)
-        if (_definitionsById[id] case final definition?)
-          _AchievementToast(
-            key: ValueKey(id),
-            definition: definition,
-            onDismiss: () => _dismiss(id),
-          ),
-    ];
-    if (toasts.isEmpty) {
+    if (_shown.isEmpty) {
       return const SizedBox.shrink();
     }
-    return Align(
-      alignment: Alignment.topRight,
-      child: Padding(
-        padding: const EdgeInsets.only(
-          top: AchievementToasts.inset,
-          right: AchievementToasts.inset,
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: IntrinsicWidth(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: AchievementToasts.gap,
-              children: toasts,
+    final order = ref.watch(toastStackProvider);
+    return Stack(
+      children: [
+        for (final toast in _shown)
+          ToastSlot(
+            key: ObjectKey(toast.slot),
+            index: order.indexOf(toast.slot),
+            child: ToastMotion(
+              shown: !toast.leaving,
+              child: _AchievementToast(
+                content: toast.content,
+                onDismiss: () => _dismiss(toast.id),
+              ),
             ),
           ),
-        ),
-      ),
+      ],
     );
   }
 }
 
-class _AchievementToast extends StatefulWidget {
-  const _AchievementToast({
-    super.key,
-    required this.definition,
-    required this.onDismiss,
-  });
+class _AchievementToast extends StatelessWidget {
+  const _AchievementToast({required this.content, required this.onDismiss});
 
-  static const double radius = AppRadii.xl;
-  static const double padding = 16;
-  static const double gap = 12;
-  static const double dismissLeadingMargin = 8;
-  static const String cat = '\u{1F431}';
-
-  final AchievementDef definition;
+  final _ToastContent content;
   final VoidCallback onDismiss;
 
   @override
-  State<_AchievementToast> createState() => _AchievementToastState();
+  Widget build(BuildContext context) {
+    final song = content.song;
+    return ToastCard(
+      kicker: AchievementToasts.kicker,
+      title: content.title,
+      sub: song == null ? null : AchievementToasts.songLine(song),
+      leading: content.albumId == null
+          ? null
+          : _FlatAlbumArt(
+              coverUrl: content.coverUrl,
+              placeholder: content.placeholder,
+            ),
+      onDismiss: onDismiss,
+    );
+  }
 }
 
-class _AchievementToastState extends State<_AchievementToast>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _entrance = AnimationController(
-    vsync: this,
-    duration: AchievementToasts.slideDuration,
-  );
-  late final CurvedAnimation _progress = CurvedAnimation(
-    parent: _entrance,
-    curve: AchievementToasts.slideCurve,
-  );
-  late final Animation<Offset> _offset = Tween<Offset>(
-    begin: AchievementToasts.slideFrom,
-    end: Offset.zero,
-  ).animate(_progress);
+class _FlatAlbumArt extends StatelessWidget {
+  const _FlatAlbumArt({required this.coverUrl, required this.placeholder});
 
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_entrance.forward());
-  }
-
-  @override
-  void dispose() {
-    _progress.dispose();
-    _entrance.dispose();
-    super.dispose();
-  }
+  final String? coverUrl;
+  final Color? placeholder;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final tokens = AppTokens.of(context);
-    final definition = widget.definition;
-    return SlideTransition(
-      position: _offset,
-      child: FadeTransition(
-        opacity: _progress,
-        child: Container(
-          padding: const EdgeInsets.all(_AchievementToast.padding),
-          decoration: BoxDecoration(
-            color: tokens.card,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(_AchievementToast.radius),
-            ),
-            border: Border.all(color: tokens.primary.slashOpacity(50)),
-            boxShadow: AppShadows.lg,
+    return Theme(
+      data: theme.copyWith(
+        extensions: [
+          ...theme.extensions.values.whereNot(
+            (extension) => extension is AppTokens,
           ),
-          child: Row(
-            spacing: _AchievementToast.gap,
-            children: [
-              const Text(_AchievementToast.cat, style: AppText.xl3),
-              Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      definition.name,
-                      style: AppText.sm.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: tokens.foreground,
-                      ),
-                    ),
-                    Text(
-                      definition.description,
-                      style: AppText.xs.copyWith(color: tokens.mutedForeground),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: _AchievementToast.dismissLeadingMargin,
-                ),
-                child: _DismissButton(onPressed: widget.onDismiss),
-              ),
-            ],
-          ),
-        ),
+          tokens.copyWith(shadow: Colors.transparent),
+        ],
       ),
-    );
-  }
-}
-
-class _DismissButton extends StatefulWidget {
-  const _DismissButton({required this.onPressed});
-
-  static const String label = 'Dismiss';
-  static const String glyph = '✕';
-
-  final VoidCallback onPressed;
-
-  @override
-  State<_DismissButton> createState() => _DismissButtonState();
-}
-
-class _DismissButtonState extends State<_DismissButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _hover = AnimationController(
-    vsync: this,
-    duration: AppMotion.cssTransitionDuration,
-  );
-
-  @override
-  void dispose() {
-    _hover.dispose();
-    super.dispose();
-  }
-
-  void _setHovered(bool hovered) {
-    unawaited(
-      _hover.animateTo(hovered ? 1 : 0, curve: AppMotion.cssTransitionCurve),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
-    return Semantics(
-      container: true,
-      button: true,
-      label: _DismissButton.label,
-      child: FocusableActionDetector(
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              widget.onPressed();
-              return null;
-            },
-          ),
-        },
-        child: MouseRegion(
-          onEnter: (_) => _setHovered(true),
-          onExit: (_) => _setHovered(false),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onPressed,
-            child: ExcludeSemantics(
-              child: AnimatedBuilder(
-                animation: _hover,
-                builder: (context, _) => Text(
-                  _DismissButton.glyph,
-                  style: AppText.sm.copyWith(
-                    color: Oklab.mix(
-                      tokens.mutedForeground,
-                      tokens.foreground,
-                      _hover.value,
-                    ),
-                  ),
-                ),
+      child: SizedBox.fromSize(
+        size: AchievementToasts.artSize,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: AchievementToasts.discOffset.dx,
+              top: AchievementToasts.discOffset.dy,
+              child: const VinylDisc(
+                size: AchievementToasts.discSize,
+                labelFraction: 0,
+                style: AchievementToasts.discStyle,
               ),
             ),
-          ),
+            Positioned(
+              left: 0,
+              top: 0,
+              child: AlbumSleeve(
+                size: AchievementToasts.sleeveSize,
+                radius: AchievementToasts.sleeveRadius,
+                coverUrl: coverUrl,
+                placeholder: placeholder,
+              ),
+            ),
+          ],
         ),
       ),
     );

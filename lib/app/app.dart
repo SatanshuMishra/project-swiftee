@@ -158,6 +158,17 @@ class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
           AppMotion.duration(context, AppMotion.themeFade),
         PersistenceStatus.idle || PersistenceStatus.loading => Duration.zero,
       },
+      builder: (context, navigator) => Material(
+        color: AppTokens.of(context).bg,
+        animationDuration: Duration.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const AppTitleBar(),
+            Expanded(child: navigator ?? const SizedBox.shrink()),
+          ],
+        ),
+      ),
       home: ValueListenableBuilder<Object?>(
         valueListenable: failures,
         builder: (context, failure, shell) => failure == null
@@ -231,23 +242,15 @@ class _GameShellState extends ConsumerState<_GameShell> {
     return Material(
       color: AppTokens.of(context).bg,
       animationDuration: Duration.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          const AppTitleBar(),
-          Expanded(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                UpdateOverlay(
-                  screen: _screenFor(screen.phase, screen.quizType),
-                  belowDialog: const AchievementToasts(),
-                ),
-                const MisuHost(),
-                const ToastHost(),
-              ],
-            ),
+          UpdateOverlay(
+            screen: _screenFor(screen.phase, screen.quizType),
+            belowDialog: const AchievementToasts(),
           ),
+          const MisuHost(),
+          const ToastHost(),
         ],
       ),
     );

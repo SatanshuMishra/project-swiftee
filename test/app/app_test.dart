@@ -276,7 +276,20 @@ final class _Harness {
 
   void expectOverlaysAbove(Type screen) {
     expect(find.byType(AchievementToasts), findsOneWidget);
-    expect(find.byType(UpdateBadge), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AppTitleBar),
+        matching: find.byType(UpdateBadge),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(UpdateOverlay),
+        matching: find.byType(UpdateBadge),
+      ),
+      findsNothing,
+    );
     expect(find.byType(UpdateModal), findsOneWidget);
     expect(find.byType(ToastHost), findsOneWidget);
     final layers = tester
@@ -450,16 +463,22 @@ void main() {
           .show('Welcome back! Your progress has been preserved.');
       await tester.pump();
 
-      expect(find.text('First Meow'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AchievementToasts),
+          matching: find.text('First Meow'),
+        ),
+        findsOneWidget,
+      );
       expect(
         find.text('Welcome back! Your progress has been preserved.'),
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Update available (0.3.1)'));
+      await tester.tap(find.text('Update available · 0.3.1'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Version 0.3.1 available'), findsOneWidget);
+      expect(find.text('Version 0.3.1 is here'), findsOneWidget);
       expect(find.byType(RecordShelfScreen), findsOneWidget);
 
       await tester.tap(
@@ -471,7 +490,7 @@ void main() {
         find.text('Welcome back! Your progress has been preserved.'),
         findsNothing,
       );
-      expect(find.text('Version 0.3.1 available'), findsOneWidget);
+      expect(find.text('Version 0.3.1 is here'), findsOneWidget);
     });
 
     testWidgets('dark and light settings choose the theme directly', (
@@ -500,19 +519,16 @@ void main() {
       final harness = _Harness(tester)..platformBrightness = Brightness.light;
       await harness.launch();
 
-      expect(harness.chrome, [(Brightness.dark, AppTokens.dark.background)]);
+      expect(harness.chrome, [(Brightness.dark, AppTokens.dark.bg)]);
 
       harness.game.setTheme(ThemeSetting.light);
       await tester.pump();
-      expect(harness.chrome.last, (
-        Brightness.light,
-        AppTokens.light.background,
-      ));
+      expect(harness.chrome.last, (Brightness.light, AppTokens.light.bg));
 
       harness.platformBrightness = Brightness.dark;
       harness.game.setTheme(ThemeSetting.system);
       await tester.pump();
-      expect(harness.chrome.last, (Brightness.dark, AppTokens.dark.background));
+      expect(harness.chrome.last, (Brightness.dark, AppTokens.dark.bg));
 
       harness.game.setVolume(0.4);
       await tester.pump();
@@ -756,7 +772,8 @@ void main() {
         expect(find.byType(ErrorScreen), findsOneWidget);
         expect(find.text('Bad state: catalog unavailable'), findsOneWidget);
         expect(find.byType(AlbumGrid), findsNothing);
-        expect(find.byType(UpdateBadge), findsNothing);
+        expect(find.byType(UpdateOverlay), findsNothing);
+        expect(find.byType(AppTitleBar), findsOneWidget);
       },
     );
 
@@ -781,7 +798,8 @@ void main() {
         expect(find.text('Something went wrong'), findsOneWidget);
         expect(find.text('Bad state: catalog unavailable'), findsOneWidget);
         expect(find.byType(AlbumGrid), findsNothing);
-        expect(find.byType(UpdateBadge), findsNothing);
+        expect(find.byType(UpdateOverlay), findsNothing);
+        expect(find.byType(AppTitleBar), findsOneWidget);
         expect(find.byType(ToastHost), findsNothing);
 
         await tester.pump(firstUpdateCheckDelay * 2);
@@ -818,5 +836,23 @@ void main() {
       expect(find.byType(ErrorScreen), findsNothing);
       harness.expectOnlyScreen(MainMenu);
     });
+  });
+
+  testWidgets('the title bar text takes the theme, not the fallback style', (
+    tester,
+  ) async {
+    final harness = _Harness(tester);
+    await harness.launch();
+
+    final title = tester.widget<RichText>(
+      find
+          .descendant(
+            of: find.byType(AppTitleBar),
+            matching: find.byType(RichText),
+          )
+          .first,
+    );
+    expect(title.text.style?.decoration, isNot(TextDecoration.underline));
+    expect(title.text.style?.fontFamily, isNot('monospace'));
   });
 }

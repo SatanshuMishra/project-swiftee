@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/app/window_setup.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/services/window/window_controls.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:window_manager/window_manager.dart';
 
 const MethodChannel _windowChannel = MethodChannel('window_manager');
 const MethodChannel _screenChannel = MethodChannel(
@@ -24,6 +26,9 @@ final class _FakeWindow {
   Rect bounds = const Rect.fromLTWH(0, 0, 800, 600);
   Size? minimumSize;
   String? title;
+  String? titleBarStyle;
+  bool maximized = false;
+  Map<String, Object?> resizing = const {};
   List<String> calls = const [];
 
   Future<Object?> handle(MethodCall call) async {
@@ -32,8 +37,19 @@ final class _FakeWindow {
         ? (call.arguments as Map).cast<String, Object?>()
         : const <String, Object?>{};
     switch (call.method) {
-      case 'isFullScreen' || 'isMaximized' || 'isMinimized':
+      case 'isFullScreen' || 'isMinimized':
         return false;
+      case 'isMaximized':
+        return maximized;
+      case 'maximize':
+        maximized = true;
+        return null;
+      case 'unmaximize':
+        maximized = false;
+        return null;
+      case 'startResizing':
+        resizing = args;
+        return true;
       case 'getBounds':
         return {
           'x': bounds.left,
@@ -56,6 +72,9 @@ final class _FakeWindow {
         return null;
       case 'setTitle':
         title = args['title']! as String;
+        return null;
+      case 'setTitleBarStyle':
+        titleBarStyle = args['titleBarStyle']! as String;
         return null;
       default:
         return true;
@@ -112,44 +131,126 @@ void main() {
       ..setMockMethodCallHandler(windowChromeChannel, null);
   });
 
-  group('window matches the Tauri window', () {
-    test('the options are the tauri.conf.json main window', () {
+  group('window opens as Project Swiftie', () {
+    test('the window opens as project swiftie with a hidden title bar', () {
       const options = windowOptions;
 
+      expect(options.title, 'Project Swiftie');
       expect(options.size, const Size(1024, 800));
       expect(options.minimumSize, const Size(686, 571));
       expect(options.center, isTrue);
-      expect(options.title, 'Swiftie Quiz');
+      expect(options.titleBarStyle, TitleBarStyle.hidden);
+      expect(options.windowButtonVisibility, isNull);
       expect(options.maximumSize, isNull);
       expect(options.alwaysOnTop, isNull);
       expect(options.fullScreen, isNull);
       expect(options.backgroundColor, isNull);
       expect(options.skipTaskbar, isNull);
-      expect(options.titleBarStyle, isNull);
-      expect(options.windowButtonVisibility, isNull);
     });
 
-    test('setUpWindow sizes, centres, limits and titles the window before showing it', () async {
+    test('setUpWindow hides the title bar, sizes, centres, limits and titles '
+        'the window before showing it', () async {
       await setUpWindow();
 
+      expect(window.titleBarStyle, 'hidden');
       expect(window.bounds, const Rect.fromLTWH(352, 177.5, 1024, 800));
       expect(window.minimumSize, const Size(686, 571));
-      expect(window.title, 'Swiftie Quiz');
+      expect(window.title, 'Project Swiftie');
       expect(window.calls.first, 'ensureInitialized');
       expect(window.calls, contains('waitUntilReadyToShow'));
       expect(window.calls.sublist(window.calls.length - 2), ['show', 'focus']);
+      for (final call in ['setTitleBarStyle', 'setMinimumSize', 'setTitle']) {
+        expect(
+          window.calls.indexOf(call),
+          lessThan(window.calls.indexOf('show')),
+          reason: call,
+        );
+      }
       expect(
         window.calls.lastIndexOf('setBounds'),
         lessThan(window.calls.indexOf('show')),
       );
-      expect(
-        window.calls.indexOf('setMinimumSize'),
-        lessThan(window.calls.indexOf('show')),
+    });
+  });
+
+  group('the window controls drive window_manager', () {
+    Future<void> windowEvent(String name) async {
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            _windowChannel.name,
+            const StandardMethodCodec().encodeMethodCall(
+              MethodCall('onEvent', {'eventName': name}),
+            ),
+            (_) {},
+          );
+      await pumpEventQueue();
+    }
+
+    test('minimise, close, drag and resize reach the window', () async {
+      final controls = WindowManagerControls(windowManager);
+
+      await controls.minimize();
+      await controls.close();
+      await controls.startDragging();
+      await controls.startResizing(WindowEdge.topLeft);
+
+      expect(window.calls, [
+        'minimize',
+        'close',
+        'startDragging',
+        'startResizing',
+      ]);
+      expect(window.resizing, {
+        'resizeEdge': 'topLeft',
+        'top': true,
+        'bottom': false,
+        'right': false,
+        'left': true,
+      });
+    });
+
+    test('each top edge resizes from its own side', () async {
+      final controls = WindowManagerControls(windowManager);
+      var edges = const <String>[];
+      for (final edge in WindowEdge.values) {
+        await controls.startResizing(edge);
+        edges = [...edges, window.resizing['resizeEdge']! as String];
+      }
+
+      expect(edges, ['top', 'topLeft', 'topRight']);
+    });
+
+    test('toggling maximises a restored window and restores a maximised '
+        'one', () async {
+      final controls = WindowManagerControls(windowManager);
+
+      await controls.toggleMaximize();
+      expect(window.calls, ['isMaximized', 'maximize']);
+      expect(await controls.isMaximized(), isTrue);
+
+      await controls.toggleMaximize();
+      expect(window.calls.sublist(3), ['isMaximized', 'unmaximize']);
+      expect(await controls.isMaximized(), isFalse);
+    });
+
+    test('maximise events reach the stream until it is cancelled', () async {
+      final controls = WindowManagerControls(windowManager);
+      var seen = const <bool>[];
+      expect(windowManager.hasListeners, isFalse);
+
+      final subscription = controls.maximizedChanges.listen(
+        (maximized) => seen = [...seen, maximized],
       );
-      expect(
-        window.calls.indexOf('setTitle'),
-        lessThan(window.calls.indexOf('show')),
-      );
+      expect(windowManager.hasListeners, isTrue);
+      await windowEvent('maximize');
+      await windowEvent('focus');
+      await windowEvent('unmaximize');
+      expect(seen, [true, false]);
+
+      await subscription.cancel();
+      expect(windowManager.hasListeners, isFalse);
+      await windowEvent('maximize');
+      expect(seen, [true, false]);
     });
   });
 
@@ -181,7 +282,7 @@ void main() {
     );
   });
 
-  group('window chrome matches the Tauri title bar', () {
+  group('window chrome matches the app background', () {
     test('the window opens with the chrome of the default theme', () async {
       var order = const <String>[];
       await setUpWindow(
@@ -195,12 +296,12 @@ void main() {
 
       expect(defaultProgress.settings.theme, ThemeSetting.dark);
       expect(launchBrightness, Brightness.dark);
-      expect(order.last, 'chrome dark ${AppTokens.dark.background.toARGB32()}');
+      expect(order.last, 'chrome dark ${AppTokens.dark.bg.toARGB32()}');
       expect(order, isNot(contains('show')));
       expect(window.calls.sublist(window.calls.length - 2), ['show', 'focus']);
     });
 
-    test('each brightness uses its theme background', () async {
+    test('each brightness uses the bg token of its theme', () async {
       var applied = const <(Brightness, Color)>[];
       Future<void> record(Brightness brightness, Color background) async {
         applied = [...applied, (brightness, background)];
@@ -210,28 +311,28 @@ void main() {
       await applyWindowChrome(record, Brightness.light);
 
       expect(applied, [
-        (Brightness.dark, AppTokens.dark.background),
-        (Brightness.light, AppTokens.light.background),
+        (Brightness.dark, AppTokens.dark.bg),
+        (Brightness.light, AppTokens.light.bg),
       ]);
     });
 
     test('the mac chrome reaches the runner over its channel', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
 
-      await matchMacWindowChrome(Brightness.light, AppTokens.light.background);
-      await matchMacWindowChrome(Brightness.dark, AppTokens.dark.background);
+      await matchMacWindowChrome(Brightness.light, AppTokens.light.bg);
+      await matchMacWindowChrome(Brightness.dark, AppTokens.dark.bg);
 
       expect(chromeCalls.map((call) => call.method), ['match', 'match']);
       expect(chromeCalls.map((call) => call.arguments), [
-        {'dark': false, 'background': 0xFFFFFFFF},
-        {'dark': true, 'background': 0xFF0A0A0A},
+        {'dark': false, 'background': 0xFFFAF7F2},
+        {'dark': true, 'background': 0xFF1A1514},
       ]);
     });
 
     test('other platforms leave the window chrome alone', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
 
-      await matchMacWindowChrome(Brightness.light, AppTokens.light.background);
+      await matchMacWindowChrome(Brightness.light, AppTokens.light.bg);
 
       expect(chromeCalls, isEmpty);
     });
