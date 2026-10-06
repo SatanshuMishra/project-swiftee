@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:swiftie_quiz/domain/engine/lyric_processor.dart';
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
@@ -15,6 +17,7 @@ import 'package:swiftie_quiz/services/audio/audio_engine.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/game/answer_list.dart';
 import 'package:swiftie_quiz/ui/game/game_top_bar.dart';
@@ -293,6 +296,23 @@ void main() {
       expect(find.text('From Fearless'), findsOneWidget);
       expect(easy.paper.showHint, isTrue);
       expect(easy.paper.revealed, isFalse);
+    });
+
+    testWidgets('each lyric round remembers its song and the lines shown', (
+      tester,
+    ) async {
+      final harness = _Harness(tester, realOrDecoy: _decoyLyric);
+      await harness.open(
+        mode: LyricsMode.lyricsOrLie,
+        difficulty: Difficulty.medium,
+      );
+      await harness.startFirstRound();
+
+      final history = harness.container.read(playHistoryProvider);
+      expect(history.read, [songKey(_pool.first.track)]);
+      expect(history.lines, [
+        for (final line in harness.paper.lines) lyricLineKey(line),
+      ]);
     });
 
     testWidgets('shows the cat loader until the deferred first round', (

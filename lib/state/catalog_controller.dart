@@ -10,6 +10,7 @@ import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
 const Object _unchanged = Object();
@@ -97,7 +98,11 @@ class CatalogController extends Notifier<CatalogState> {
       game,
       ref.read(clockProvider)(),
     );
-    final pool = createTrackPool(tracks, random: ref.read(randomProvider));
+    final pool = createTrackPool(
+      tracks,
+      heard: ref.read(playHistoryProvider).heard,
+      random: ref.read(randomProvider),
+    );
     if (ref.mounted) {
       ref.read(gameControllerProvider.notifier).setTrackPool(pool);
     }

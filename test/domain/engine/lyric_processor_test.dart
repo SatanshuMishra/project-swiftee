@@ -450,4 +450,258 @@ void main() {
       expect(result, ['______ to meet you', 'I was ______']);
     });
   });
+
+  group('lines already shown', () {
+    final lines = numberedLines();
+    Set<String> keys(Iterable<String> shown) => {
+      for (final line in shown) lyricLineKey(line),
+    };
+
+    test('a snippet skips lines shown earlier in the session', () {
+      final seen = keys(lines.sublist(1, 15));
+      for (var seed = 0; seed < 50; seed++) {
+        final snippet = extractSnippet(
+          lines,
+          2,
+          false,
+          false,
+          random: Random(seed),
+          avoid: seen,
+        );
+
+        expect(
+          snippet.lines.where((line) => seen.contains(lyricLineKey(line))),
+          isEmpty,
+        );
+      }
+    });
+
+    test('a chorus snippet picks a chorus block not shown yet', () {
+      final song = [
+        'Opening line here',
+        'We are never ever',
+        'Getting back together',
+        'First verse goes here',
+        'Like ever',
+        'Ooh we are never',
+        'Second verse goes here',
+        'We are never ever',
+        'Getting back together',
+        'Like ever',
+        'Ooh we are never',
+        'Closing line here',
+      ];
+      final seen = keys(['We are never ever', 'Getting back together']);
+
+      for (var seed = 0; seed < 30; seed++) {
+        final snippet = extractSnippet(
+          song,
+          2,
+          true,
+          false,
+          random: Random(seed),
+          avoid: seen,
+        );
+
+        expect(snippet.lines, hasLength(2));
+        expect(
+          snippet.lines.where((line) => seen.contains(lyricLineKey(line))),
+          isEmpty,
+        );
+      }
+    });
+
+    test('a song whose every line was shown still gives a snippet', () {
+      final snippet = extractSnippet(
+        lines,
+        3,
+        false,
+        false,
+        random: Random(1),
+        avoid: keys(lines),
+      );
+
+      expect(snippet.lines, hasLength(3));
+    });
+
+    test('a real lyric skips lines shown as an earlier fake', () {
+      final seen = keys(lines.sublist(0, 18));
+      for (var seed = 0; seed < 50; seed++) {
+        final result = selectDecoyOrReal(
+          lines,
+          const {},
+          Difficulty.medium,
+          random: Random(seed),
+          avoid: seen,
+        );
+
+        expect(result.isReal, isTrue);
+        expect(seen.contains(lyricLineKey(result.lines.single)), isFalse);
+      }
+    });
+
+    test('a fake never reuses a line already shown', () {
+      final decoy = makeLyrics(
+        lrclibId: 9,
+        lines: [
+          'Shown before as a fake line',
+          'A fresh line that was never shown',
+        ],
+        sourceTrack: 'Other Song',
+        sourceAlbum: 'Lover',
+      );
+      final seen = keys(['Shown before as a fake line']);
+      for (var seed = 0; seed < 50; seed++) {
+        final result = selectDecoyOrReal(
+          ['Real words of this song here'],
+          {9: decoy},
+          Difficulty.medium,
+          currentTrackTitle: 'This Song',
+          random: Random(seed),
+          avoid: seen,
+        );
+
+        if (!result.isReal) {
+          expect(result.lines, ['A fresh line that was never shown']);
+        }
+      }
+    });
+
+    test(
+      'an easy snippet moves to unseen verses once the chorus was shown',
+      () {
+        final song = [
+          'Opening line here',
+          'First verse line one',
+          'First verse line two',
+          'First verse line three',
+          'First verse line four',
+          'Shake it off shake it off',
+          'Baby I am just gonna shake',
+          'Players gonna play play play',
+          'Haters gonna hate hate hate',
+          'Second verse line one',
+          'Shake it off shake it off',
+          'Baby I am just gonna shake',
+          'Players gonna play play play',
+          'Haters gonna hate hate hate',
+          'Closing line here',
+        ];
+        final seen = keys(song.sublist(5, 9));
+        for (var seed = 0; seed < 50; seed++) {
+          final snippet = extractSnippet(
+            song,
+            4,
+            true,
+            false,
+            random: Random(seed),
+            avoid: seen,
+          );
+
+          expect(
+            snippet.lines.where((line) => seen.contains(lyricLineKey(line))),
+            isEmpty,
+          );
+        }
+      },
+    );
+
+    test('a real lyric reuses a playable line before an unplayable one', () {
+      final song = [
+        'Oh',
+        'This playable line was shown before',
+        'Ah',
+        'Another playable line shown before too',
+        'Ooh',
+      ];
+      final seen = keys([song[1], song[3]]);
+      for (var seed = 0; seed < 50; seed++) {
+        final result = selectDecoyOrReal(
+          song,
+          const {},
+          Difficulty.medium,
+          random: Random(seed),
+          avoid: seen,
+        );
+
+        expect(result.lines.single, isIn([song[1], song[3]]));
+      }
+    });
+
+    test('a fake reuses a playable line before an unplayable one', () {
+      final decoy = makeLyrics(
+        lrclibId: 9,
+        lines: ['Oh', 'A fake line that was shown before'],
+        sourceTrack: 'Other Song',
+        sourceAlbum: 'Lover',
+      );
+      final seen = keys(['A fake line that was shown before']);
+      for (var seed = 0; seed < 50; seed++) {
+        final result = selectDecoyOrReal(
+          ['Real words of this song here'],
+          {9: decoy},
+          Difficulty.medium,
+          currentTrackTitle: 'This Song',
+          random: Random(seed),
+          avoid: seen,
+        );
+
+        if (!result.isReal) {
+          expect(result.lines, ['A fake line that was shown before']);
+        }
+      }
+    });
+
+    test('lines from other songs change nothing', () {
+      final other = keys(['A line from a different song entirely']);
+      final decoys = {
+        9: makeLyrics(
+          lrclibId: 9,
+          lines: numberedLines().reversed.toList(),
+          sourceTrack: 'Other Song',
+          sourceAlbum: 'Lover',
+        ),
+      };
+      for (var seed = 0; seed < 200; seed++) {
+        for (final (count, chorus) in [(4, true), (2, false), (1, false)]) {
+          expect(
+            extractSnippet(
+              lines,
+              count,
+              chorus,
+              !chorus,
+              random: Random(seed),
+              avoid: other,
+            ).lines,
+            extractSnippet(
+              lines,
+              count,
+              chorus,
+              !chorus,
+              random: Random(seed),
+            ).lines,
+          );
+          final pick = selectDecoyOrReal(
+            lines,
+            decoys,
+            Difficulty.hard,
+            lineCount: count,
+            currentTrackTitle: 'This Song',
+            random: Random(seed),
+            avoid: other,
+          );
+          final plain = selectDecoyOrReal(
+            lines,
+            decoys,
+            Difficulty.hard,
+            lineCount: count,
+            currentTrackTitle: 'This Song',
+            random: Random(seed),
+          );
+          expect(pick.lines, plain.lines);
+          expect(pick.isReal, plain.isReal);
+        }
+      }
+    });
+  });
 }

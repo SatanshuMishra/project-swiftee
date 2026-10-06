@@ -18,6 +18,7 @@ import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
 import 'package:swiftie_quiz/ui/game/answer_list.dart';
@@ -303,6 +304,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   bool _tracksReady = false;
   bool _failed = false;
   bool _redraw = false;
+  Track? _unheard;
   int _unavailableSkips = 0;
   String? _failure;
   List<Track> _allTracks = const [];
@@ -379,7 +381,13 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   void _beginRound(List<Track> pool, {required bool immediate}) {
     final random = ref.read(randomProvider);
-    final draw = drawNextTrack(pool, _allTracks, random: random);
+    final draw = drawNextTrack(
+      pool,
+      _allTracks,
+      heard: ref.read(playHistoryProvider).heard,
+      random: random,
+    );
+    _unheard = draw.track;
     final options = generateOptions(draw.track, _allTracks, random: random);
     final redraw = _redraw;
     _redraw = false;
@@ -426,8 +434,11 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final audio = ref.read(audioControllerProvider);
     if (audio.error == null && !audio.unavailable) {
       _unavailableSkips = 0;
-      final next = ref.read(gameControllerProvider).trackPool.firstOrNull;
-      if (next != null) {
+      if (_unheard case final track?) {
+        _unheard = null;
+        ref.read(playHistoryProvider.notifier).heard(track);
+      }
+      if (_upcoming() case final next?) {
         unawaited(
           ref.read(audioControllerProvider.notifier).prefetchPreview(next),
         );
@@ -445,6 +456,20 @@ class _GameScreenState extends ConsumerState<GameScreen>
     } else if (_stage == SoundStage.playing) {
       _startClock();
     }
+  }
+
+  Track? _upcoming() {
+    final pool = ref.read(gameControllerProvider).trackPool;
+    if (pool.isNotEmpty) {
+      return pool.first;
+    }
+    final refill = createTrackPool(
+      _allTracks,
+      heard: ref.read(playHistoryProvider).heard,
+      random: ref.read(randomProvider),
+    );
+    ref.read(gameControllerProvider.notifier).setTrackPool(refill);
+    return refill.firstOrNull;
   }
 
   void _revealRound() {

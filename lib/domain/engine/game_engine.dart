@@ -1,20 +1,24 @@
 import 'dart:math';
 
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
-import 'package:swiftie_quiz/domain/util/shuffle.dart';
 
 typedef TrackDraw = ({Track track, List<Track> remaining});
 
-List<Track> createTrackPool(Iterable<Track> tracks, {Random? random}) =>
-    shuffle(tracks, random: random);
+List<Track> createTrackPool(
+  Iterable<Track> tracks, {
+  List<Track> heard = const [],
+  Random? random,
+}) => soundOrder(tracks, heard: heard, random: random);
 
 TrackDraw drawNextTrack(
   List<Track> pool,
   List<Track> allTracks, {
+  List<Track> heard = const [],
   Random? random,
 }) {
   final source = pool.isEmpty
-      ? createTrackPool(allTracks, random: random)
+      ? createTrackPool(allTracks, heard: heard, random: random)
       : pool;
   return (
     track: source.first,

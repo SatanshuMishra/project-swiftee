@@ -13,6 +13,7 @@ import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/game/answer_list.dart';
 import 'package:swiftie_quiz/ui/game/lyric_paper.dart';
@@ -142,6 +143,8 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
     final difficulty = game.difficulty;
     final random = ref.read(randomProvider);
     final lineCount = lyricsLineCount(mode, difficulty);
+    final seen = ref.read(playHistoryProvider).lines.toSet();
+    var shownLines = const <String>[];
     var snippetLines = const <String>[];
     var options = _options;
     DecoyResult? decoy;
@@ -153,7 +156,9 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
           difficulty == Difficulty.easy,
           difficulty == Difficulty.hard,
           random: random,
+          avoid: seen,
         );
+        shownLines = snippet.lines;
         snippetLines = sanitiseSnippet(snippet.lines, entry.track.title);
         if (difficulty != Difficulty.hard) {
           options = generateOptions(
@@ -173,10 +178,13 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
           lineCount: lineCount,
           currentTrackTitle: entry.track.title,
           random: random,
+          avoid: seen,
         );
+        shownLines = decoy.lines;
       case null:
         break;
     }
+    ref.read(playHistoryProvider.notifier).read(entry.track, shownLines);
     resetRound(
       roundTimerSeconds(
         difficulty,

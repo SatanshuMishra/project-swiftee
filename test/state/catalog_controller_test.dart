@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/data/catalog/deezer_client.dart';
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
@@ -118,7 +119,10 @@ void main() {
 
       final catalogue = scope.read(catalogControllerProvider).catalogue;
       expect(tracks.allTracks, catalogue.allTracks);
-      expect(tracks.pool.toSet(), catalogue.allTracks.toSet());
+      expect(catalogue.allTracks.toSet().containsAll(tracks.pool), isTrue);
+      expect(tracks.pool.map(songKey).toSet(), {
+        for (final track in catalogue.allTracks) songKey(track),
+      });
       expect(scope.read(gameControllerProvider).trackPool, tracks.pool);
     });
 

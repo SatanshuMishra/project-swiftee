@@ -108,4 +108,34 @@ void main() {
       );
     });
   });
+
+  group('isStudioVersion', () {
+    test('counts album, re-recorded, vault, featured and soundtrack takes', () {
+      for (final title in [
+        'Fearless',
+        "Fearless (Taylor's Version)",
+        "Run (Taylor's Version) (From The Vault)",
+        'Everything Has Changed (feat. Ed Sheeran)',
+        'Snow On The Beach (feat. More Lana Del Rey)',
+        'I Knew It, I Knew You (From "Toy Story 5")',
+        "Safe & Sound (From The Hunger Games Soundtrack) (Taylor's Version)",
+      ]) {
+        expect(isStudioVersion(title), isTrue, reason: title);
+      }
+    });
+
+    test('leaves out live, acoustic, demo and remixed takes', () {
+      for (final title in [
+        'Fearless (Live from Clear Channel Stripped 2008)',
+        'Fearless - Demo',
+        'Cruel Summer (Live from TS | The Eras Tour)',
+        'invisible string (the long pond studio sessions)',
+        'Forever & Always (Piano Version)',
+        'Wildest Dreams (Taylor\'s Version) - Acoustic',
+        'Lover (Remix) (feat. Shawn Mendes)',
+      ]) {
+        expect(isStudioVersion(title), isFalse, reason: title);
+      }
+    });
+  });
 }

@@ -2,9 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
-import 'package:swiftie_quiz/domain/util/shuffle.dart';
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
 const int minLyricsPoolSize = 5;
@@ -35,6 +36,8 @@ class LyricsController {
 
   final Ref _ref;
   int _initialRequest = 0;
+  ({int request, Future<void> done})? _extending;
+  Set<int> _tried = const {};
 
   GameController get _game => _ref.read(gameControllerProvider.notifier);
 
@@ -45,12 +48,13 @@ class LyricsController {
     if (_ref.read(catalogControllerProvider).error != null) {
       throw const LyricsSourceError(catalogueUnavailableMessage);
     }
-    final tracks = shuffle(
+    final tracks = lyricsOrder(
       tracksForGame(
         _ref.read(catalogControllerProvider).catalogue,
         game,
         _ref.read(clockProvider)(),
       ),
+      read: _ref.read(playHistoryProvider).read,
       random: _ref.read(randomProvider),
     );
     if (tracks.isEmpty) {
@@ -76,6 +80,7 @@ class LyricsController {
     if (request != _initialRequest) {
       return pool;
     }
+    _tried = Set.unmodifiable({for (final track in batch) track.id});
     _addToDecoyPool(pool);
 
     final fetched = results.length;
@@ -87,11 +92,10 @@ class LyricsController {
       return pool;
     }
 
-    final shuffledPool = shuffle(pool, random: _ref.read(randomProvider));
     _game
-      ..setLyricsPool(shuffledPool)
+      ..setLyricsPool(pool)
       ..setLyricsFetchProgress(null);
-    return shuffledPool;
+    return pool;
   }
 
   Future<List<TrackWithLyrics>> preFetchMore(
@@ -115,21 +119,39 @@ class LyricsController {
     }
   }
 
-  Future<void> extendPool() async {
+  Future<void> extendPool() {
+    final request = _initialRequest;
+    if (_extending case (request: final pending, :final done)
+        when pending == request) {
+      return done;
+    }
+    late final Future<void> done;
+    done = _extendPool(request).whenComplete(() {
+      if (identical(_extending?.done, done)) {
+        _extending = null;
+      }
+    });
+    _extending = (request: request, done: done);
+    return done;
+  }
+
+  Future<void> _extendPool(int request) async {
     final game = _ref.read(gameControllerProvider);
     final pool = game.lyricsPool;
     final source = game.lyricsAvailableTracks.isNotEmpty
         ? game.lyricsAvailableTracks
         : [for (final entry in pool) entry.track];
-    final fresh = await preFetchMore(source, {
-      for (final entry in pool) entry.track.id,
-    });
-    if (fresh.isNotEmpty) {
-      _game.setLyricsPool([
-        ..._ref.read(gameControllerProvider).lyricsPool,
-        ...fresh,
-      ]);
+    final skip = {..._tried, for (final entry in pool) entry.track.id};
+    final batch = [
+      for (final track in source)
+        if (!skip.contains(track.id)) track.id,
+    ].take(_rollingBatchSize).toList();
+    final fresh = await preFetchMore(source, skip);
+    if (request != _initialRequest) {
+      return;
     }
+    _tried = Set.unmodifiable({..._tried, ...batch});
+    _game.appendLyricsPool(fresh);
   }
 
   void _addToDecoyPool(List<TrackWithLyrics> entries) {

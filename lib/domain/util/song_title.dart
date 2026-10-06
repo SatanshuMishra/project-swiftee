@@ -14,6 +14,11 @@ final RegExp _taylorsVersion = RegExp(
   caseSensitive: false,
 );
 final RegExp _fromTheVault = RegExp(r'^from the vault$', caseSensitive: false);
+final RegExp _featuring = RegExp(
+  r'^(feat\.?|ft\.?|featuring|with)\s',
+  caseSensitive: false,
+);
+final RegExp _soundtrack = RegExp(r'^from\s', caseSensitive: false);
 
 List<String> _titleParts(String title) => [
   for (final match in _titlePart.allMatches(title))
@@ -40,3 +45,11 @@ String? versionLabel(String title, {required String shown}) {
   ];
   return labels.isEmpty ? null : labels.join(' · ');
 }
+
+bool isStudioVersion(String title) => _titleParts(title).every(
+  (part) =>
+      _taylorsVersion.hasMatch(part) ||
+      _fromTheVault.hasMatch(part) ||
+      _featuring.hasMatch(part) ||
+      _soundtrack.hasMatch(part),
+);

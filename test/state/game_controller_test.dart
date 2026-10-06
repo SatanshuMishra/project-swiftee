@@ -7,6 +7,7 @@ import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
+import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
 final DateTime _now = DateTime.utc(2026, 10, 5, 12);
@@ -256,21 +257,72 @@ void main() {
       expect(state.roundStartTime, _now.millisecondsSinceEpoch);
     });
 
-    test('nextLyricsTrack walks the pool and wraps to the first track', () {
-      expect(controller.nextLyricsTrack(), isNull);
-      expect(read().lyricsPoolIndex, 0);
+    test(
+      'nextLyricsTrack walks the pool and starts a fresh pass at the end',
+      () {
+        expect(controller.nextLyricsTrack(), isNull);
+        expect(read().lyricsPoolIndex, 0);
 
-      controller.setLyricsPool([withLyrics(1), withLyrics(2), withLyrics(3)]);
-      expect(controller.nextLyricsTrack(), withLyrics(1));
-      expect(controller.nextLyricsTrack(), withLyrics(2));
-      expect(controller.nextLyricsTrack(), withLyrics(3));
-      expect(read().lyricsPoolIndex, 3);
+        controller.setLyricsPool([withLyrics(1), withLyrics(2), withLyrics(3)]);
+        expect(controller.nextLyricsTrack(), withLyrics(1));
+        expect(controller.nextLyricsTrack(), withLyrics(2));
+        expect(controller.nextLyricsTrack(), withLyrics(3));
+        expect(read().lyricsPoolIndex, 3);
 
-      expect(controller.nextLyricsTrack(), withLyrics(1));
-      expect(read().lyricsPoolIndex, 1);
-      expect(controller.nextLyricsTrack(), withLyrics(2));
-      expect(read().lyricsPoolIndex, 2);
+        final replay = [
+          controller.nextLyricsTrack(),
+          controller.nextLyricsTrack(),
+          controller.nextLyricsTrack(),
+        ];
+        expect(
+          replay,
+          unorderedEquals([withLyrics(1), withLyrics(2), withLyrics(3)]),
+        );
+        expect(read().lyricsPoolIndex, 3);
+      },
+    );
+
+    test('a fresh lyrics pass does not open with a song just read', () {
+      final history = container.read(playHistoryProvider.notifier);
+      controller.setLyricsPool([
+        for (var id = 1; id <= 6; id++) withLyrics(id),
+      ]);
+      for (var round = 0; round < 6; round++) {
+        final entry = controller.nextLyricsTrack()!;
+        history.read(entry.track, const []);
+      }
+
+      final replay = [
+        for (var round = 0; round < 6; round++) controller.nextLyricsTrack()!,
+      ];
+
+      expect(
+        replay.first,
+        isNot(anyOf(withLyrics(4), withLyrics(5), withLyrics(6))),
+      );
+      expect(
+        replay,
+        unorderedEquals([for (var id = 1; id <= 6; id++) withLyrics(id)]),
+      );
     });
+
+    test(
+      'appending to the lyrics pool keeps the place and skips songs it has',
+      () {
+        controller
+          ..setLyricsPool([withLyrics(1), withLyrics(2)])
+          ..nextLyricsTrack()
+          ..appendLyricsPool([withLyrics(2), withLyrics(3)]);
+
+        expect(read().lyricsPool, [
+          withLyrics(1),
+          withLyrics(2),
+          withLyrics(3),
+        ]);
+        expect(read().lyricsPoolIndex, 1);
+        expect(controller.nextLyricsTrack(), withLyrics(2));
+      },
+    );
 
     test('setLyricsPool resets the pool index', () {
       controller
