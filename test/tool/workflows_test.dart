@@ -48,6 +48,33 @@ bool usesAction(YamlMap step, String prefix) =>
 bool runsCommand(YamlMap step, String command) =>
     step['run'] is String && (step['run'] as String).contains(command);
 
+List<YamlMap> matrixLegs(YamlMap job) => [
+  for (final leg
+      in (((job['strategy'] as YamlMap?)?['matrix'] as YamlMap?)?['include']
+              as YamlList?) ??
+          YamlList())
+    leg as YamlMap,
+];
+
+String resolveMatrix(String text, YamlMap leg) => text.replaceAllMapped(
+  RegExp(r'\$\{\{\s*matrix\.(\w+)\s*\}\}'),
+  (match) => '${leg[match.group(1)!]}',
+);
+
+Map<String, String> legEnv(YamlMap job, YamlMap leg) => {
+  for (final MapEntry(:key, :value) in (job['env'] as YamlMap).entries)
+    if ('$value'.contains('matrix.')) '$key': resolveMatrix('$value', leg),
+};
+
+String resolveLeg(String text, YamlMap leg, Map<String, String> env) =>
+    env.entries.fold(
+      resolveMatrix(text, leg),
+      (resolved, variable) => resolved.replaceAll(
+        RegExp('\\\$\\{${variable.key}\\}|\\\$(env:)?${variable.key}(?!\\w)'),
+        variable.value,
+      ),
+    );
+
 List<String> allUses(YamlMap workflow) => [
   for (final entry in jobsOf(workflow).values)
     if ((entry as YamlMap)['uses'] case final String reusable) reusable,
@@ -210,14 +237,17 @@ void main() {
         runsOf(macos).where((run) => run.contains('package_macos.sh')),
         hasLength(1),
       );
-      expect(runsOf(windows), contains('flutter build windows --release'));
+      expect(
+        runsOf(windows),
+        contains('flutter build windows --release --dart-define=EDITION=ana'),
+      );
       expect(
         runsOf(windows).where((run) => run.contains('choco install nsis -y')),
         hasLength(1),
       );
       expect(
         runsOf(windows).where((run) => run.contains('package_windows.ps1')),
-        hasLength(1),
+        [contains('-Edition ana')],
       );
     });
 
@@ -395,15 +425,15 @@ void main() {
       final builds = {
         'build-macos': (
           runner: 'macos-26',
-          build: 'flutter build macos --release',
+          build: 'flutter build macos --release --dart-define=EDITION=open',
           package: 'tool/release/package_macos.sh',
-          signed: 'Swiftie Quiz.app.tar.gz',
+          signed: 'Project Swiftie.app.tar.gz',
         ),
         'build-windows': (
           runner: 'windows-2025',
-          build: 'flutter build windows --release',
+          build: r'flutter build windows --release --dart-define=EDITION="$EDITION"',
           package: 'tool/release/package_windows.ps1',
-          signed: r'Swiftie Quiz_${VERSION}_x64-setup.exe',
+          signed: r'${PRODUCT}_${VERSION}_x64-setup.exe',
         ),
       };
       for (final entry in builds.entries) {
@@ -479,6 +509,7 @@ void main() {
         'darwin-aarch64-app',
         'windows-x86_64',
         'windows-x86_64-nsis',
+        'windows-x86_64-open',
       ]) {
         expect(verify, contains(platform));
       }
@@ -534,7 +565,101 @@ void main() {
       });
       expect(subjects, contains('*.app.tar.gz'));
       expect(subjects, contains('*.dmg'));
-      expect(subjects, contains('*-setup.exe'));
+      for (final edition in ['ana', 'open']) {
+        expect(subjects, contains('artifacts/windows-$edition/**/*-setup.exe'));
+        expect(
+          stepsOf(attest).where(
+            (s) =>
+                usesAction(s, 'actions/download-artifact@') &&
+                (s['with'] as YamlMap)['name'] == 'windows-$edition-bundles' &&
+                (s['with'] as YamlMap)['path'] == 'artifacts/windows-$edition',
+          ),
+          hasLength(1),
+          reason: edition,
+        );
+      }
+    });
+
+    test('the release builds macos open and both windows editions', () {
+      final windows = job(release, 'build-windows');
+      final legs = matrixLegs(windows);
+      const products = {
+        'ana': 'Project Swiftie',
+        'open': 'Project Swiftie Open',
+      };
+
+      expect(
+        runsOf(job(release, 'build-macos')),
+        contains('flutter build macos --release --dart-define=EDITION=open'),
+      );
+      expect([for (final leg in legs) leg['edition']], ['ana', 'open']);
+      for (final leg in legs) {
+        final edition = leg['edition'] as String;
+        final env = legEnv(windows, leg);
+        final runs = [
+          for (final run in runsOf(windows)) resolveLeg(run, leg, env),
+        ];
+        final upload = stepsOf(windows)
+            .singleWhere((s) => usesAction(s, 'actions/upload-artifact@'));
+        final uploadSettings = upload['with'] as YamlMap;
+
+        expect(
+          runs,
+          contains(
+            'flutter build windows --release --dart-define=EDITION="$edition"',
+          ),
+          reason: edition,
+        );
+        expect(runs.where((run) => run.contains('package_windows.ps1')), [
+          contains('-Edition $edition'),
+        ], reason: edition);
+        expect(runs.where((run) => run.contains(signCommand)), [
+          '$signCommand '
+              '"build/release/${products[edition]}_\${VERSION}_x64-setup.exe"',
+        ], reason: edition);
+        expect(runs.where((run) => run.contains('gh release upload')), [
+          contains('build/upload/*'),
+        ], reason: edition);
+        expect(
+          resolveLeg('${uploadSettings['name']}', leg, env),
+          'windows-$edition-bundles',
+        );
+        expect(uploadSettings['path'], contains('*-setup.exe'));
+        expect(uploadSettings['path'], contains('*-setup.exe.sig'));
+      }
+
+      final manifestJob = job(release, 'publish-manifest');
+      final manifestRun =
+          stepsOf(
+                manifestJob,
+              ).singleWhere((s) => runsCommand(s, 'make_manifest.dart'))['run']
+              as String;
+      for (final edition in ['ana', 'open']) {
+        expect(
+          stepsOf(manifestJob).where(
+            (s) =>
+                usesAction(s, 'actions/download-artifact@') &&
+                (s['with'] as YamlMap)['name'] == 'windows-$edition-bundles',
+          ),
+          hasLength(1),
+          reason: edition,
+        );
+      }
+      expect(
+        manifestRun,
+        contains('Project.Swiftie.Open_\${VERSION}_x64-setup.exe.sig'),
+      );
+      expect(manifestRun, contains('--win-open-exe "\${win_open_sig%.sig}"'));
+      expect(manifestRun, contains('--win-open-sig "\$win_open_sig"'));
+      expect(
+        stepsOf(manifestJob).singleWhere(
+          (s) => runsCommand(s, 'latest.json is not publishable'),
+        )['run'],
+        contains(
+          'for platform in darwin-aarch64 darwin-aarch64-app windows-x86_64 '
+          'windows-x86_64-nsis windows-x86_64-open; do',
+        ),
+      );
     });
 
     test('every job has a timeout', () {

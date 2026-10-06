@@ -8,8 +8,11 @@ SetCompressor /SOLID lzma
 !ifndef VERSION
   !error "Pass /DVERSION=<x.y.z>"
 !endif
-!ifndef OUTFILE
-  !error "Pass /DOUTFILE=<setup executable path>"
+!define /ifndef EDITION "open"
+!if "${EDITION}" == "ana"
+  !define /ifndef OUTFILE "Project Swiftie_${VERSION}_x64-setup.exe"
+!else
+  !define /ifndef OUTFILE "Project Swiftie Open_${VERSION}_x64-setup.exe"
 !endif
 !include MUI2.nsh
 !include FileFunc.nsh
@@ -20,6 +23,7 @@ SetCompressor /SOLID lzma
 !include "Win\COM.nsh"
 !define MANUFACTURER "swiftiequiz"
 !define PRODUCTNAME "Swiftie Quiz"
+!define DISPLAYNAME "Project Swiftie"
 !define MAINBINARYNAME "swiftie-quiz"
 !define BUNDLEID "com.swiftiequiz.desktop"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
@@ -31,14 +35,14 @@ Var UpdateMode
 Var NoShortcutMode
 Var DeleteAppDataCheckbox
 Var DeleteAppDataCheckboxState
-Name "${PRODUCTNAME}"
+Name "${DISPLAYNAME}"
 OutFile "${OUTFILE}"
 InstallDir "$LOCALAPPDATA\${PRODUCTNAME}"
 InstallDirRegKey HKCU "${UNINSTKEY}" "InstallLocation"
 RequestExecutionLevel user
 VIProductVersion "${VERSION}.0"
-VIAddVersionKey /LANG=1033 "ProductName" "${PRODUCTNAME}"
-VIAddVersionKey /LANG=1033 "FileDescription" "${PRODUCTNAME}"
+VIAddVersionKey /LANG=1033 "ProductName" "${DISPLAYNAME}"
+VIAddVersionKey /LANG=1033 "FileDescription" "${DISPLAYNAME}"
 VIAddVersionKey /LANG=1033 "LegalCopyright" ""
 VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
@@ -67,9 +71,9 @@ VIAddVersionKey /LANG=1033 "ProductVersion" "${VERSION}"
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_RESERVEFILE_LANGDLL
-LangString appRunning ${LANG_ENGLISH} "${PRODUCTNAME} is running! Please close it first then try again."
-LangString appRunningOkKill ${LANG_ENGLISH} "${PRODUCTNAME} is running!$\nClick OK to kill it"
-LangString failedToKillApp ${LANG_ENGLISH} "Failed to kill ${PRODUCTNAME}. Please close it first then try again"
+LangString appRunning ${LANG_ENGLISH} "${DISPLAYNAME} is running! Please close it first then try again."
+LangString appRunningOkKill ${LANG_ENGLISH} "${DISPLAYNAME} is running!$\nClick OK to kill it"
+LangString failedToKillApp ${LANG_ENGLISH} "Failed to kill ${DISPLAYNAME}. Please close it first then try again"
 LangString createDesktop ${LANG_ENGLISH} "Create desktop shortcut"
 LangString deleteAppData ${LANG_ENGLISH} "Delete the application data"
 
@@ -134,7 +138,7 @@ Section Install
   WriteUninstaller "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "${MANUPRODUCTKEY}" "" $INSTDIR
   WriteRegStr HKCU "${UNINSTKEY}" "MainBinaryName" "${MAINBINARYNAME}.exe"
-  WriteRegStr HKCU "${UNINSTKEY}" "DisplayName" "${PRODUCTNAME}"
+  WriteRegStr HKCU "${UNINSTKEY}" "DisplayName" "${DISPLAYNAME}"
   WriteRegStr HKCU "${UNINSTKEY}" "DisplayIcon" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""
   WriteRegStr HKCU "${UNINSTKEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${UNINSTKEY}" "Publisher" "${MANUFACTURER}"
@@ -146,6 +150,7 @@ Section Install
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
   WriteRegDWORD HKCU "${UNINSTKEY}" "EstimatedSize" "$0"
+  Call MigrateLegacyShortcuts
   Call CreateStartMenuShortcut
   ${If} $PassiveMode = 1
   ${OrIf} ${Silent}
@@ -175,12 +180,24 @@ Function SkipIfPassive
   ${IfThen} $PassiveMode = 1 ${|} Abort ${|}
 FunctionEnd
 
+!macro MigrateLegacyShortcut folder
+  ${If} ${FileExists} "${folder}\${PRODUCTNAME}.lnk"
+    Delete "${folder}\${PRODUCTNAME}.lnk"
+    CreateShortcut "${folder}\${DISPLAYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  ${EndIf}
+!macroend
+
+Function MigrateLegacyShortcuts
+  !insertmacro MigrateLegacyShortcut "$SMPROGRAMS"
+  !insertmacro MigrateLegacyShortcut "$DESKTOP"
+FunctionEnd
+
 Function CreateStartMenuShortcut
   ${If} $UpdateMode = 1
   ${OrIf} $NoShortcutMode = 1
     Return
   ${EndIf}
-  CreateShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  CreateShortcut "$SMPROGRAMS\${DISPLAYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
 FunctionEnd
 
 Function CreateDesktopShortcut
@@ -188,7 +205,7 @@ Function CreateDesktopShortcut
   ${OrIf} $NoShortcutMode = 1
     Return
   ${EndIf}
-  CreateShortcut "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  CreateShortcut "$DESKTOP\${DISPLAYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
 FunctionEnd
 
 Function un.onInit
@@ -274,6 +291,8 @@ Section Uninstall
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"
   ${If} $UpdateMode <> 1
+    !insertmacro DeleteShortcutToApp "$SMPROGRAMS\${DISPLAYNAME}.lnk"
+    !insertmacro DeleteShortcutToApp "$DESKTOP\${DISPLAYNAME}.lnk"
     !insertmacro DeleteShortcutToApp "$SMPROGRAMS\${PRODUCTNAME}.lnk"
     !insertmacro DeleteShortcutToApp "$DESKTOP\${PRODUCTNAME}.lnk"
   ${EndIf}

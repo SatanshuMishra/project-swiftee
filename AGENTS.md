@@ -1,7 +1,7 @@
-# Swiftie Quiz — Agent Instructions
+# Project Swiftie — Agent Instructions
 
-Flutter desktop trivia game for macOS and Windows (Dart, Riverpod) using public Deezer
-and LRCLIB APIs. No user PII, no auth.
+Project Swiftie (formerly Swiftie Quiz): Flutter desktop trivia game for macOS and Windows
+(Dart, Riverpod) using public Deezer and LRCLIB APIs. No user PII, no auth.
 
 ## Stack
 Flutter 3.47.5 · Dart 3.13 · Riverpod 3 · flutter_soloud · flutter_svg · window_manager · http

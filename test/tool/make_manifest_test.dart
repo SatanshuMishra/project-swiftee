@@ -12,24 +12,34 @@ const macSignature =
     'dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKbWFj';
 const windowsSignature =
     'dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKd2lu';
+const windowsOpenSignature =
+    'dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKb3Blbg==';
 const notes = '### Changed\n- **Rewritten in Flutter.** Same game, same save.';
 
 const macArchive = SignedArtifact(
-  fileName: 'Swiftie.Quiz.app.tar.gz',
+  fileName: 'Project.Swiftie.app.tar.gz',
   signature: macSignature,
 );
 const windowsInstaller = SignedArtifact(
-  fileName: 'Swiftie.Quiz_0.3.0_x64-setup.exe',
+  fileName: 'Project.Swiftie_0.3.0_x64-setup.exe',
   signature: windowsSignature,
+);
+const windowsOpenInstaller = SignedArtifact(
+  fileName: 'Project.Swiftie.Open_0.3.0_x64-setup.exe',
+  signature: windowsOpenSignature,
 );
 
 const expectedMac = {
   'signature': macSignature,
-  'url': '$baseUrl/Swiftie.Quiz.app.tar.gz',
+  'url': '$baseUrl/Project.Swiftie.app.tar.gz',
 };
 const expectedWindows = {
   'signature': windowsSignature,
-  'url': '$baseUrl/Swiftie.Quiz_0.3.0_x64-setup.exe',
+  'url': '$baseUrl/Project.Swiftie_0.3.0_x64-setup.exe',
+};
+const expectedWindowsOpen = {
+  'signature': windowsOpenSignature,
+  'url': '$baseUrl/Project.Swiftie.Open_0.3.0_x64-setup.exe',
 };
 const expectedManifest = {
   'version': '0.3.0',
@@ -40,6 +50,7 @@ const expectedManifest = {
     'darwin-aarch64-app': expectedMac,
     'windows-x86_64': expectedWindows,
     'windows-x86_64-nsis': expectedWindows,
+    'windows-x86_64-open': expectedWindowsOpen,
   },
 };
 
@@ -48,6 +59,7 @@ Map<String, Object> fixtureManifest({
   String base = baseUrl,
   SignedArtifact mac = macArchive,
   SignedArtifact windows = windowsInstaller,
+  SignedArtifact windowsOpen = windowsOpenInstaller,
 }) => buildManifest(
   version: '0.3.0',
   notes: notes,
@@ -55,12 +67,12 @@ Map<String, Object> fixtureManifest({
   baseUrl: base,
   macArchive: mac,
   windowsInstaller: windows,
+  windowsOpenInstaller: windowsOpen,
 );
 
 void main() {
   group('latest.json carries every platform', () {
-    test('writes version, notes, pub_date and the four Tauri platform '
-        'keys', () {
+    test('writes version, notes, pub_date and the five platform keys', () {
       expect(jsonDecode(encodeManifest(fixtureManifest())), expectedManifest);
     });
 
@@ -73,32 +85,99 @@ void main() {
         'darwin-aarch64-app',
         'windows-x86_64',
         'windows-x86_64-nsis',
+        'windows-x86_64-open',
       ]);
       expect(platforms['darwin-aarch64'], platforms['darwin-aarch64-app']);
       expect(platforms['windows-x86_64'], platforms['windows-x86_64-nsis']);
+    });
+
+    test("the manifest maps each platform key to its edition's artefact", () {
+      final platforms =
+          buildManifest(
+                version: '0.3.0',
+                notes: notes,
+                pubDate: '2026-10-05T12:00:00Z',
+                baseUrl: baseUrl,
+                macArchive: macArchive,
+                windowsInstaller: windowsInstaller,
+                windowsOpenInstaller: windowsOpenInstaller,
+              )['platforms']!
+              as Map<String, Map<String, String>>;
+
+      expect(platforms, {
+        'darwin-aarch64': expectedMac,
+        'darwin-aarch64-app': expectedMac,
+        'windows-x86_64': expectedWindows,
+        'windows-x86_64-nsis': expectedWindows,
+        UpdatePlatform.windowsOpen.manifestKey: expectedWindowsOpen,
+      });
+      for (final missing in [
+        const SignedArtifact(fileName: '', signature: windowsOpenSignature),
+        const SignedArtifact(
+          fileName: 'Project.Swiftie.Open_0.3.0_x64-setup.exe',
+          signature: '\n',
+        ),
+        windowsInstaller,
+      ]) {
+        expect(
+          () => fixtureManifest(windowsOpen: missing),
+          throwsFormatException,
+          reason: missing.fileName,
+        );
+      }
+      expect(
+        () => parseOptions([
+          for (final MapEntry(:key, :value) in {
+            'version': '0.3.0',
+            'notes-file': 'notes.md',
+            'pub-date': '2026-10-05T12:00:00Z',
+            'base-url': baseUrl,
+            'mac-tar': macArchive.fileName,
+            'mac-sig': '${macArchive.fileName}.sig',
+            'win-exe': windowsInstaller.fileName,
+            'win-sig': '${windowsInstaller.fileName}.sig',
+            'out': 'latest.json',
+          }.entries) ...['--$key', value],
+        ]),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('--win-open-exe'), contains('--win-open-sig')),
+          ),
+        ),
+      );
     });
 
     test('percent-encodes file names in the release download URL', () {
       final platforms =
           fixtureManifest(
                 mac: const SignedArtifact(
-                  fileName: 'Swiftie Quiz.app.tar.gz',
+                  fileName: 'Project Swiftie.app.tar.gz',
                   signature: macSignature,
                 ),
                 windows: const SignedArtifact(
-                  fileName: 'Swiftie Quiz_0.3.0_x64-setup.exe',
+                  fileName: 'Project Swiftie_0.3.0_x64-setup.exe',
                   signature: windowsSignature,
+                ),
+                windowsOpen: const SignedArtifact(
+                  fileName: 'Project Swiftie Open_0.3.0_x64-setup.exe',
+                  signature: windowsOpenSignature,
                 ),
               )['platforms']!
               as Map<String, Map<String, String>>;
 
       expect(
         platforms['darwin-aarch64']!['url'],
-        '$baseUrl/Swiftie%20Quiz.app.tar.gz',
+        '$baseUrl/Project%20Swiftie.app.tar.gz',
       );
       expect(
         platforms['windows-x86_64-nsis']!['url'],
-        '$baseUrl/Swiftie%20Quiz_0.3.0_x64-setup.exe',
+        '$baseUrl/Project%20Swiftie_0.3.0_x64-setup.exe',
+      );
+      expect(
+        platforms['windows-x86_64-open']!['url'],
+        '$baseUrl/Project%20Swiftie%20Open_0.3.0_x64-setup.exe',
       );
     });
 
@@ -114,7 +193,7 @@ void main() {
       final platforms =
           fixtureManifest(
                 mac: const SignedArtifact(
-                  fileName: 'Swiftie.Quiz.app.tar.gz',
+                  fileName: 'Project.Swiftie.app.tar.gz',
                   signature: '$macSignature\n',
                 ),
               )['platforms']!
@@ -127,7 +206,7 @@ void main() {
       expect(
         () => fixtureManifest(
           windows: const SignedArtifact(
-            fileName: 'Swiftie.Quiz_0.3.0_x64-setup.exe',
+            fileName: 'Project.Swiftie_0.3.0_x64-setup.exe',
             signature: '\n',
           ),
         ),
@@ -175,13 +254,17 @@ void main() {
         '--base-url',
         baseUrl,
         '--mac-tar',
-        copyArtifact('Swiftie.Quiz.app.tar.gz'),
+        copyArtifact('Project.Swiftie.app.tar.gz'),
         '--mac-sig',
-        write('Swiftie.Quiz.app.tar.gz.sig', signature),
+        write('Project.Swiftie.app.tar.gz.sig', signature),
         '--win-exe',
-        copyArtifact('Swiftie.Quiz_0.3.0_x64-setup.exe'),
+        copyArtifact('Project.Swiftie_0.3.0_x64-setup.exe'),
         '--win-sig',
-        write('Swiftie.Quiz_0.3.0_x64-setup.exe.sig', '$signature\n'),
+        write('Project.Swiftie_0.3.0_x64-setup.exe.sig', '$signature\n'),
+        '--win-open-exe',
+        copyArtifact('Project.Swiftie.Open_0.3.0_x64-setup.exe'),
+        '--win-open-sig',
+        write('Project.Swiftie.Open_0.3.0_x64-setup.exe.sig', '$signature\n'),
         '--out',
         out,
       ];
@@ -219,11 +302,16 @@ void main() {
         expect(jsonDecode(File(out).readAsStringSync()), {
           ...expectedManifest,
           'platforms': {
-            'darwin-aarch64': expectedEntry('Swiftie.Quiz.app.tar.gz'),
-            'darwin-aarch64-app': expectedEntry('Swiftie.Quiz.app.tar.gz'),
-            'windows-x86_64': expectedEntry('Swiftie.Quiz_0.3.0_x64-setup.exe'),
+            'darwin-aarch64': expectedEntry('Project.Swiftie.app.tar.gz'),
+            'darwin-aarch64-app': expectedEntry('Project.Swiftie.app.tar.gz'),
+            'windows-x86_64': expectedEntry(
+              'Project.Swiftie_0.3.0_x64-setup.exe',
+            ),
             'windows-x86_64-nsis': expectedEntry(
-              'Swiftie.Quiz_0.3.0_x64-setup.exe',
+              'Project.Swiftie_0.3.0_x64-setup.exe',
+            ),
+            'windows-x86_64-open': expectedEntry(
+              'Project.Swiftie.Open_0.3.0_x64-setup.exe',
             ),
           },
         });
@@ -272,7 +360,7 @@ void main() {
           expect(
             errors.toString(),
             contains(
-              '::error::The signature of Swiftie.Quiz.app.tar.gz does not '
+              '::error::The signature of Project.Swiftie.app.tar.gz does not '
               "verify with the app's update key",
             ),
           );
@@ -280,19 +368,21 @@ void main() {
         },
       );
 
-      test('refuses an artifact changed after it was signed', () async {
-        final out = '${temp.path}/latest.json';
-        final complete = arguments(out);
-        File('${temp.path}/Swiftie.Quiz_0.3.0_x64-setup.exe')
-            .writeAsBytesSync([1, 2, 3], mode: FileMode.append);
+      for (final installer in [
+        'Project.Swiftie_0.3.0_x64-setup.exe',
+        'Project.Swiftie.Open_0.3.0_x64-setup.exe',
+      ]) {
+        test('refuses $installer changed after it was signed', () async {
+          final out = '${temp.path}/latest.json';
+          final complete = arguments(out);
+          File('${temp.path}/$installer')
+              .writeAsBytesSync([1, 2, 3], mode: FileMode.append);
 
-        expect(await run(complete), 1);
-        expect(
-          errors.toString(),
-          contains('The signature of Swiftie.Quiz_0.3.0_x64-setup.exe'),
-        );
-        expect(File(out).existsSync(), isFalse);
-      });
+          expect(await run(complete), 1);
+          expect(errors.toString(), contains('The signature of $installer'));
+          expect(File(out).existsSync(), isFalse);
+        });
+      }
 
       test('uses the update key of the app by default', () async {
         List<String> decodedLines(String tauriText) =>

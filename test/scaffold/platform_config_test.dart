@@ -48,8 +48,36 @@ void main() {
       );
 
       expect(settings['PRODUCT_BUNDLE_IDENTIFIER'], 'com.swiftiequiz.desktop');
-      expect(settings['PRODUCT_NAME'], 'Swiftie Quiz');
+      expect(settings['PRODUCT_NAME'], 'Project Swiftie');
       expect(settings['PRODUCT_COPYRIGHT'], 'Copyright © 2026 Satanshu Mishra');
+    });
+
+    test('platform display names read project swiftie', () {
+      final settings = xcconfigSettings(
+        readRepoFile('macos/Runner/Configs/AppInfo.xcconfig'),
+      );
+      final values = versionResourceValues(
+        readRepoFile('windows/runner/Runner.rc'),
+      );
+
+      expect(settings['PRODUCT_NAME'], 'Project Swiftie');
+      expect(settings['PRODUCT_BUNDLE_IDENTIFIER'], 'com.swiftiequiz.desktop');
+      expect(values['FileDescription'], 'Project Swiftie');
+      expect(values['ProductName'], 'Project Swiftie');
+      expect(values['InternalName'], 'swiftie-quiz');
+      expect(values['OriginalFilename'], 'swiftie-quiz.exe');
+    });
+
+    test('the Xcode product and scheme name the Project Swiftie bundle', () {
+      for (final path in [
+        'macos/Runner.xcodeproj/project.pbxproj',
+        'macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme',
+      ]) {
+        final source = readRepoFile(path);
+
+        expect(source, contains('Project Swiftie.app'), reason: path);
+        expect(source, isNot(contains('Swiftie Quiz')), reason: path);
+      }
     });
 
     test('every Xcode build configuration targets macOS 12.0', () {
@@ -105,13 +133,13 @@ void main() {
       );
     });
 
-    test('Windows version resource describes Swiftie Quiz', () {
+    test('Windows version resource describes Project Swiftie', () {
       final values = versionResourceValues(
         readRepoFile('windows/runner/Runner.rc'),
       );
 
-      expect(values['ProductName'], 'Swiftie Quiz');
-      expect(values['FileDescription'], 'Swiftie Quiz');
+      expect(values['ProductName'], 'Project Swiftie');
+      expect(values['FileDescription'], 'Project Swiftie');
       expect(values['CompanyName'], 'swiftiequiz');
       expect(values['InternalName'], 'swiftie-quiz');
       expect(values['OriginalFilename'], 'swiftie-quiz.exe');

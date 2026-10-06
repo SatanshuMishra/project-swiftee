@@ -132,8 +132,87 @@ void main() {
       expect(defines['MAINBINARYNAME'], 'swiftie-quiz');
       expect(defines['MANUFACTURER'], 'swiftiequiz');
       expect(defines['BUNDLEID'], 'com.swiftiequiz.desktop');
-      expect(lines, contains('Name "Swiftie Quiz"'));
-      expect(lines, contains(r'OutFile "${OUTFILE}"'));
+      expect(trimmedLines(script), contains(r'OutFile "${OUTFILE}"'));
+    });
+
+    test('the installer shows project swiftie but keeps its install '
+        'identity', () {
+      final defines = scriptDefines(script);
+      final install = sectionBody(lines, 'Install');
+      final uninstall = expandMacros(lines, sectionBody(lines, 'Uninstall'));
+      const shown = 'Project Swiftie';
+      const legacy = 'Swiftie Quiz';
+      const binary = r'"$INSTDIR\swiftie-quiz.exe"';
+
+      expect(defines['DISPLAYNAME'], shown);
+      expect(lines, contains('Name "$shown"'));
+      for (final key in ['ProductName', 'FileDescription']) {
+        expect(lines, contains('VIAddVersionKey /LANG=1033 "$key" "$shown"'));
+      }
+      expect(
+        install,
+        contains('WriteRegStr HKCU "$uninstallKey" "DisplayName" "$shown"'),
+      );
+      expect(
+        functionBody(lines, 'CreateStartMenuShortcut').last,
+        'CreateShortcut "\$SMPROGRAMS\\$shown.lnk" $binary',
+      );
+      expect(
+        functionBody(lines, 'CreateDesktopShortcut').last,
+        'CreateShortcut "\$DESKTOP\\$shown.lnk" $binary',
+      );
+      final messages = lines.where((line) => line.startsWith('LangString '));
+      expect(messages.where((line) => line.contains(shown)), hasLength(3));
+      expect(messages.where((line) => line.contains(legacy)), isEmpty);
+
+      expect(defines['PRODUCTNAME'], legacy);
+      expect(defines['MAINBINARYNAME'], 'swiftie-quiz');
+      expect(defines['BUNDLEID'], 'com.swiftiequiz.desktop');
+      expect(lines, contains(r'InstallDir "$LOCALAPPDATA\Swiftie Quiz"'));
+      expect(uninstallKey, endsWith(r'\Uninstall\Swiftie Quiz'));
+      expect(
+        lines,
+        contains('InstallDirRegKey HKCU "$uninstallKey" "InstallLocation"'),
+      );
+      expect(
+        install,
+        contains('WriteRegStr HKCU "$manufacturerKey" "" \$INSTDIR'),
+      );
+
+      final migrateCall = install.indexOf('Call MigrateLegacyShortcuts');
+      final openBlocks = install
+          .sublist(0, migrateCall)
+          .fold(
+            0,
+            (depth, line) => line.startsWith(r'${If}')
+                ? depth + 1
+                : line == r'${EndIf}'
+                ? depth - 1
+                : depth,
+          );
+      expect(migrateCall, isNonNegative);
+      expect(openBlocks, 0, reason: 'migration runs in every mode');
+      expect(install[migrateCall + 1], 'Call CreateStartMenuShortcut');
+      final migrate = expandMacros(
+        lines,
+        functionBody(lines, 'MigrateLegacyShortcuts'),
+      );
+      expect(migrate.where((line) => line.contains('Mode')), isEmpty);
+      expect(migrate, isNot(contains('Return')));
+      for (final folder in [r'$SMPROGRAMS', r'$DESKTOP']) {
+        final check = migrate.indexOf(
+          '\${If} \${FileExists} "$folder\\$legacy.lnk"',
+        );
+        expect(check, isNonNegative, reason: folder);
+        expect(migrate.sublist(check + 1, check + 4), [
+          'Delete "$folder\\$legacy.lnk"',
+          'CreateShortcut "$folder\\$shown.lnk" $binary',
+          r'${EndIf}',
+        ]);
+        for (final name in [shown, legacy]) {
+          expect(uninstall, contains('Delete "$folder\\$name.lnk"'));
+        }
+      }
     });
 
     test('installs per user into LOCALAPPDATA and reuses the recorded '
@@ -148,7 +227,7 @@ void main() {
     test('writes the uninstall key values of the Tauri template', () {
       final install = sectionBody(lines, 'Install');
       final expectedValues = {
-        'DisplayName': '"Swiftie Quiz"',
+        'DisplayName': '"Project Swiftie"',
         'DisplayIcon': r'"$\"$INSTDIR\swiftie-quiz.exe$\""',
         'DisplayVersion': r'"${VERSION}"',
         'Publisher': '"swiftiequiz"',
@@ -356,12 +435,12 @@ void main() {
 
       expect(startMenu, [
         ...skip,
-        r'CreateShortcut "$SMPROGRAMS\Swiftie Quiz.lnk" '
+        r'CreateShortcut "$SMPROGRAMS\Project Swiftie.lnk" '
             r'"$INSTDIR\swiftie-quiz.exe"',
       ]);
       expect(desktop, [
         ...skip,
-        r'CreateShortcut "$DESKTOP\Swiftie Quiz.lnk" '
+        r'CreateShortcut "$DESKTOP\Project Swiftie.lnk" '
             r'"$INSTDIR\swiftie-quiz.exe"',
       ]);
       final install = sectionBody(lines, 'Install');
@@ -393,6 +472,8 @@ void main() {
         r'RMDir /r "$INSTDIR\data"',
         r'Delete "$INSTDIR\uninstall.exe"',
         r'RMDir "$INSTDIR"',
+        r'Delete "$SMPROGRAMS\Project Swiftie.lnk"',
+        r'Delete "$DESKTOP\Project Swiftie.lnk"',
         r'Delete "$SMPROGRAMS\Swiftie Quiz.lnk"',
         r'Delete "$DESKTOP\Swiftie Quiz.lnk"',
         'DeleteRegKey HKCU "$uninstallKey"',
@@ -484,7 +565,7 @@ void main() {
       File('${release.path}/flutter_windows.dll').writeAsStringSync('dll');
       File('${release.path}/data/flutter_assets/AssetManifest.bin')
           .writeAsStringSync('assets');
-      final setup = File('${temp.path}/Swiftie Quiz_0.3.0_x64-setup.exe');
+      final setup = File('${temp.path}/Project Swiftie_0.3.0_x64-setup.exe');
 
       final result = Process.runSync(
         makensis,
@@ -502,6 +583,54 @@ void main() {
       expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
       expect(setup.existsSync(), isTrue);
       expect(setup.lengthSync(), greaterThan(0));
+    });
+
+    test('names the setup executable after its edition when no OUTFILE is '
+        'given', () {
+      final makensis = runnableMakensis();
+      if (makensis == null) {
+        markTestSkipped(
+          'makensis is not installed (brew install makensis to run this)',
+        );
+        return;
+      }
+      final temp = Directory.systemTemp.createTempSync('swiftie_nsis_');
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final release = Directory('${temp.path}/Release');
+      Directory('${release.path}/data/flutter_assets')
+          .createSync(recursive: true);
+      File('${release.path}/swiftie-quiz.exe').writeAsStringSync('MZ');
+      File('${release.path}/data/flutter_assets/AssetManifest.bin')
+          .writeAsStringSync('assets');
+      final copy = File(scriptPath).copySync('${temp.path}/swiftie-quiz.nsi');
+      final icon = File('windows/runner/resources/app_icon.ico').absolute.path;
+      const expected = {
+        'ana': 'Project Swiftie_0.4.0_x64-setup.exe',
+        'open': 'Project Swiftie Open_0.4.0_x64-setup.exe',
+      };
+
+      for (final MapEntry(key: edition, value: name) in expected.entries) {
+        final result = Process.runSync(
+          makensis,
+          [
+            '-WX',
+            '-V2',
+            '-DSOURCE_DIR=${release.path}',
+            '-DVERSION=0.4.0',
+            '-DEDITION=$edition',
+            '-DINSTALLERICON=$icon',
+            copy.path,
+          ],
+          environment: const {'LANG': 'en_US.UTF-8', 'LC_ALL': 'en_US.UTF-8'},
+        );
+
+        expect(
+          result.exitCode,
+          0,
+          reason: '${result.stdout}\n${result.stderr}',
+        );
+        expect(File('${temp.path}/$name').existsSync(), isTrue, reason: name);
+      }
     });
   });
 }

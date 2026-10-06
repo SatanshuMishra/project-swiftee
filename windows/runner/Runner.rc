@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "swiftiequiz" "\0"
-            VALUE "FileDescription", "Swiftie Quiz" "\0"
+            VALUE "FileDescription", "Project Swiftie" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "swiftie-quiz" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 Satanshu Mishra" "\0"
             VALUE "OriginalFilename", "swiftie-quiz.exe" "\0"
-            VALUE "ProductName", "Swiftie Quiz" "\0"
+            VALUE "ProductName", "Project Swiftie" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

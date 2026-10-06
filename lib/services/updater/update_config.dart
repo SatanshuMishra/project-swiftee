@@ -1,3 +1,5 @@
+import 'package:swiftie_quiz/domain/models/edition.dart';
+
 const updateEndpoint =
     'https://github.com/SatanshuMishra/project-swiftee/releases/latest/download/latest.json';
 
@@ -9,16 +11,18 @@ const updateCheckTimeout = Duration(seconds: 10);
 
 enum UpdatePlatform {
   macos('darwin-aarch64'),
-  windows('windows-x86_64');
+  windows('windows-x86_64'),
+  windowsOpen('windows-x86_64-open');
 
   const UpdatePlatform(this.manifestKey);
 
   final String manifestKey;
 
-  static UpdatePlatform? forOperatingSystem(String operatingSystem) =>
-      switch (operatingSystem) {
-        'macos' => UpdatePlatform.macos,
-        'windows' => UpdatePlatform.windows,
+  static UpdatePlatform? forBuild(String operatingSystem, Edition edition) =>
+      switch ((operatingSystem, edition)) {
+        ('macos', _) => UpdatePlatform.macos,
+        ('windows', Edition.ana) => UpdatePlatform.windows,
+        ('windows', Edition.open) => UpdatePlatform.windowsOpen,
         _ => null,
       };
 }
