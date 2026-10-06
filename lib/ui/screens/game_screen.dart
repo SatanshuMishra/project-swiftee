@@ -37,6 +37,7 @@ import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 int roundTimerSeconds(Difficulty difficulty, int mediumTimer, int hardTimer) =>
     switch (difficulty) {
@@ -45,8 +46,9 @@ int roundTimerSeconds(Difficulty difficulty, int mediumTimer, int hardTimer) =>
       Difficulty.hard => hardTimer,
     };
 
-String songTitle(Track track) =>
-    track.titleShort.isNotEmpty ? track.titleShort : track.title;
+String songTitle(Track track) => displaySongTitle(
+  track.titleShort.isNotEmpty ? track.titleShort : track.title,
+);
 
 String difficultyLabel(Difficulty difficulty) => switch (difficulty) {
   Difficulty.easy => 'Easy',

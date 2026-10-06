@@ -12,6 +12,7 @@ import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/overlays/toast_host.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 final Map<String, AchievementDef> _definitionsById = Map.unmodifiable({
   for (final definition in achievementDefs) definition.id: definition,
@@ -90,7 +91,7 @@ class AchievementToasts extends ConsumerStatefulWidget {
     hole: false,
   );
 
-  static String songLine(String song) => 'on $song';
+  static String songLine(String song) => 'on ${displaySongTitle(song)}';
 
   @override
   ConsumerState<AchievementToasts> createState() => _AchievementToastsState();

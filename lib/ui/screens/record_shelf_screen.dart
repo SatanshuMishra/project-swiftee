@@ -24,6 +24,7 @@ import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/ui/widgets/back_link.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 class RecordShelfScreen extends ConsumerStatefulWidget {
   const RecordShelfScreen({super.key});
@@ -87,7 +88,10 @@ class RecordShelfScreen extends ConsumerStatefulWidget {
   static String detail(AchievementState record) {
     final song = record.song;
     final date = shortDate(record.unlockedAt);
-    return [if (song != null) 'on $song', ?date].join(separator);
+    return [
+      if (song != null) 'on ${displaySongTitle(song)}',
+      ?date,
+    ].join(separator);
   }
 
   @override

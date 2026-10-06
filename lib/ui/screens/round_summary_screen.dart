@@ -15,6 +15,7 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
+import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
@@ -349,7 +350,7 @@ class _KnownRecord extends StatelessWidget {
           placeholder: era == null ? null : Color(era.placeholderArgb),
         ),
         Text(
-          track.title,
+          songTitle(track),
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.ellipsis,

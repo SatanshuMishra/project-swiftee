@@ -25,6 +25,7 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 int lyricsLineCount(LyricsMode? mode, Difficulty difficulty) =>
     switch ((mode, difficulty)) {
@@ -70,7 +71,7 @@ class LyricsGameScreen extends ConsumerStatefulWidget {
 
   static String fakeLine(String? source) => switch (source) {
     final source? when source.isNotEmpty =>
-      "It's a fake. That line is from $source.",
+      "It's a fake. That line is from ${displaySongTitle(source)}.",
     _ => "It's a fake.",
   };
 
