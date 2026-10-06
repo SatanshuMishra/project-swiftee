@@ -31,26 +31,26 @@ class LyricsController {
   LyricsController(this._ref);
 
   final Ref _ref;
-  int _sourceRequest = 0;
   int _initialRequest = 0;
 
   GameController get _game => _ref.read(gameControllerProvider.notifier);
 
   Future<List<Track>> loadSourceTracks() async {
-    final request = ++_sourceRequest;
     final game = _ref.read(gameControllerProvider);
     final catalog = _ref.read(catalogControllerProvider.notifier);
     await catalog.loadCatalogue();
-    final tracks = tracksForGame(
-      _ref.read(catalogControllerProvider).catalogue,
-      game,
-      _ref.read(clockProvider)(),
+    final tracks = shuffle(
+      tracksForGame(
+        _ref.read(catalogControllerProvider).catalogue,
+        game,
+        _ref.read(clockProvider)(),
+      ),
+      random: _ref.read(randomProvider),
     );
     if (tracks.isEmpty) {
       throw const LyricsSourceError(noAlbumTracksMessage);
     }
-    if (request == _sourceRequest &&
-        sameTrackSelection(game, _ref.read(gameControllerProvider))) {
+    if (sameTrackSelection(game, _ref.read(gameControllerProvider))) {
       _game.setLyricsAvailableTracks(tracks);
     }
     return tracks;

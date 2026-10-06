@@ -277,18 +277,20 @@ void main() {
       },
     );
 
-    test('shuffle reads every recording in the catalogue', () async {
-      game().setMode(GameMode.random);
+    test(
+      'shuffle reads every recording in the catalogue in a random order',
+      () async {
+        game().setMode(GameMode.random);
 
-      final tracks = await lyrics().loadSourceTracks();
+        final tracks = await lyrics().loadSourceTracks();
 
-      expect(catalogRequests, isEmpty);
-      expect(
-        tracks,
-        container.read(catalogControllerProvider).catalogue.allTracks,
-      );
-      expect(read().lyricsAvailableTracks, tracks);
-    });
+        final catalogue = container.read(catalogControllerProvider).catalogue;
+        expect(catalogRequests, isEmpty);
+        expect(tracks, unorderedEquals(catalogue.allTracks));
+        expect(tracks, isNot(orderedEquals(catalogue.allTracks)));
+        expect(read().lyricsAvailableTracks, tracks);
+      },
+    );
 
     test('picked eras read only their own recordings', () async {
       game()
@@ -311,7 +313,7 @@ void main() {
     });
 
     test(
-      'a superseded load leaves the newer available tracks in place',
+      'a load whose selection changed while it waited publishes nothing',
       () async {
         catalogueReady = Completer<void>();
         game()
@@ -323,16 +325,10 @@ void main() {
         game()
           ..resetGame()
           ..setMode(GameMode.random);
-        final fresh = lyrics().loadSourceTracks();
         catalogueReady.complete();
-        final freshTracks = await fresh;
         await stale;
 
-        expect(read().lyricsAvailableTracks, freshTracks);
-        expect(
-          freshTracks.length,
-          container.read(catalogControllerProvider).catalogue.allTracks.length,
-        );
+        expect(read().lyricsAvailableTracks, isEmpty);
       },
     );
 
