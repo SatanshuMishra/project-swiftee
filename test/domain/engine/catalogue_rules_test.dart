@@ -59,6 +59,27 @@ void main() {
       },
     );
 
+    test('a remix is caught by its title as well as its version', () {
+      expect(
+        isPlayableTitle(
+          "Message In A Bottle (Fat Max G Remix) (Taylor's Version)",
+          '',
+          220,
+        ),
+        isFalse,
+      );
+      expect(isPlayableTitle('Love Story (Pop Mix)', '', 233), isFalse);
+      expect(
+        isPlayableTitle('Delicate (Sawyr And Ryan Tedder Mix)', '', 200),
+        isFalse,
+      );
+      expect(isPlayableTitle('Mine', '', 230), isTrue);
+      expect(
+        isPlayableTitle('Christmas Tree Farm (Old Timey Version)', '', 220),
+        isTrue,
+      );
+    });
+
     test('releases join an era by title, then by the songs they hold, else singles', () {
       expect(catalogue.eraOf(130716962)?.key, 'red');
       expect(catalogue.eraOf(417939037)?.key, 'red');

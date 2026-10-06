@@ -40,10 +40,17 @@ const Map<String, List<String>> _eraTitles = {
   'showgirl': [r'^the life of a showgirl'],
 };
 
+final RegExp _mixWord = RegExp(r'\bmix\b');
+
 bool isPlayableTitle(String title, String titleVersion, int duration) {
   final version = titleVersion.toLowerCase();
   final lowerTitle = title.toLowerCase();
-  return !(version.trim().isNotEmpty && _remixPatterns.any(version.contains)) &&
+  final remixed =
+      (version.trim().isNotEmpty && _remixPatterns.any(version.contains)) ||
+      _remixPatterns.take(3).any(lowerTitle.contains) ||
+      _mixWord.hasMatch(lowerTitle) ||
+      _mixWord.hasMatch(version);
+  return !remixed &&
       duration >= minimumSongSeconds &&
       !_nonSongPatterns.any(lowerTitle.contains);
 }
