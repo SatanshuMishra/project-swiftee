@@ -97,15 +97,15 @@ Future<void> launchShell(WidgetTester tester) async {
 }
 
 Color shellColor(WidgetTester tester) => tester
-    .widget<Material>(
+    .widget<ColoredBox>(
       find
           .ancestor(
             of: find.byType(AppTitleBar),
-            matching: find.byType(Material),
+            matching: find.byType(ColoredBox),
           )
           .first,
     )
-    .color!;
+    .color;
 
 void main() {
   testWidgets('the theme cross-fades over 300 ms', (tester) async {

@@ -463,7 +463,13 @@ void main() {
           .show('Welcome back! Your progress has been preserved.');
       await tester.pump();
 
-      expect(find.text('First Meow'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AchievementToasts),
+          matching: find.text('First Meow'),
+        ),
+        findsOneWidget,
+      );
       expect(
         find.text('Welcome back! Your progress has been preserved.'),
         findsOneWidget,
@@ -472,7 +478,7 @@ void main() {
       await tester.tap(find.text('Update available · 0.3.1'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Version 0.3.1 available'), findsOneWidget);
+      expect(find.text('Version 0.3.1 is here'), findsOneWidget);
       expect(find.byType(RecordShelfScreen), findsOneWidget);
 
       await tester.tap(
@@ -484,7 +490,7 @@ void main() {
         find.text('Welcome back! Your progress has been preserved.'),
         findsNothing,
       );
-      expect(find.text('Version 0.3.1 available'), findsOneWidget);
+      expect(find.text('Version 0.3.1 is here'), findsOneWidget);
     });
 
     testWidgets('dark and light settings choose the theme directly', (
@@ -766,7 +772,8 @@ void main() {
         expect(find.byType(ErrorScreen), findsOneWidget);
         expect(find.text('Bad state: catalog unavailable'), findsOneWidget);
         expect(find.byType(AlbumGrid), findsNothing);
-        expect(find.byType(UpdateBadge), findsNothing);
+        expect(find.byType(UpdateOverlay), findsNothing);
+        expect(find.byType(AppTitleBar), findsOneWidget);
       },
     );
 
@@ -791,7 +798,8 @@ void main() {
         expect(find.text('Something went wrong'), findsOneWidget);
         expect(find.text('Bad state: catalog unavailable'), findsOneWidget);
         expect(find.byType(AlbumGrid), findsNothing);
-        expect(find.byType(UpdateBadge), findsNothing);
+        expect(find.byType(UpdateOverlay), findsNothing);
+        expect(find.byType(AppTitleBar), findsOneWidget);
         expect(find.byType(ToastHost), findsNothing);
 
         await tester.pump(firstUpdateCheckDelay * 2);

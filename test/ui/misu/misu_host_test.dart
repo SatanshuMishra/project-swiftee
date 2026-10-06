@@ -284,29 +284,33 @@ void main() {
       expect(misu.dismissals, 1);
     });
 
-    testWidgets('esc sends misu away only while no dialog is open', (
-      tester,
-    ) async {
-      final misu = await _pumpHost(tester);
-      misu.show(_streak);
-      await tester.pumpAndSettle();
-      final modals = ProviderScope.containerOf(
-        tester.element(find.byType(MisuHost)),
-      ).read(modalStackProvider.notifier);
-      final dialog = Object();
+    testWidgets(
+      'misu steps aside while a dialog is open and esc sends her away only after',
+      (tester) async {
+        final misu = await _pumpHost(tester);
+        misu.show(_streak);
+        await tester.pumpAndSettle();
+        final modals = ProviderScope.containerOf(
+          tester.element(find.byType(MisuHost)),
+        ).read(modalStackProvider.notifier);
+        final dialog = Object();
 
-      modals.push(dialog);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      expect(misu.dismissals, 0);
-      expect(find.text(_streak.text), findsOneWidget);
+        modals.push(dialog);
+        await tester.pumpAndSettle();
+        expect(find.text(_streak.text), findsNothing);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(misu.dismissals, 0);
 
-      modals.remove(dialog);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      expect(misu.dismissals, 1);
-      expect(find.text(_streak.text), findsNothing);
-    });
+        modals.remove(dialog);
+        await tester.pumpAndSettle();
+        expect(find.text(_streak.text), findsOneWidget);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(misu.dismissals, 1);
+        expect(find.text(_streak.text), findsNothing);
+      },
+    );
 
     testWidgets('only the cat and the bubble take clicks', (tester) async {
       var backgroundTaps = 0;

@@ -160,13 +160,13 @@ void main() {
         expect(find.text('Update available · 0.3.0'), findsOneWidget);
         expect(pillColor(tester), AppTokens.dark.coral);
         expect(dialogOpen(), isFalse);
-        expect(find.text('Version 0.3.0 available'), findsNothing);
+        expect(find.text('Version 0.3.0 is here'), findsNothing);
 
         await tester.tap(find.text('Update available · 0.3.0'));
         await tester.pumpAndSettle();
 
         expect(dialogOpen(), isTrue);
-        expect(find.text('Version 0.3.0 available'), findsOneWidget);
+        expect(find.text('Version 0.3.0 is here'), findsOneWidget);
       },
     );
 
@@ -284,7 +284,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
       expect(dialogOpen(), isTrue);
-      expect(find.text('Version 0.3.0 available'), findsOneWidget);
+      expect(find.text('Version 0.3.0 is here'), findsOneWidget);
     });
   });
 
@@ -294,11 +294,11 @@ void main() {
     ) async {
       setUpdater(const UpdaterAvailable(manifest: manifest));
       await pumpShell(tester);
-      expect(find.text('Version 0.3.0 available'), findsNothing);
+      expect(find.text('Version 0.3.0 is here'), findsNothing);
 
       container.read(updateDialogOpenProvider.notifier).open();
       await tester.pumpAndSettle();
-      expect(find.text('Version 0.3.0 available'), findsOneWidget);
+      expect(find.text('Version 0.3.0 is here'), findsOneWidget);
       expect(
         find.semantics.byPredicate(
           (node) => node.getSemanticsData().role == SemanticsRole.dialog,
@@ -308,7 +308,7 @@ void main() {
 
       container.read(updateDialogOpenProvider.notifier).close();
       await tester.pumpAndSettle();
-      expect(find.text('Version 0.3.0 available'), findsNothing);
+      expect(find.text('Version 0.3.0 is here'), findsNothing);
     });
 
     testWidgets('Escape closes the dialog and the badge stays', (tester) async {
@@ -321,7 +321,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(dialogOpen(), isFalse);
-      expect(find.text('Version 0.3.0 available'), findsNothing);
+      expect(find.text('Version 0.3.0 is here'), findsNothing);
       expect(find.text('Update available · 0.3.0'), findsOneWidget);
     });
 
