@@ -4,7 +4,7 @@ import 'package:swiftie_quiz/domain/util/levenshtein.dart';
 
 final RegExp _parenthetical = RegExp(r'\s*\([^)]*\)\s*');
 final RegExp _dashSuffix = RegExp(r'\s+-\s+.*$');
-final RegExp _punctuation = RegExp('[\'.,?!:;"]');
+final RegExp _punctuation = RegExp('[\'‘’.,?!:;"“”]');
 final RegExp _whitespace = RegExp(r'\s+');
 
 String normalizeTitle(String title) => title

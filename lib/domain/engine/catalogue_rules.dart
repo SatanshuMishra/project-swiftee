@@ -77,15 +77,19 @@ Catalogue buildCatalogue(Iterable<RawRelease> releases) {
   final byTitle = {
     for (final release in ordered) release.id: eraKeyForTitle(release.title),
   };
-  final eraSongs = <String, Set<String>>{};
+  final songEras = <String, String>{};
   for (final release in ordered) {
     final era = byTitle[release.id];
     if (era == null) {
       continue;
     }
     for (final track in release.tracks.where(isPlayableRecording)) {
-      (eraSongs[era] ??= {}).add(normalizeTitle(track.title));
+      songEras.putIfAbsent(normalizeTitle(track.title), () => era);
     }
+  }
+  final eraSongs = <String, Set<String>>{};
+  for (final MapEntry(key: song, value: era) in songEras.entries) {
+    (eraSongs[era] ??= {}).add(song);
   }
   final releaseEras = {
     for (final release in ordered)

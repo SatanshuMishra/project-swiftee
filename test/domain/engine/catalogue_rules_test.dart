@@ -125,6 +125,60 @@ void main() {
       expect(catalogue.homeTotals[130721292], 3);
     });
 
+    test('a playlist of every era never pulls other eras into its own', () {
+      final rebuilt = buildCatalogue([
+        rawRelease(1, 'Speak Now', '2010-10-25', [
+          rawTrack(101, 'Mine'),
+          rawTrack(102, 'Sparks Fly'),
+          rawTrack(103, 'Enchanted'),
+        ]),
+        rawRelease(2, 'Red', '2012-10-22', [
+          rawTrack(201, 'Red'),
+          rawTrack(202, '22'),
+        ]),
+        rawRelease(3, 'reputation', '2017-11-10', [rawTrack(301, 'Delicate')]),
+        rawRelease(
+          4,
+          'reputation Stadium Tour Surprise Song Playlist',
+          '2018-05-08',
+          [
+            rawTrack(401, 'Mine', isrc: 'ISRC101'),
+            rawTrack(402, 'Sparks Fly', isrc: 'ISRC102'),
+            rawTrack(403, 'Enchanted', isrc: 'ISRC103'),
+            rawTrack(404, 'Red', isrc: 'ISRC201'),
+            rawTrack(405, '22', isrc: 'ISRC202'),
+            rawTrack(406, 'Delicate', isrc: 'ISRC301'),
+          ],
+        ),
+        rawRelease(5, 'Live At The Stadium', '2026-11-20', [
+          rawTrack(501, 'Mine (Live)'),
+          rawTrack(502, 'Sparks Fly (Live)'),
+          rawTrack(503, 'Enchanted (Live)'),
+          rawTrack(504, 'Red (Live)'),
+          rawTrack(505, '22 (Live)'),
+        ]),
+      ]);
+      expect(rebuilt.eraOf(5)?.key, 'speaknow');
+    });
+
+    test('an album is home to a recording its earlier single also holds', () {
+      final rebuilt = buildCatalogue([
+        rawRelease(1, "Love Story (Taylor's Version)", '2021-02-12', [
+          rawTrack(101, "Love Story (Taylor's Version)", isrc: 'TV-LS'),
+        ], kind: ReleaseKind.single),
+        rawRelease(2, "Fearless (Taylor's Version)", '2021-04-09', [
+          rawTrack(201, "Fearless (Taylor's Version)"),
+          rawTrack(202, "Love Story (Taylor's Version)", isrc: 'TV-LS'),
+        ]),
+      ]);
+      final loveStory = rebuilt.allTracks.singleWhere(
+        (track) => track.title.startsWith('Love Story'),
+      );
+      expect(loveStory.album.id, 2);
+      expect(loveStory.trackPosition, 2);
+      expect(loveStory.eraKey, 'fearless');
+    });
+
     test('a recording without an ISRC is kept under its Deezer id', () {
       final rebuilt = buildCatalogue([
         rawRelease(5, 'evermore', '2020-12-11', [

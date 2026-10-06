@@ -41,6 +41,12 @@ void main() {
 
       test('strips punctuation', () {
         expect(normalizeTitle("Don't Blame Me"), 'dont blame me');
+        expect(normalizeTitle('Don’t Blame Me'), 'dont blame me');
+        expect(
+          normalizeTitle('You’re Not Sorry (Taylor’s Version)'),
+          normalizeTitle("You're Not Sorry"),
+        );
+        expect(normalizeTitle('‘tis the damn season'), 'tis the damn season');
         expect(normalizeTitle('...Ready For It?'), 'ready for it');
         expect(normalizeTitle('Anti-Hero'), 'anti hero');
       });
