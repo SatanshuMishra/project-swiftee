@@ -379,6 +379,26 @@ void main() {
       },
     );
 
+    test('a redrawn round keeps its number until it is answered', () {
+      controller
+        ..startQuickRound()
+        ..startRound(makeTrack(1), const [], const []);
+      expect(read().roundNumber, 1);
+
+      controller.startRound(makeTrack(2), const [], const [], redraw: true);
+      expect(read().roundNumber, 1);
+      expect(read().currentTrack, makeTrack(2));
+
+      controller
+        ..answerCorrect(makeTrack(2))
+        ..startRound(makeTrack(3), const [], const [], redraw: true);
+      expect(read().roundNumber, 2);
+
+      controller.startRound(makeTrack(4), const [], const []);
+      expect(read().roundNumber, 3);
+      expect(read().roundResults, hasLength(1));
+    });
+
     test('a quick round lasts ten songs and ends on the summary', () {
       controller
         ..setMode(GameMode.album)

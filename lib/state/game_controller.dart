@@ -75,15 +75,21 @@ class GameController extends Notifier<GameState> {
   void setTrackPool(List<Track> tracks) =>
       state = state.copyWith(trackPool: tracks);
 
-  void startRound(Track track, List<Track> pool, List<Track> options) =>
-      state = state.copyWith(
-        currentTrack: track,
-        trackPool: pool,
-        options: options,
-        relistenCount: 0,
-        roundStartTime: ref.read(clockProvider)().millisecondsSinceEpoch,
-        roundNumber: state.roundNumber + 1,
-      );
+  void startRound(
+    Track track,
+    List<Track> pool,
+    List<Track> options, {
+    bool redraw = false,
+  }) => state = state.copyWith(
+    currentTrack: track,
+    trackPool: pool,
+    options: options,
+    relistenCount: 0,
+    roundStartTime: ref.read(clockProvider)().millisecondsSinceEpoch,
+    roundNumber: redraw && state.roundNumber > state.roundResults.length
+        ? state.roundNumber
+        : state.roundNumber + 1,
+  );
 
   void answerCorrect(Track track) {
     final albumId = '${track.album.id}';
