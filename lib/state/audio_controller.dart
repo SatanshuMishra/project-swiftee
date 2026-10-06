@@ -19,6 +19,14 @@ const double sliceDurationSeconds = 10;
 
 const Duration progressPollInterval = Duration(milliseconds: 50);
 
+const double snippetStartSeconds = 8;
+
+const Duration snippetLength = Duration(seconds: 5);
+
+const double snippetVolumeShare = 0.7;
+
+const Duration snippetRest = Duration(milliseconds: 250);
+
 final class AudioState {
   const AudioState({
     required this.playing,
@@ -121,6 +129,10 @@ class AudioController extends Notifier<AudioState> {
   Timer? _progressTimer;
   double _sliceOffset = 0;
   double _sliceDuration = 0;
+  int _snippetVersion = 0;
+  LoadedClip? _snippetClip;
+  AudioVoice? _snippetVoice;
+  Timer? _snippetTimer;
 
   @override
   AudioState build() {
@@ -237,6 +249,62 @@ class AudioController extends Notifier<AudioState> {
 
   void playQuack() => _engine.playQuack(_volume).ignore();
 
+  Future<void> previewSnippet(String trackId) async {
+    stopSnippet();
+    final version = _snippetVersion;
+    final id = int.tryParse(trackId);
+    if (id == null) {
+      return;
+    }
+    await Future<void>.delayed(snippetRest);
+    if (version != _snippetVersion) {
+      return;
+    }
+    try {
+      final deezer = await ref.read(deezerClientProvider.future);
+      final track = await deezer.refreshTrack(id);
+      if (version != _snippetVersion) {
+        return;
+      }
+      final downloader = await ref.read(previewDownloaderProvider.future);
+      final bytes = await downloader.download(Uri.parse(track.preview));
+      if (version != _snippetVersion) {
+        return;
+      }
+      final clip = await _engine.loadClip(bytes);
+      if (version != _snippetVersion) {
+        _engine.unloadClip(clip).ignore();
+        return;
+      }
+      _snippetClip = clip;
+      _snippetVoice = _engine.playSlice(
+        clip,
+        snippetStartSeconds,
+        snippetLength.inMilliseconds / Duration.millisecondsPerSecond,
+        _volume * snippetVolumeShare,
+      );
+      _snippetTimer = Timer(snippetLength, stopSnippet);
+    } on Object {
+      return;
+    }
+  }
+
+  void stopSnippet() {
+    _snippetVersion += 1;
+    _snippetTimer?.cancel();
+    _snippetTimer = null;
+    final voice = _snippetVoice;
+    _snippetVoice = null;
+    if (voice != null) {
+      _engine.stop(voice).ignore();
+    }
+    final clip = _snippetClip;
+    _snippetClip = null;
+    if (clip != null) {
+      _engine.unloadClip(clip).ignore();
+    }
+  }
+
   double get _volume =>
       ref.read(gameControllerProvider).progress.settings.volume;
 
@@ -350,5 +418,6 @@ class AudioController extends Notifier<AudioState> {
     _playVersion += 1;
     _haltVoice();
     _replaceClip(null);
+    stopSnippet();
   }
 }
