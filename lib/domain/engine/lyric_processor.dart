@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:swiftie_quiz/domain/engine/answer_matcher.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 
@@ -307,7 +308,13 @@ DecoyResult selectDecoyOrReal(
 
   if (showReal) return realResult();
 
-  final decoyEntries = decoyPool.values.toList(growable: false);
+  final currentSong = currentTrackTitle == null
+      ? null
+      : normalizeTitle(currentTrackTitle);
+  final decoyEntries = [
+    for (final lyrics in decoyPool.values)
+      if (normalizeTitle(lyrics.sourceTrack) != currentSong) lyrics,
+  ];
   if (decoyEntries.isEmpty) return realResult();
 
   final avgWordCount =
