@@ -1,7 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
-import 'package:swiftie_quiz/domain/models/era.dart';
-import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/domain/util/shuffle.dart';
@@ -41,14 +39,16 @@ class LyricsController {
   Future<List<Track>> loadSourceTracks() async {
     final request = ++_sourceRequest;
     final game = _ref.read(gameControllerProvider);
-    final tracks = switch (game.mode) {
-      GameMode.random =>
-        await _ref.read(catalogControllerProvider.notifier).fetchTopTracks(),
-      GameMode.album => await _settledAlbumTracks(game.selectedAlbumIds),
-      GameMode.tonight => await _settledAlbumTracks([
-        tonightsEra(_ref.read(clockProvider)()).deezerAlbumId,
-      ]),
-    };
+    final catalog = _ref.read(catalogControllerProvider.notifier);
+    await catalog.loadCatalogue();
+    final tracks = tracksForGame(
+      _ref.read(catalogControllerProvider).catalogue,
+      game,
+      _ref.read(clockProvider)(),
+    );
+    if (tracks.isEmpty) {
+      throw const LyricsSourceError(noAlbumTracksMessage);
+    }
     if (request == _sourceRequest &&
         sameTrackSelection(game, _ref.read(gameControllerProvider))) {
       _game.setLyricsAvailableTracks(tracks);
@@ -140,29 +140,6 @@ class LyricsController {
       if (results[track.id] case final lyrics?)
         TrackWithLyrics(track: track, lyrics: lyrics),
   ]);
-
-  Future<List<Track>> _settledAlbumTracks(List<int> albumIds) async {
-    final catalog = _ref.read(catalogControllerProvider.notifier);
-    final perAlbum = await Future.wait(
-      albumIds.map((albumId) => _tracksOrNone(catalog, albumId)),
-    );
-    final tracks = List<Track>.unmodifiable(perAlbum.expand((each) => each));
-    if (tracks.isEmpty) {
-      throw const LyricsSourceError(noAlbumTracksMessage);
-    }
-    return tracks;
-  }
-
-  static Future<List<Track>> _tracksOrNone(
-    CatalogController catalog,
-    int albumId,
-  ) async {
-    try {
-      return (await catalog.fetchAlbumTracks(albumId)).tracks;
-    } on Object {
-      return const [];
-    }
-  }
 
   Future<LrclibClient> _lrclib() => _ref.read(lrclibClientProvider.future);
 }

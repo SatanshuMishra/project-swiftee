@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
@@ -40,18 +39,13 @@ class AlbumGrid extends ConsumerStatefulWidget {
   static const String continueLabel = 'Continue →';
   static const String emptySelectionLabel = 'Pick at least one era';
 
-  static String selectionLabel(int eras, int? songs) {
+  static String selectionLabel(int eras, int tracks) {
     if (eras == 0) {
       return emptySelectionLabel;
     }
-    final count = '$eras era${eras > 1 ? 's' : ''}';
-    return songs == null ? count : '$count · $songs songs';
+    return '$eras era${eras > 1 ? 's' : ''} · $tracks '
+        'track${tracks == 1 ? '' : 's'}';
   }
-
-  static int? songCount(List<int> albumIds, Map<int, int> albumTrackTotals) =>
-      albumIds.every(albumTrackTotals.containsKey)
-      ? albumIds.map((id) => albumTrackTotals[id]!).sum
-      : null;
 
   @override
   ConsumerState<AlbumGrid> createState() => _AlbumGridState();
@@ -70,14 +64,14 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
     if (!mounted) {
       return;
     }
-    if (ref.read(gameControllerProvider).albums.isEmpty) {
+    if (ref.read(catalogControllerProvider).catalogue.isEmpty) {
       _reload();
     }
     setState(() => _loadRequested = true);
   }
 
   void _reload() =>
-      unawaited(ref.read(catalogControllerProvider.notifier).loadAlbums());
+      unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
 
   void _toMenu() =>
       ref.read(gameControllerProvider.notifier).setPhase(GamePhase.menu);
@@ -88,26 +82,31 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
   @override
   Widget build(BuildContext context) {
     final game = ref.read(gameControllerProvider.notifier);
-    final albums = ref.watch(
-      gameControllerProvider.select((state) => state.albums),
+    final catalogue = ref.watch(
+      catalogControllerProvider.select((state) => state.catalogue),
     );
-    final selectedIds = ref.watch(
-      gameControllerProvider.select((state) => state.selectedAlbumIds),
+    final selectedKeys = ref.watch(
+      gameControllerProvider.select((state) => state.selectedEraKeys),
     );
     final loading = ref.watch(
-      catalogControllerProvider.select((state) => state.albumsLoading),
+      catalogControllerProvider.select((state) => state.loading),
     );
-    final totals = ref.watch(
-      catalogControllerProvider.select((state) => state.albumTrackTotals),
-    );
-    final view = albums.isNotEmpty
+    final view = !catalogue.isEmpty
         ? _ErasView.ready
         : !_loadRequested || loading
         ? _ErasView.loading
         : _ErasView.closed;
     final tiles = <_EraAlbum>[
-      for (final album in albums)
-        if (eraForAlbumId(album.id) case final era?) (era: era, album: album),
+      for (final era in eraGroups)
+        if (catalogue.trackCount(era.key) > 0)
+          (
+            era: era,
+            album: Album(
+              id: era.deezerAlbumId,
+              title: era.eraName,
+              coverMedium: catalogue.coverFor(era.key),
+            ),
+          ),
     ];
     return ScreenEnter(
       child: Scaffold(
@@ -116,11 +115,11 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
         bottomNavigationBar: view == _ErasView.ready
             ? _EraBar(
                 label: AlbumGrid.selectionLabel(
-                  selectedIds.length,
-                  AlbumGrid.songCount(selectedIds, totals),
+                  selectedKeys.length,
+                  catalogue.tracksFor(selectedKeys).length,
                 ),
-                hasSelection: selectedIds.isNotEmpty,
-                onClear: game.clearSelectedAlbums,
+                hasSelection: selectedKeys.isNotEmpty,
+                onClear: game.clearSelectedEras,
                 onContinue: _continue,
               )
             : null,
@@ -165,8 +164,8 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
                         child: _EraGrid(
                           tiles: tiles,
                           columns: layout.eraColumns,
-                          selectedIds: selectedIds,
-                          onToggle: game.toggleAlbum,
+                          selectedKeys: selectedKeys,
+                          onToggle: game.toggleEra,
                         ),
                       ),
                     ),
@@ -345,7 +344,7 @@ class _EraGrid extends StatelessWidget {
   const _EraGrid({
     required this.tiles,
     required this.columns,
-    required this.selectedIds,
+    required this.selectedKeys,
     required this.onToggle,
   });
 
@@ -357,8 +356,8 @@ class _EraGrid extends StatelessWidget {
 
   final List<_EraAlbum> tiles;
   final int columns;
-  final List<int> selectedIds;
-  final ValueChanged<int> onToggle;
+  final List<String> selectedKeys;
+  final ValueChanged<String> onToggle;
 
   static double tileWidth(double width, int columns) =>
       ((width - columnGap * (columns - 1)) / columns * subpixels)
@@ -375,13 +374,13 @@ class _EraGrid extends StatelessWidget {
         children: [
           for (final tile in tiles)
             SizedBox(
-              key: ValueKey(tile.album.id),
+              key: ValueKey(tile.era.key),
               width: width,
               child: _EraTile(
                 era: tile.era,
                 album: tile.album,
-                selected: selectedIds.contains(tile.album.id),
-                onTap: () => onToggle(tile.album.id),
+                selected: selectedKeys.contains(tile.era.key),
+                onTap: () => onToggle(tile.era.key),
               ),
             ),
         ],

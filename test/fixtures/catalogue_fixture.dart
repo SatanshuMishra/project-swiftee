@@ -1,4 +1,10 @@
+import 'dart:io';
+
+import 'package:flutter_riverpod/misc.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
+import 'package:swiftie_quiz/state/catalog_controller.dart';
 
 const int taylor = 12246;
 
@@ -112,3 +118,32 @@ final List<RawRelease> fixtureReleases = [
     rawTrack(111, 'Us.', isrc: 'GA01', artistId: 999),
   ], kind: ReleaseKind.single),
 ];
+
+CatalogueStore fixtureCatalogueStore({
+  List<RawRelease>? releases,
+  Directory? folder,
+  Future<String> Function()? loadBundled,
+}) => CatalogueStore(
+  loadBundled:
+      loadBundled ??
+      () async => encodeCatalogue(
+        releases ?? fixtureReleases,
+        fetchedAt: '2026-10-06T00:00:00Z',
+      ),
+  updatesFile: File(
+    '${(folder ?? Directory.systemTemp.createTempSync('catalogue')).path}/'
+    '$catalogueUpdatesFileName',
+  ),
+  now: () => DateTime.utc(2026, 10, 6),
+);
+
+Override fixtureCatalogue({List<RawRelease>? releases}) =>
+    catalogueStoreProvider.overrideWithValue(
+      fixtureCatalogueStore(releases: releases),
+    );
+
+Override bundledCatalogue() => catalogueStoreProvider.overrideWithValue(
+  fixtureCatalogueStore(
+    loadBundled: () async => File(bundledCataloguePath).readAsString(),
+  ),
+);

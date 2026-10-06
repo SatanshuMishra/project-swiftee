@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:swiftie_quiz/domain/models/track.dart';
 
 final class Era {
   const Era({
@@ -142,6 +143,11 @@ Era? eraByKey(String key) =>
 
 Era tonightsEra(DateTime now) =>
     curatedEras[dayOfYear(now) % curatedEras.length];
+
+Era? eraOfTrack(Track track) => switch (track.eraKey) {
+  final key? => eraByKey(key),
+  null => eraForAlbumId(track.album.id),
+};
 
 Era? eraForAlbumId(int albumId) =>
     curatedEras.firstWhereOrNull((era) => era.deezerAlbumId == albumId);

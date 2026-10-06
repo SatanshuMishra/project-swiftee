@@ -56,19 +56,24 @@ String difficultyLabel(Difficulty difficulty) => switch (difficulty) {
   Difficulty.hard => 'Hard',
 };
 
-String eraNameOf(Album album) =>
-    eraForAlbumId(album.id)?.eraName ?? album.title;
+String eraNameOf(Track track) =>
+    eraOfTrack(track)?.eraName ?? track.album.title;
 
-Color? eraPlaceholderOf(Album? album) =>
-    switch (album == null ? null : eraForAlbumId(album.id)) {
+Color? eraPlaceholderOf(Track? track) =>
+    switch (track == null ? null : eraOfTrack(track)) {
       final era? => Color(era.placeholderArgb),
       null => null,
     };
 
-String trackCaption(Track track) => switch (track.trackPosition) {
-  final position? => '${eraNameOf(track.album)} · track $position',
-  null => eraNameOf(track.album),
-};
+String trackCaption(Track track) {
+  final position = track.trackPosition;
+  return [
+    eraNameOf(track),
+    ?versionLabel(track.title),
+    if (position != null && eraOfTrack(track)?.key != singlesEra.key)
+      'track $position',
+  ].join(' · ');
+}
 
 int? answerKeyIndex(LogicalKeyboardKey key) => switch (key) {
   LogicalKeyboardKey.digit1 || LogicalKeyboardKey.numpad1 => 0,
@@ -301,7 +306,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   List<Track> _allTracks = const [];
   SoundStage _stage = SoundStage.playing;
   RoundAnswer? _result;
-  Album? _lastAlbum;
+  Track? _lastTrack;
   bool _clockStarted = false;
   DateTime _roundStart = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _loaderShownAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -513,7 +518,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     setState(() {
       _stage = SoundStage.answered;
       _result = result;
-      _lastAlbum = track.album;
+      _lastTrack = track;
     });
     armNext();
     _focusKeys();
@@ -690,9 +695,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 answered: answered,
                 spinning: spinning,
                 coverUrl: track.album.coverMedium,
-                placeholder: eraPlaceholderOf(track.album),
-                previousCoverUrl: _lastAlbum?.coverMedium,
-                previousPlaceholder: eraPlaceholderOf(_lastAlbum),
+                placeholder: eraPlaceholderOf(track),
+                previousCoverUrl: _lastTrack?.album.coverMedium,
+                previousPlaceholder: eraPlaceholderOf(_lastTrack),
               ),
             ),
             if (!answered) _SoundTransport(onToggle: _togglePlay),

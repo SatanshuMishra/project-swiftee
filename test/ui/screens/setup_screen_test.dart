@@ -1,12 +1,15 @@
-import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
+import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
-import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
@@ -19,46 +22,20 @@ import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 const int mediumTimer = 25;
 const int hardTimer = 15;
 
-final List<Album> eraAlbums = List.unmodifiable([
-  for (final era in curatedEras)
-    Album(
-      id: era.deezerAlbumId,
-      title: era.eraName,
-      coverMedium: 'https://covers.test/${era.key}.jpg',
-    ),
-]);
-
-int albumIdOf(String eraKey) =>
-    curatedEras.firstWhere((era) => era.key == eraKey).deezerAlbumId;
-
-typedef TopTracks = Future<List<Track>> Function();
+final Catalogue bundled = buildCatalogue(
+  decodeCatalogue(File(bundledCataloguePath).readAsStringSync()),
+);
 
 class FakeCatalog extends CatalogController {
-  FakeCatalog({required this.topTracks, required this.albumSongs});
+  FakeCatalog(this.catalogue);
 
-  final TopTracks topTracks;
-  final Map<int, int> albumSongs;
-
-  @override
-  CatalogState build() => CatalogState.initial;
+  final Catalogue catalogue;
 
   @override
-  Future<void> loadAlbums() async {}
+  CatalogState build() => CatalogState.initial.copyWith(catalogue: catalogue);
 
   @override
-  Future<List<Track>> fetchTopTracks() => topTracks();
-
-  @override
-  Future<AlbumTracks> fetchAlbumTracks(int albumId) async {
-    final songs = albumSongs[albumId];
-    if (songs == null) {
-      return Completer<AlbumTracks>().future;
-    }
-    state = state.copyWith(
-      albumTrackTotals: {...state.albumTrackTotals, albumId: songs},
-    );
-    return AlbumTracks(tracks: const [], totalTracks: songs);
-  }
+  Future<void> loadCatalogue() async {}
 }
 
 typedef Prepare = void Function(GameController game);
@@ -68,7 +45,7 @@ Future<ProviderContainer> pumpSetup(
   GameMode mode = GameMode.random,
   List<String> eraKeys = const [],
   Prepare? prepare,
-  TopTracks? topTracks,
+  Catalogue? catalogue,
   Size size = const Size(1024, 800),
   bool settle = true,
 }) async {
@@ -78,22 +55,15 @@ Future<ProviderContainer> pumpSetup(
   final container = ProviderContainer.test(
     overrides: [
       catalogControllerProvider.overrideWith(
-        () => FakeCatalog(
-          topTracks: topTracks ?? () async => const [],
-          albumSongs: {
-            albumIdOf('red'): 30,
-            albumIdOf('folklore'): 17,
-            albumIdOf('1989'): 21,
-          },
-        ),
+        () => FakeCatalog(catalogue ?? bundled),
       ),
     ],
   );
   final game = container.read(gameControllerProvider.notifier)
-    ..setAlbums(eraAlbums)
+    ..setAlbums((catalogue ?? bundled).albums)
     ..setMediumTimer(mediumTimer)
     ..setHardTimer(hardTimer);
-  eraKeys.map(albumIdOf).forEach(game.toggleAlbum);
+  eraKeys.forEach(game.toggleEra);
   prepare?.call(game);
   game.beginSetup(mode);
   await tester.pumpWidget(
@@ -310,30 +280,18 @@ void main() {
     testWidgets('set up names the source and fans up to five covers', (
       tester,
     ) async {
-      final topTracks = Completer<List<Track>>();
-      await pumpSetup(tester, topTracks: () => topTracks.future, settle: false);
+      await pumpSetup(tester, catalogue: Catalogue.empty);
       expect(find.text('Shuffle everything'), findsOneWidget);
       expect(find.text('Every song, every era'), findsOneWidget);
 
-      topTracks.complete(
-        List.filled(
-          87,
-          Track(
-            id: 1,
-            title: 'Love Story',
-            titleShort: 'Love Story',
-            duration: 235,
-            preview: 'https://previews.test/1.mp3',
-            artist: const Artist(id: 12246, name: 'Taylor Swift'),
-            album: eraAlbums[1],
-          ),
-        ),
+      await pumpSetup(tester);
+      expect(
+        find.text('${bundled.allTracks.length} tracks, every era'),
+        findsOneWidget,
       );
-      await tester.pumpAndSettle();
-      expect(find.text('87 songs, every era'), findsOneWidget);
       expect(fanCovers(tester), [
-        for (final album in eraAlbums.take(5).toList().reversed)
-          album.coverMedium,
+        for (final era in curatedEras.take(5).toList().reversed)
+          bundled.coverFor(era.key),
       ]);
       expect(fanAngles(tester), [
         for (final step in [2, 1, 0, -1, -2])
@@ -349,8 +307,11 @@ void main() {
 
       await pumpSetup(tester, mode: GameMode.album, eraKeys: ['folklore']);
       expect(find.text('folklore'), findsOneWidget);
-      expect(find.text('17 songs'), findsOneWidget);
-      expect(fanCovers(tester), [eraAlbums[7].coverMedium]);
+      expect(
+        find.text('${bundled.trackCount('folklore')} tracks'),
+        findsOneWidget,
+      );
+      expect(fanCovers(tester), [bundled.coverFor('folklore')]);
       expect(fanAngles(tester), [moreOrLessEquals(radians(-6))]);
 
       await pumpSetup(
@@ -359,18 +320,22 @@ void main() {
         eraKeys: ['red', 'folklore', '1989'],
       );
       expect(find.text('Your 3 eras'), findsOneWidget);
-      expect(find.text('68 songs'), findsOneWidget);
+      expect(
+        find.text(
+          '${bundled.tracksFor(['red', 'folklore', '1989']).length} tracks',
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(AlbumSleeve), findsNWidgets(3));
-
-      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['lover']);
-      expect(find.text('Lover'), findsOneWidget);
-      expect(find.text('— songs'), findsOneWidget);
 
       await pumpSetup(
         tester,
-        topTracks: () => Future.error(StateError('offline')),
+        mode: GameMode.album,
+        eraKeys: ['lover'],
+        catalogue: Catalogue.empty,
       );
-      expect(find.text('Every song, every era'), findsOneWidget);
+      expect(find.text('Lover'), findsOneWidget);
+      expect(find.text('— tracks'), findsOneWidget);
 
       await pumpSetup(tester, size: const Size(800, 800));
       expect(find.text('Shuffle everything'), findsOneWidget);

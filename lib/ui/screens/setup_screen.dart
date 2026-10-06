@@ -17,7 +17,6 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
-import 'package:swiftie_quiz/ui/screens/album_grid.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -78,11 +77,11 @@ class SetupScreen extends ConsumerStatefulWidget {
     _ => 'Your ${eras.length} eras',
   };
 
-  static String shuffleSubline(int? songs) =>
-      songs == null ? shuffleSublineUnknown : '$songs songs, every era';
+  static String shuffleSubline(int? tracks) =>
+      tracks == null ? shuffleSublineUnknown : '$tracks tracks, every era';
 
-  static String erasSubline(int? songs) =>
-      '${songs == null || songs == 0 ? unknownSongs : songs} songs';
+  static String erasSubline(int? tracks) =>
+      '${tracks == null || tracks == 0 ? unknownSongs : tracks} tracks';
 
   static List<String> features({
     required QuizType quizType,
@@ -161,7 +160,6 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   late QuizType _quizType;
   late LyricsMode _lyricsMode;
   late Difficulty _difficulty;
-  int? _shuffleSongs;
 
   @override
   void initState() {
@@ -176,11 +174,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadSource());
   }
 
-  List<Era> _sourceEras(GameMode mode, List<int> selectedAlbumIds) =>
+  List<Era> _sourceEras(GameMode mode, List<String> selectedEraKeys) =>
       switch (mode) {
         GameMode.random => const [],
         GameMode.album => List.unmodifiable(
-          selectedAlbumIds.map(eraForAlbumId).nonNulls,
+          selectedEraKeys.map(eraByKey).nonNulls,
         ),
         GameMode.tonight => List.unmodifiable([
           tonightsEra(ref.read(clockProvider)()),
@@ -188,34 +186,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       };
 
   void _loadSource() {
-    if (!mounted) {
-      return;
-    }
-    final catalog = ref.read(catalogControllerProvider.notifier);
-    final game = ref.read(gameControllerProvider);
-    unawaited(catalog.loadAlbums());
-    final eras = _sourceEras(game.mode, game.selectedAlbumIds);
-    if (eras.isEmpty) {
-      unawaited(_countShuffle(catalog));
-      return;
-    }
-    final known = ref.read(catalogControllerProvider).albumTrackTotals;
-    for (final era in eras) {
-      if (!known.containsKey(era.deezerAlbumId)) {
-        catalog.fetchAlbumTracks(era.deezerAlbumId).ignore();
-      }
-    }
-  }
-
-  Future<void> _countShuffle(CatalogController catalog) async {
-    final int songs;
-    try {
-      songs = (await catalog.fetchTopTracks()).length;
-    } on Object {
-      return;
-    }
     if (mounted) {
-      setState(() => _shuffleSongs = songs);
+      unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
     }
   }
 
@@ -244,11 +216,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final tokens = AppTokens.of(context);
     final layout = AppLayout.of(context);
     final mode = ref.watch(gameControllerProvider.select((game) => game.mode));
-    final selectedIds = ref.watch(
-      gameControllerProvider.select((game) => game.selectedAlbumIds),
+    final selectedKeys = ref.watch(
+      gameControllerProvider.select((game) => game.selectedEraKeys),
     );
-    final albums = ref.watch(
-      gameControllerProvider.select((game) => game.albums),
+    final catalogue = ref.watch(
+      catalogControllerProvider.select((catalog) => catalog.catalogue),
     );
     final timers = ref.watch(
       gameControllerProvider.select(
@@ -258,17 +230,14 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         ),
       ),
     );
-    final totals = ref.watch(
-      catalogControllerProvider.select((catalog) => catalog.albumTrackTotals),
-    );
-    final eras = _sourceEras(mode, selectedIds);
-    final coverUrls = {for (final album in albums) album.id: album.coverMedium};
+    final eras = _sourceEras(mode, selectedKeys);
+    final known = !catalogue.isEmpty;
     final subline = eras.isEmpty
-        ? SetupScreen.shuffleSubline(_shuffleSongs)
+        ? SetupScreen.shuffleSubline(known ? catalogue.allTracks.length : null)
         : SetupScreen.erasSubline(
-            AlbumGrid.songCount([
-              for (final era in eras) era.deezerAlbumId,
-            ], totals),
+            known
+                ? catalogue.tracksFor([for (final era in eras) era.key]).length
+                : null,
           );
     final choiceColumns = layout.isNarrow ? 1 : 2;
     return ScreenEnter(
@@ -314,7 +283,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                             _CoverFan.maxCovers,
                           ))
                         (
-                          url: coverUrls[era.deezerAlbumId],
+                          url: catalogue.coverFor(era.key),
                           placeholder: Color(era.placeholderArgb),
                         ),
                     ],

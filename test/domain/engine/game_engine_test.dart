@@ -18,11 +18,10 @@ Track makeTrack(int id, [String preview = 'https://example.com/p.mp3']) =>
 void main() {
   group('game engine parity', () {
     group('createTrackPool', () {
-      test('filters out tracks without preview URLs', () {
+      test('keeps tracks whose preview is fetched when they play', () {
         final tracks = [makeTrack(1), makeTrack(2, ''), makeTrack(3)];
         final pool = createTrackPool(tracks, random: Random(1));
-        expect(pool.length, 2);
-        expect(pool.every((track) => track.preview.isNotEmpty), isTrue);
+        expect(pool.map((track) => track.id), unorderedEquals([1, 2, 3]));
       });
 
       test('shuffles the pool', () {

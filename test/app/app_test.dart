@@ -109,7 +109,7 @@ final class _IdleCatalog extends CatalogController {
   CatalogState build() => CatalogState.initial;
 
   @override
-  Future<void> loadAlbums() async {}
+  Future<void> loadCatalogue() async {}
 
   @override
   Future<CatalogTracks> loadTrackPool() => Completer<CatalogTracks>().future;
@@ -120,7 +120,7 @@ final class _BrokenCatalog extends CatalogController {
   CatalogState build() => throw StateError('catalog unavailable');
 
   @override
-  Future<void> loadAlbums() async {}
+  Future<void> loadCatalogue() async {}
 }
 
 final class _HeldLyrics extends LyricsController {

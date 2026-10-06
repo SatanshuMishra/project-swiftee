@@ -93,7 +93,7 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
   RoundAnswer? _result;
   List<Track> _options = const [];
   List<Track> _allTracks = const [];
-  Album? _lastAlbum;
+  Track? _lastTrack;
   DateTime _roundStart = DateTime.fromMillisecondsSinceEpoch(0);
   bool _started = false;
   Timer? _firstRound;
@@ -256,7 +256,7 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
         );
     setState(() {
       _result = result;
-      _lastAlbum = track.album;
+      _lastTrack = track;
     });
     armNext();
     _focusKeys();
@@ -405,18 +405,18 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
               answered: answered,
               spinning: false,
               coverUrl: track.album.coverMedium,
-              placeholder: eraPlaceholderOf(track.album),
-              previousCoverUrl: _lastAlbum?.coverMedium,
-              previousPlaceholder: eraPlaceholderOf(_lastAlbum),
+              placeholder: eraPlaceholderOf(track),
+              previousCoverUrl: _lastTrack?.album.coverMedium,
+              previousPlaceholder: eraPlaceholderOf(_lastTrack),
             ),
           )
         else
           LyricPaper(
             lines: round.snippetLines,
             song: songTitle(track),
-            era: eraNameOf(track.album),
+            era: eraNameOf(track),
             coverUrl: track.album.coverMedium,
-            placeholder: eraPlaceholderOf(track.album),
+            placeholder: eraPlaceholderOf(track),
             revealed: answered,
             showHint: game.difficulty == Difficulty.easy,
           ),

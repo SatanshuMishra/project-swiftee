@@ -807,6 +807,30 @@ void main() {
       });
     });
 
+    test('a catalogue track with no link fetches one before playing', () {
+      fakeAsync((async) {
+        final harness = _Harness();
+        harness.respond = (request) async => switch ('${request.url}') {
+          'https://api.deezer.com/track/1' => _json(
+            _trackJson(_enchanted, _freshPreviewUrl),
+          ),
+          _freshPreviewUrl => _bytes(_freshPreviewBytes),
+          _ => _json({'error': 'unexpected'}, 404),
+        };
+
+        unawaited(harness.audio.play(_enchanted.copyWith(preview: '')));
+        async.flushMicrotasks();
+
+        expect(harness.requestedUrls, [
+          'https://api.deezer.com/track/1',
+          _freshPreviewUrl,
+        ]);
+        expect(harness.engine.loaded, [_freshPreviewBytes]);
+        expect(harness.state.playing, isTrue);
+        expect(harness.state.error, isNull);
+      });
+    });
+
     test('a second 403 gives the error state without a third request', () {
       fakeAsync((async) {
         final harness = _Harness();

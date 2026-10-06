@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -8,9 +9,12 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
+import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
@@ -21,19 +25,16 @@ import 'package:swiftie_quiz/ui/screens/lyrics_loading_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
+import '../../fixtures/catalogue_fixture.dart';
+
 const int _songCount = 8;
 const String _lostTitle = 'The lyric sheets got lost.';
 
-Map<String, Object?> _deezerTrack(int id) => {
-  'id': id,
-  'title': 'Song $id',
-  'title_short': 'Song $id',
-  'title_version': '',
-  'duration': 200,
-  'preview': 'https://cdnt-preview.dzcdn.net/api/1/1/$id.mp3',
-  'artist': {'id': 12246, 'name': 'Taylor Swift'},
-  'album': {'id': 10, 'title': 'Lover', 'cover_medium': null},
-};
+final List<RawRelease> _lover = [
+  rawRelease(10, 'Lover', '2019-08-23', [
+    for (var id = 1; id <= _songCount; id++) rawTrack(id, 'Song $id'),
+  ]),
+];
 
 Map<String, Object?> _lrclibRecord(int id) => {
   'id': 1000 + id,
@@ -74,12 +75,8 @@ final class _Harness {
   final WidgetTester tester;
   final Completer<List<Track>> source = Completer<List<Track>>();
   Set<int> songsWithLyrics = {1, 2, 3, 4, 5};
-  http.Response Function() topTracks = () => _json({
-    'data': [for (var id = 1; id <= _songCount; id++) _deezerTrack(id)],
-    'total': _songCount,
-  });
-  Duration topTracksDelay = Duration.zero;
-  int albumStatus = 200;
+  Duration catalogueDelay = Duration.zero;
+  bool catalogueFails = false;
   bool? holdSource;
   bool reducedMotion = false;
 
@@ -88,6 +85,19 @@ final class _Harness {
     clockProvider.overrideWithValue(() => tester.binding.clock.now()),
     randomProvider.overrideWithValue(Random(3)),
     httpClientProvider.overrideWithValue(MockClient(_respond)),
+    catalogueStoreProvider.overrideWithValue(
+      fixtureCatalogueStore(
+        loadBundled: () async {
+          if (catalogueDelay > Duration.zero) {
+            await Future<void>.delayed(catalogueDelay);
+          }
+          if (catalogueFails) {
+            throw const FileSystemException('catalogue unavailable');
+          }
+          return encodeCatalogue(_lover, fetchedAt: '2026-10-06T00:00:00Z');
+        },
+      ),
+    ),
     if (holdSource case final hold?)
       lyricsControllerProvider.overrideWith(
         (ref) => _HeldLyrics(ref, source: hold ? source : null),
@@ -96,15 +106,6 @@ final class _Harness {
 
   Future<http.Response> _respond(http.Request request) async {
     final url = request.url;
-    if (url.host == 'api.deezer.com' && url.path == '/artist/12246/top') {
-      if (topTracksDelay > Duration.zero) {
-        await Future<void>.delayed(topTracksDelay);
-      }
-      return topTracks();
-    }
-    if (url.host == 'api.deezer.com' && url.path.startsWith('/album/')) {
-      return http.Response('', albumStatus);
-    }
     if (url.host == 'lrclib.net' && url.path == '/api/get') {
       final id = int.tryParse(
         (url.queryParameters['track_name'] ?? '').replaceFirst('Song ', ''),
@@ -146,7 +147,7 @@ final class _Harness {
 
   Future<void> open({
     GameMode mode = GameMode.random,
-    List<int> albums = const [],
+    List<String> eras = const [],
     LyricsFetchProgress? progress,
   }) async {
     await tester.pumpWidget(_app(const SizedBox()));
@@ -156,8 +157,8 @@ final class _Harness {
       ..setLyricsMode(LyricsMode.nameThatSong)
       ..setPhase(GamePhase.lyricsLoading)
       ..setLyricsFetchProgress(progress);
-    for (final album in albums) {
-      game.toggleAlbum(album);
+    for (final era in eras) {
+      game.toggleEra(era);
     }
     await tester.pumpWidget(_app(const LyricsLoadingScreen()));
   }
@@ -344,9 +345,9 @@ void main() {
       expect(harness.state.lyricsFetchProgress, isNull);
     });
 
-    testWidgets('albums that all fail show the album error', (tester) async {
-      final harness = _Harness(tester)..albumStatus = 500;
-      await harness.open(mode: GameMode.album, albums: const [10, 20]);
+    testWidgets('eras with no recordings show the album error', (tester) async {
+      final harness = _Harness(tester);
+      await harness.open(mode: GameMode.album, eras: const ['folklore']);
       await harness.settle();
 
       harness.expectLost(
@@ -354,27 +355,12 @@ void main() {
       );
     });
 
-    testWidgets('a Deezer quota error asks for a breather', (tester) async {
-      final harness = _Harness(tester)
-        ..topTracks = () => _json({
-          'error': {
-            'type': 'Exception',
-            'message': 'Quota limit exceeded',
-            'code': 4,
-          },
-        });
-      await harness.open();
-      await harness.settle();
-
-      harness.expectLost('Taking a breather — try again in a moment.');
-    });
-
     testWidgets('Try again restarts loading from the first message', (
       tester,
     ) async {
       final harness = _Harness(tester)
-        ..topTracksDelay = const Duration(seconds: 4)
-        ..topTracks = () => http.Response('', 500);
+        ..catalogueDelay = const Duration(seconds: 4)
+        ..catalogueFails = true;
       const messages = LyricsLoadingScreen.loadingMessages;
       await harness.open();
       harness.game.setLyricsFetchProgress((fetched: 3, total: 8));
@@ -385,16 +371,12 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       await harness.settle();
       harness.expectLost(
-        "We couldn't fetch lyrics from LRCLIB. "
-        'Check your connection and try again.',
+        'Could not load tracks for the selected albums. Please try again.',
       );
 
       harness
-        ..topTracksDelay = const Duration(seconds: 1)
-        ..topTracks = () => _json({
-          'data': [for (var id = 1; id <= _songCount; id++) _deezerTrack(id)],
-          'total': _songCount,
-        });
+        ..catalogueDelay = const Duration(seconds: 1)
+        ..catalogueFails = false;
       await tester.tap(find.text('Try again'));
       await tester.pump();
 

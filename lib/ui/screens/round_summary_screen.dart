@@ -44,7 +44,7 @@ class RoundSummaryScreen extends ConsumerStatefulWidget {
 
   static Era roundEra(List<RoundOutcome> results, DateTime now) =>
       results
-          .map((outcome) => eraForAlbumId(outcome.track.album.id))
+          .map((outcome) => eraOfTrack(outcome.track))
           .nonNulls
           .firstOrNull ??
       tonightsEra(now);
@@ -339,7 +339,7 @@ class _KnownRecord extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final era = eraForAlbumId(track.album.id);
+    final era = eraOfTrack(track);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: titleGap,

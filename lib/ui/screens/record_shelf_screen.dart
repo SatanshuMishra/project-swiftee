@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/models/achievement_def.dart';
-import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -116,7 +115,7 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
             (record) => record.unlocked && record.albumId != null,
           );
       if (needsCovers) {
-        unawaited(ref.read(catalogControllerProvider.notifier).loadAlbums());
+        unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
       }
     });
   }
@@ -164,7 +163,11 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
     final albumId = int.tryParse(record.albumId ?? '');
     final placeholder = albumId == null
         ? null
-        : eraForAlbumId(albumId)?.placeholderArgb;
+        : ref
+              .read(catalogControllerProvider)
+              .catalogue
+              .eraOf(albumId)
+              ?.placeholderArgb;
     return ShelfRecord(
       definition: definition,
       hint: hint,

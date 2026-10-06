@@ -123,6 +123,7 @@ Catalogue buildCatalogue(Iterable<RawRelease> releases) {
             artist: const Artist(id: taylorArtistId, name: _taylorName),
             album: home.release.album,
             trackPosition: home.position,
+            eraKey: releaseEras[home.release.id],
           ),
         ),
     ],

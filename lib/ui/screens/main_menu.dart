@@ -122,7 +122,7 @@ class _MainMenuState extends ConsumerState<MainMenu> {
     _arrival = _scheduleArrival();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && ref.read(gameControllerProvider).albums.isEmpty) {
-        unawaited(ref.read(catalogControllerProvider.notifier).loadAlbums());
+        unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
       }
     });
   }

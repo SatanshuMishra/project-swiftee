@@ -51,6 +51,9 @@ final class CatalogueStore {
   }
 
   Future<List<RawRelease>> _readUpdates() async {
+    if (!updatesFile.existsSync()) {
+      return const [];
+    }
     try {
       return decodeCatalogue(await updatesFile.readAsString());
     } on Object {

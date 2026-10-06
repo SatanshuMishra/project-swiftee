@@ -40,4 +40,45 @@ void main() {
       "It's a fake. That line is from Opalite.",
     );
   });
+
+  test('reveal lines name the era, the version and the track number', () {
+    Track recording(String title, String era, int? position) => Track(
+      id: 1,
+      title: title,
+      titleShort: title,
+      duration: 200,
+      preview: '',
+      artist: const Artist(id: 12246, name: 'Taylor Swift'),
+      album: const Album(id: 5, title: 'Release', coverMedium: null),
+      trackPosition: position,
+      eraKey: era,
+    );
+    expect(
+      trackCaption(recording("Red (Taylor's Version)", 'red', 2)),
+      "Red · Taylor's Version · track 2",
+    );
+    expect(trackCaption(recording('Red', 'red', 3)), 'Red · track 3');
+    expect(
+      trackCaption(
+        recording(
+          "All Too Well (10 Minute Version) (Taylor's Version) (From The Vault)",
+          'red',
+          30,
+        ),
+      ),
+      'Red · From The Vault · track 30',
+    );
+    expect(
+      trackCaption(
+        recording('Cruel Summer (Live from The Eras Tour)', 'lover', 2),
+      ),
+      'Lover · Live · track 2',
+    );
+    expect(
+      trackCaption(
+        recording('I Knew It, I Knew You (From "Toy Story 5")', 'singles', 1),
+      ),
+      'Singles & soundtracks',
+    );
+  });
 }

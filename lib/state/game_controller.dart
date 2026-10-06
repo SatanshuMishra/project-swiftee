@@ -32,19 +32,19 @@ class GameController extends Notifier<GameState> {
   void setLyricsMode(LyricsMode mode) =>
       state = state.copyWith(lyricsMode: mode);
 
-  void toggleAlbum(int albumId) {
-    final selected = state.selectedAlbumIds;
+  void toggleEra(String eraKey) {
+    final selected = state.selectedEraKeys;
     state = state.copyWith(
-      selectedAlbumIds: selected.contains(albumId)
+      selectedEraKeys: selected.contains(eraKey)
           ? [
-              for (final id in selected)
-                if (id != albumId) id,
+              for (final key in selected)
+                if (key != eraKey) key,
             ]
-          : [...selected, albumId],
+          : [...selected, eraKey],
     );
   }
 
-  void clearSelectedAlbums() => state = state.copyWith(selectedAlbumIds: []);
+  void clearSelectedEras() => state = state.copyWith(selectedEraKeys: []);
 
   void beginSetup(GameMode mode) => state = state.copyWith(
     mode: mode,
@@ -148,7 +148,7 @@ class GameController extends Notifier<GameState> {
     streak: 0,
     quackCount: 0,
     relistenCount: 0,
-    selectedAlbumIds: [],
+    selectedEraKeys: [],
     quizType: null,
     lyricsMode: null,
     lyricsPool: [],

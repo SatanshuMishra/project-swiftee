@@ -310,8 +310,16 @@ class AudioController extends Notifier<AudioState> {
 
   Future<Uint8List?> _downloadPreview(Track track, int version) async {
     final downloader = await ref.read(previewDownloaderProvider.future);
+    final preview = track.preview.isNotEmpty
+        ? track.preview
+        : (await (await ref.read(deezerClientProvider.future))
+                  .refreshTrack(track.id))
+              .preview;
+    if (version != _playVersion) {
+      return null;
+    }
     try {
-      return await downloader.download(Uri.parse(track.preview));
+      return await downloader.download(Uri.parse(preview));
     } on PreviewForbidden {
       if (version != _playVersion) {
         return null;

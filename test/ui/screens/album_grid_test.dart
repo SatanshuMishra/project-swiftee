@@ -1,11 +1,16 @@
+import 'dart:io';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
+import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
+import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
-import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
@@ -13,13 +18,9 @@ import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 
-final List<Album> eraAlbums = List.unmodifiable([
-  for (final era in curatedEras)
-    Album(id: era.deezerAlbumId, title: era.eraName, coverMedium: null),
-]);
-
-Album albumOf(String eraKey) =>
-    eraAlbums.firstWhere((album) => eraForAlbumId(album.id)?.key == eraKey);
+final Catalogue bundled = buildCatalogue(
+  decodeCatalogue(File(bundledCataloguePath).readAsStringSync()),
+);
 
 class FakeCatalog extends CatalogController {
   FakeCatalog(this.initial);
@@ -31,7 +32,7 @@ class FakeCatalog extends CatalogController {
   CatalogState build() => initial;
 
   @override
-  Future<void> loadAlbums() async => loadRequests++;
+  Future<void> loadCatalogue() async => loadRequests++;
 }
 
 class RecordingGame extends GameController {
@@ -52,9 +53,9 @@ typedef AlbumGridHarness = ({
 
 Future<AlbumGridHarness> pumpAlbumGrid(
   WidgetTester tester, {
-  List<Album>? cached,
-  List<int> selected = const [],
-  CatalogState catalogState = CatalogState.initial,
+  Catalogue? catalogue,
+  List<String> selected = const [],
+  CatalogState? catalogState,
   Size size = const Size(1024, 800),
   bool reduceMotion = false,
   bool settle = true,
@@ -62,7 +63,11 @@ Future<AlbumGridHarness> pumpAlbumGrid(
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  final catalog = FakeCatalog(catalogState);
+  final catalog = FakeCatalog(
+    (catalogState ?? CatalogState.initial).copyWith(
+      catalogue: catalogue ?? bundled,
+    ),
+  );
   final game = RecordingGame();
   final container = ProviderContainer.test(
     overrides: [
@@ -71,9 +76,9 @@ Future<AlbumGridHarness> pumpAlbumGrid(
     ],
   );
   container.read(gameControllerProvider.notifier)
-    ..setAlbums(cached ?? eraAlbums)
+    ..setAlbums((catalogue ?? bundled).albums)
     ..setPhase(GamePhase.albumSelect);
-  selected.forEach(game.toggleAlbum);
+  selected.forEach(game.toggleEra);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       key: ObjectKey(container),
@@ -98,13 +103,16 @@ Future<AlbumGridHarness> pumpAlbumGrid(
   return (container: container, catalog: catalog, game: game);
 }
 
-List<int> selectedIds(ProviderContainer container) =>
-    container.read(gameControllerProvider).selectedAlbumIds;
+List<String> selectedKeys(ProviderContainer container) =>
+    container.read(gameControllerProvider).selectedEraKeys;
 
 GamePhase phaseOf(ProviderContainer container) =>
     container.read(gameControllerProvider).phase;
 
-Finder tile(int albumId) => find.byKey(ValueKey(albumId));
+Finder tile(String eraKey) => find.byKey(ValueKey(eraKey));
+
+String barLabel(List<String> keys) =>
+    AlbumGrid.selectionLabel(keys.length, bundled.tracksFor(keys).length);
 
 Finder continueButton() => find.widgetWithText(PillButton, 'Continue →');
 
@@ -124,11 +132,13 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
 
 void main() {
   group('eras grid', () {
-    testWidgets('the eras grid shows the twelve curated eras', (tester) async {
+    testWidgets('the eras grid shows the twelve eras and the singles', (
+      tester,
+    ) async {
       await pumpAlbumGrid(
         tester,
-        cached: const [],
-        catalogState: CatalogState.initial.copyWith(albumsLoading: true),
+        catalogue: Catalogue.empty,
+        catalogState: CatalogState.initial.copyWith(loading: true),
         settle: false,
       );
       expect(find.text('Pick your eras'), findsOneWidget);
@@ -138,8 +148,8 @@ void main() {
 
       await pumpAlbumGrid(
         tester,
-        cached: const [],
-        catalogState: CatalogState.initial.copyWith(albumsError: 'HTTP 500'),
+        catalogue: Catalogue.empty,
+        catalogState: CatalogState.initial.copyWith(error: 'HTTP 500'),
       );
       expect(find.text('The record store is closed.'), findsOneWidget);
       expect(find.widgetWithText(PillButton, 'Try again'), findsOneWidget);
@@ -147,8 +157,8 @@ void main() {
       expect(find.byType(CatLoader), findsNothing);
 
       await pumpAlbumGrid(tester);
-      final tiles = [for (final album in eraAlbums) tile(album.id)];
-      for (final (index, era) in curatedEras.indexed) {
+      final tiles = [for (final era in eraGroups) tile(era.key)];
+      for (final (index, era) in eraGroups.indexed) {
         expect(tiles[index], findsOneWidget);
         expect(
           find.descendant(of: tiles[index], matching: find.text(era.eraName)),
@@ -166,7 +176,7 @@ void main() {
       expect(
         find.descendant(
           of: tiles.last,
-          matching: find.text('The Life of a Showgirl'),
+          matching: find.text('Singles & soundtracks'),
         ),
         findsOneWidget,
       );
@@ -175,7 +185,7 @@ void main() {
       final tops = {for (final t in tiles) tester.getTopLeft(t).dy}
           .sorted((a, b) => a.compareTo(b));
       expect(lefts, hasLength(4));
-      expect(tops, hasLength(3));
+      expect(tops, hasLength(4));
       for (final (index, t) in tiles.indexed) {
         expect(
           tester.getTopLeft(t),
@@ -188,8 +198,6 @@ void main() {
       tester,
     ) async {
       final harness = await pumpAlbumGrid(tester);
-      final red = albumOf('red');
-      final folklore = albumOf('folklore');
       expect(find.text('Pick at least one era'), findsOneWidget);
       expect(find.text('Clear'), findsNothing);
       expect(continueOpacity(tester), 0.45);
@@ -198,14 +206,14 @@ void main() {
       expect(harness.game.setups, isEmpty);
       expect(phaseOf(harness.container), GamePhase.albumSelect);
 
-      await tapAndSettle(tester, tile(red.id));
-      await tapAndSettle(tester, tile(folklore.id));
-      expect(selectedIds(harness.container), [red.id, folklore.id]);
-      expect(find.text('2 eras'), findsOneWidget);
+      await tapAndSettle(tester, tile('red'));
+      await tapAndSettle(tester, tile('folklore'));
+      expect(selectedKeys(harness.container), ['red', 'folklore']);
+      expect(find.text(barLabel(['red', 'folklore'])), findsOneWidget);
       expect(continueOpacity(tester), 1);
 
       await tapAndSettle(tester, find.text('Clear'));
-      expect(selectedIds(harness.container), isEmpty);
+      expect(selectedKeys(harness.container), isEmpty);
       expect(find.text('Pick at least one era'), findsOneWidget);
       expect(find.text('Clear'), findsNothing);
       expect(continueOpacity(tester), 0.45);
@@ -214,46 +222,35 @@ void main() {
       expect(harness.game.setups, isEmpty);
       expect(phaseOf(harness.container), GamePhase.albumSelect);
 
-      await tapAndSettle(tester, tile(red.id));
-      expect(find.text('1 era'), findsOneWidget);
+      await tapAndSettle(tester, tile('red'));
+      expect(find.text(barLabel(['red'])), findsOneWidget);
       await tapAndSettle(tester, find.text('Continue →'));
       expect(harness.game.setups, [GameMode.album]);
       expect(phaseOf(harness.container), GamePhase.setup);
-      expect(selectedIds(harness.container), [red.id]);
+      expect(selectedKeys(harness.container), ['red']);
     });
 
-    testWidgets('the bar adds the songs once every chosen total is known', (
-      tester,
-    ) async {
-      final debut = albumOf('ts');
-      final red = albumOf('red');
-      final folklore = albumOf('folklore');
-      await pumpAlbumGrid(
-        tester,
-        catalogState: CatalogState.initial.copyWith(
-          albumTrackTotals: {debut.id: 15, red.id: 30},
-        ),
+    testWidgets('the bar counts the tracks in the chosen eras', (tester) async {
+      await pumpAlbumGrid(tester);
+
+      await tapAndSettle(tester, tile('ts'));
+      expect(
+        find.text('1 era · ${bundled.trackCount('ts')} tracks'),
+        findsOneWidget,
       );
 
-      await tapAndSettle(tester, tile(debut.id));
-      expect(find.text('1 era · 15 songs'), findsOneWidget);
-
-      await tapAndSettle(tester, tile(red.id));
-      expect(find.text('2 eras · 45 songs'), findsOneWidget);
-
-      await tapAndSettle(tester, tile(folklore.id));
-      expect(find.text('3 eras'), findsOneWidget);
+      await tapAndSettle(tester, tile('red'));
+      expect(find.text(barLabel(['ts', 'red'])), findsOneWidget);
     });
 
     testWidgets('a chosen tile slides its disc out, rings it and checks it', (
       tester,
     ) async {
-      final lover = albumOf('lover');
       await pumpAlbumGrid(tester, reduceMotion: true);
       Offset slide() => tester
           .widget<FractionalTranslation>(
             find.descendant(
-              of: tile(lover.id),
+              of: tile('lover'),
               matching: find.byType(FractionalTranslation),
             ),
           )
@@ -261,13 +258,13 @@ void main() {
       Decoration? ring() => tester
           .widget<AnimatedContainer>(
             find.descendant(
-              of: tile(lover.id),
+              of: tile('lover'),
               matching: find.byType(AnimatedContainer),
             ),
           )
           .foregroundDecoration;
       Finder check() =>
-          find.descendant(of: tile(lover.id), matching: find.text('✓'));
+          find.descendant(of: tile('lover'), matching: find.text('✓'));
       double checkOpacity() => tester
           .widget<AnimatedOpacity>(
             find.ancestor(of: check(), matching: find.byType(AnimatedOpacity)),
@@ -290,7 +287,7 @@ void main() {
         ),
       );
 
-      await tester.tap(tile(lover.id));
+      await tester.tap(tile('lover'));
       await tester.pump();
 
       expect(slide(), const Offset(0.34, 0));
@@ -312,19 +309,19 @@ void main() {
       ]) {
         await pumpAlbumGrid(tester, size: size);
         final lefts = {
-          for (final album in eraAlbums) tester.getTopLeft(tile(album.id)).dx,
+          for (final era in eraGroups) tester.getTopLeft(tile(era.key)).dx,
         };
         expect(lefts, hasLength(columns), reason: '$size');
       }
     });
 
-    testWidgets('opening requests albums only when none are cached', (
+    testWidgets('opening loads the catalogue only when it is empty', (
       tester,
     ) async {
       final empty = await pumpAlbumGrid(
         tester,
-        cached: const [],
-        catalogState: CatalogState.initial.copyWith(albumsLoading: true),
+        catalogue: Catalogue.empty,
+        catalogState: CatalogState.initial.copyWith(loading: true),
         settle: false,
       );
       expect(empty.catalog.loadRequests, 1);
@@ -338,8 +335,8 @@ void main() {
     ) async {
       final harness = await pumpAlbumGrid(
         tester,
-        cached: const [],
-        catalogState: CatalogState.initial.copyWith(albumsError: 'HTTP 500'),
+        catalogue: Catalogue.empty,
+        catalogState: CatalogState.initial.copyWith(error: 'HTTP 500'),
       );
       expect(harness.catalog.loadRequests, 1);
 
@@ -362,9 +359,7 @@ void main() {
       tester,
     ) async {
       await pumpAlbumGrid(tester);
-      final last = eraAlbums.last;
-
-      for (var press = 0; press <= eraAlbums.length; press++) {
+      for (var press = 0; press <= eraGroups.length; press++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       }
       await tester.pumpAndSettle();
@@ -374,11 +369,11 @@ void main() {
         matching: find.byType(BackdropFilter),
       );
       expect(
-        Focus.of(tester.element(find.text(curatedEras.last.eraName))).hasFocus,
+        Focus.of(tester.element(find.text(eraGroups.last.eraName))).hasFocus,
         isTrue,
       );
       expect(
-        tester.getBottomLeft(tile(last.id)).dy,
+        tester.getBottomLeft(tile(eraGroups.last.key)).dy,
         lessThanOrEqualTo(tester.getTopLeft(bar).dy),
       );
     });
@@ -387,7 +382,7 @@ void main() {
       tester,
     ) async {
       await pumpAlbumGrid(tester);
-      final moved = eraAlbums[4];
+      final moved = eraGroups[4].key;
 
       tester.view.physicalSize = const Size(1280, 900);
       await tester.pump();
@@ -395,24 +390,20 @@ void main() {
       expect(
         tester
             .widget<Opacity>(
-              find.descendant(
-                of: tile(moved.id),
-                matching: find.byType(Opacity),
-              ),
+              find.descendant(of: tile(moved), matching: find.byType(Opacity)),
             )
             .opacity,
         1,
       );
       final lefts = {
-        for (final album in eraAlbums) tester.getTopLeft(tile(album.id)).dx,
+        for (final era in eraGroups) tester.getTopLeft(tile(era.key)).dx,
       };
       expect(lefts, hasLength(6));
     });
 
     testWidgets('the check mark stays out of the tile label', (tester) async {
       final semantics = tester.ensureSemantics();
-      final red = albumOf('red');
-      await pumpAlbumGrid(tester, selected: [red.id]);
+      await pumpAlbumGrid(tester, selected: ['red']);
 
       expect(find.bySemanticsLabel(RegExp('✓')), findsNothing);
       expect(find.bySemanticsLabel(RegExp('Red')), findsOneWidget);
@@ -421,14 +412,12 @@ void main() {
 
     testWidgets('tiles toggle from the keyboard', (tester) async {
       final harness = await pumpAlbumGrid(tester);
-      final debut = albumOf('ts');
-
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.sendKeyEvent(LogicalKeyboardKey.space);
       await tester.pumpAndSettle();
 
-      expect(selectedIds(harness.container), [debut.id]);
+      expect(selectedKeys(harness.container), ['ts']);
     });
   });
 }

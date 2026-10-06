@@ -62,7 +62,7 @@ class RecordingCatalog extends CatalogController {
   CatalogState build() => CatalogState.initial;
 
   @override
-  Future<void> loadAlbums() async => loads += 1;
+  Future<void> loadCatalogue() async => loads += 1;
 }
 
 Widget menuApp(
