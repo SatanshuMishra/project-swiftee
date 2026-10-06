@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
+import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
@@ -370,6 +372,120 @@ void main() {
       );
       expect(choiceSelected(tester, 'Sound'), isTrue);
       expect(tileSelected(tester, 'Hard'), isTrue);
+    });
+  });
+
+  group('releases and versions', () {
+    CatalogueRelease release(String title) =>
+        bundled.releases.firstWhere((release) => release.title == title);
+    Prepare releases(List<String> titles, {List<String> eras = const []}) =>
+        (game) {
+          eras.forEach(game.toggleEra);
+          for (final title in titles) {
+            game.toggleRelease(release(title).id);
+          }
+        };
+
+    test('names releases, eras or both as the source', () {
+      final red = eraByKey('red')!;
+      final folklore = release('folklore');
+      final lover = release('Lover');
+
+      expect(SetupScreen.sourceTitle(const [], [folklore]), 'folklore');
+      expect(
+        SetupScreen.sourceTitle(const [], [folklore, lover]),
+        'Your 2 releases',
+      );
+      expect(SetupScreen.sourceTitle([red], [folklore]), 'Your picks');
+      expect(SetupScreen.sourceTitle([red]), 'Red');
+    });
+
+    testWidgets('a release pick shows its title and covers', (tester) async {
+      await pumpSetup(
+        tester,
+        mode: GameMode.album,
+        prepare: releases(['folklore (deluxe version)']),
+      );
+
+      expect(find.text('folklore (deluxe version)'), findsOneWidget);
+      expect(
+        find.text(
+          '${release('folklore (deluxe version)').tracks.length} tracks',
+        ),
+        findsOneWidget,
+      );
+      expect(fanCovers(tester), [
+        release('folklore (deluxe version)').coverMedium,
+      ]);
+    });
+
+    testWidgets('which versions shows for sound and not for lyrics', (
+      tester,
+    ) async {
+      await pumpSetup(tester);
+
+      expect(find.text('Which versions'), findsOneWidget);
+      expect(tileSelected(tester, 'Every version'), isTrue);
+      expect(find.text('Taylor’s Version'), findsOneWidget);
+      expect(find.text('No live takes'), findsOneWidget);
+
+      await choose(tester, 'Lyrics');
+      expect(find.text('Which versions'), findsNothing);
+      expect(find.text('Every version'), findsNothing);
+    });
+
+    testWidgets('a version choice recounts the tracks and starts with it', (
+      tester,
+    ) async {
+      final container = await pumpSetup(
+        tester,
+        mode: GameMode.album,
+        eraKeys: ['red'],
+      );
+      final red = bundled.tracksFor(['red']);
+      expect(find.text('${red.length} tracks'), findsOneWidget);
+
+      await choose(tester, 'Taylor’s Version');
+      final kept = keepVersions(red, TrackVersions.taylorsVersion).length;
+      expect(kept, lessThan(red.length));
+      expect(find.text('$kept tracks'), findsOneWidget);
+      expect(tileSelected(tester, 'Taylor’s Version'), isTrue);
+
+      await tester.tap(find.text('Start →'));
+      await tester.pump();
+      expect(gameOf(container).versions, TrackVersions.taylorsVersion);
+      expect(gameOf(container).phase, GamePhase.playing);
+    });
+
+    testWidgets('lyrics count songs, not recordings', (tester) async {
+      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['red']);
+
+      await choose(tester, 'Lyrics');
+
+      final songs = {
+        for (final track in bundled.tracksFor(['red'])) songKey(track),
+      }.length;
+      expect(find.text('$songs songs'), findsOneWidget);
+    });
+
+    testWidgets('an all-live pick cannot leave out live takes', (tester) async {
+      final container = await pumpSetup(
+        tester,
+        mode: GameMode.album,
+        prepare: (game) {
+          releases(['Speak Now World Tour Live'])(game);
+          game.setVersions(TrackVersions.noLive);
+        },
+      );
+
+      expect(tileSelected(tester, 'Every version'), isTrue);
+      expect(tileSelected(tester, 'No live takes'), isFalse);
+      await choose(tester, 'No live takes');
+      expect(tileSelected(tester, 'No live takes'), isFalse);
+
+      await tester.tap(find.text('Start →'));
+      await tester.pump();
+      expect(gameOf(container).versions, TrackVersions.every);
     });
   });
 }

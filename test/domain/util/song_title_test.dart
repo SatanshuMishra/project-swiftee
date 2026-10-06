@@ -138,4 +138,35 @@ void main() {
       }
     });
   });
+
+  group('version marks', () {
+    test("spots a Taylor's Version title", () {
+      expect(isTaylorsVersion("Red (Taylor's Version)"), isTrue);
+      expect(isTaylorsVersion('Red (Taylor’s Version)'), isTrue);
+      expect(
+        isTaylorsVersion("Run (Taylor's Version) (From The Vault)"),
+        isTrue,
+      );
+      expect(isTaylorsVersion('Red'), isFalse);
+      expect(isTaylorsVersion("Taylor's Version"), isFalse);
+    });
+
+    test('spots a live or Long Pond take from its version label', () {
+      expect(
+        isLiveTake('Fearless (Live From Clear Channel Stripped 2008)'),
+        isTrue,
+      );
+      expect(isLiveTake('Speak Now (Live/2011)'), isTrue);
+      expect(isLiveTake('cardigan (the long pond studio sessions)'), isTrue);
+      expect(
+        isLiveTake(
+          'All Too Well (Sad Girl Autumn Version) - Recorded at Long Pond Studios',
+        ),
+        isTrue,
+      );
+      expect(isLiveTake('Long Live'), isFalse);
+      expect(isLiveTake("Long Live (Taylor's Version)"), isFalse);
+      expect(isLiveTake('Forever & Always (Piano Version)'), isFalse);
+    });
+  });
 }

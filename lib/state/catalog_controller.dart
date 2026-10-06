@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
 import 'package:swiftie_quiz/domain/engine/game_engine.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
@@ -65,12 +66,19 @@ bool sameTrackSelection(GameState before, GameState now) =>
     const ListEquality<String>().equals(
       before.selectedEraKeys,
       now.selectedEraKeys,
+    ) &&
+    const ListEquality<int>().equals(
+      before.selectedReleaseIds,
+      now.selectedReleaseIds,
     );
 
 List<Track> tracksForGame(Catalogue catalogue, GameState game, DateTime now) =>
     switch (game.mode) {
       GameMode.random => catalogue.allTracks,
-      GameMode.album => catalogue.tracksFor(game.selectedEraKeys),
+      GameMode.album => catalogue.tracksFor(
+        game.selectedEraKeys,
+        releaseIds: game.selectedReleaseIds,
+      ),
       GameMode.tonight => catalogue.tracksFor([tonightsEra(now).key]),
     };
 
@@ -93,10 +101,9 @@ class CatalogController extends Notifier<CatalogState> {
   Future<CatalogTracks> loadTrackPool() async {
     await loadCatalogue();
     final game = ref.read(gameControllerProvider);
-    final tracks = tracksForGame(
-      state.catalogue,
-      game,
-      ref.read(clockProvider)(),
+    final tracks = keepVersions(
+      tracksForGame(state.catalogue, game, ref.read(clockProvider)()),
+      game.versions,
     );
     final pool = createTrackPool(
       tracks,

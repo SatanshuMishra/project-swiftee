@@ -34,6 +34,8 @@ final class GameState {
     required this.quizType,
     required this.lyricsMode,
     required this.selectedEraKeys,
+    required this.selectedReleaseIds,
+    required this.versions,
     required this.currentTrack,
     required this.trackPool,
     required this.options,
@@ -64,6 +66,8 @@ final class GameState {
     quizType: null,
     lyricsMode: null,
     selectedEraKeys: [],
+    selectedReleaseIds: [],
+    versions: TrackVersions.every,
     currentTrack: null,
     trackPool: [],
     options: [],
@@ -93,6 +97,8 @@ final class GameState {
   final QuizType? quizType;
   final LyricsMode? lyricsMode;
   final List<String> selectedEraKeys;
+  final List<int> selectedReleaseIds;
+  final TrackVersions versions;
   final Track? currentTrack;
   final List<Track> trackPool;
   final List<Track> options;
@@ -127,6 +133,8 @@ final class GameState {
     Object? quizType = _unchanged,
     Object? lyricsMode = _unchanged,
     List<String>? selectedEraKeys,
+    List<int>? selectedReleaseIds,
+    TrackVersions? versions,
     Object? currentTrack = _unchanged,
     List<Track>? trackPool,
     List<Track>? options,
@@ -161,6 +169,10 @@ final class GameState {
     selectedEraKeys: selectedEraKeys == null
         ? this.selectedEraKeys
         : List.unmodifiable(selectedEraKeys),
+    selectedReleaseIds: selectedReleaseIds == null
+        ? this.selectedReleaseIds
+        : List.unmodifiable(selectedReleaseIds),
+    versions: versions ?? this.versions,
     currentTrack: identical(currentTrack, _unchanged)
         ? this.currentTrack
         : currentTrack as Track?,
@@ -212,6 +224,11 @@ final class GameState {
         other.selectedEraKeys,
         selectedEraKeys,
       ) &&
+      const ListEquality<int>().equals(
+        other.selectedReleaseIds,
+        selectedReleaseIds,
+      ) &&
+      other.versions == versions &&
       other.currentTrack == currentTrack &&
       const ListEquality<Track>().equals(other.trackPool, trackPool) &&
       const ListEquality<Track>().equals(other.options, options) &&
@@ -254,6 +271,8 @@ final class GameState {
     quizType,
     lyricsMode,
     const ListEquality<String>().hash(selectedEraKeys),
+    const ListEquality<int>().hash(selectedReleaseIds),
+    versions,
     currentTrack,
     const ListEquality<Track>().hash(trackPool),
     const ListEquality<Track>().hash(options),
@@ -281,7 +300,9 @@ final class GameState {
   String toString() =>
       'GameState(phase: $phase, mode: $mode, difficulty: $difficulty, '
       'quizType: $quizType, lyricsMode: $lyricsMode, '
-      'selectedEraKeys: $selectedEraKeys, currentTrack: $currentTrack, '
+      'selectedEraKeys: $selectedEraKeys, '
+      'selectedReleaseIds: $selectedReleaseIds, versions: $versions, '
+      'currentTrack: $currentTrack, '
       'trackPool: ${trackPool.length} tracks, '
       'options: ${options.length} tracks, streak: $streak, '
       'quackCount: $quackCount, relistenCount: $relistenCount, '

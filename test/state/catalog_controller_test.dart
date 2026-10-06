@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/data/catalog/deezer_client.dart';
 import 'package:swiftie_quiz/domain/engine/play_order.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
@@ -139,6 +140,62 @@ void main() {
       expect([
         for (final track in tracks.allTracks) track.title,
       ], unorderedEquals(['The Life of a Showgirl', 'Babylon']));
+    });
+
+    test('a picked release plays its recordings alongside the eras', () async {
+      final scope = container();
+      await scope.read(catalogControllerProvider.notifier).loadCatalogue();
+      final catalogue = scope.read(catalogControllerProvider).catalogue;
+      final folklore = catalogue.releases.firstWhere(
+        (release) => release.eraKey != 'showgirl',
+      );
+      scope.read(gameControllerProvider.notifier)
+        ..toggleEra('showgirl')
+        ..toggleRelease(folklore.id)
+        ..beginSetup(GameMode.album);
+
+      final tracks = await scope
+          .read(catalogControllerProvider.notifier)
+          .loadTrackPool();
+
+      expect(
+        tracks.allTracks,
+        unorderedEquals([
+          ...catalogue.tracksFor(['showgirl']),
+          ...folklore.tracks,
+        ]),
+      );
+    });
+
+    test('a sound game plays only the versions chosen', () async {
+      final scope = container();
+      scope.read(gameControllerProvider.notifier)
+        ..toggleEra('red')
+        ..setVersions(TrackVersions.taylorsVersion)
+        ..beginSetup(GameMode.album);
+
+      final tracks = await scope
+          .read(catalogControllerProvider.notifier)
+          .loadTrackPool();
+
+      final red = scope.read(catalogControllerProvider).catalogue.tracksFor([
+        'red',
+      ]);
+      expect(tracks.allTracks, keepVersions(red, TrackVersions.taylorsVersion));
+      expect(tracks.allTracks.length, lessThan(red.length));
+      expect(tracks.allTracks.toSet().containsAll(tracks.pool), isTrue);
+    });
+
+    test('a pool follows releases picked while it loaded', () async {
+      final scope = container();
+      await scope.read(catalogControllerProvider.notifier).loadCatalogue();
+      final before = scope.read(gameControllerProvider);
+      scope.read(gameControllerProvider.notifier).toggleRelease(108447472);
+
+      expect(
+        sameTrackSelection(before, scope.read(gameControllerProvider)),
+        isFalse,
+      );
     });
 
     test("tonight's era plays the era for today's date", () async {

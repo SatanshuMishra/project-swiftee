@@ -53,3 +53,10 @@ bool isStudioVersion(String title) => _titleParts(title).every(
       _featuring.hasMatch(part) ||
       _soundtrack.hasMatch(part),
 );
+
+final RegExp _liveTake = RegExp(r'\blive\b|long pond', caseSensitive: false);
+
+bool isTaylorsVersion(String title) =>
+    _titleParts(title).any(_taylorsVersion.hasMatch);
+
+bool isLiveTake(String title) => _titleParts(title).any(_liveTake.hasMatch);
