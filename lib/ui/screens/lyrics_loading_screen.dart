@@ -122,9 +122,6 @@ class _LyricsLoadingScreenState extends ConsumerState<LyricsLoadingScreen> {
 
   void _toMenu() => ref.read(gameControllerProvider.notifier).resetGame();
 
-  void _toSetup() =>
-      ref.read(gameControllerProvider.notifier).setPhase(GamePhase.setup);
-
   Future<void> _load() async {
     final lyrics = ref.read(lyricsControllerProvider);
     try {
@@ -198,7 +195,7 @@ class _LyricsLoadingScreenState extends ConsumerState<LyricsLoadingScreen> {
                     : _LyricSheetsLost(
                         message: error,
                         onRetry: _retry,
-                        onBack: _toSetup,
+                        onBack: _toMenu,
                       ),
               ),
             ),

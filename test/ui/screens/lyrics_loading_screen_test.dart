@@ -317,8 +317,7 @@ void main() {
       await tester.tap(find.text('Back to menu'));
       await tester.pump();
 
-      expect(harness.state.phase, GamePhase.setup);
-      expect(harness.state.quizType, QuizType.lyrics);
+      expect(harness.state.phase, GamePhase.menu);
     });
 
     testWidgets('gives up after 30 s', (tester) async {
@@ -341,7 +340,7 @@ void main() {
       await tester.tap(find.text('Back to menu'));
       await tester.pump();
 
-      expect(harness.state.phase, GamePhase.setup);
+      expect(harness.state.phase, GamePhase.menu);
       expect(harness.state.lyricsFetchProgress, isNull);
     });
 
