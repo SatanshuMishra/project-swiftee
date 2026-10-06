@@ -52,6 +52,21 @@ Finder buttonLabelled(String label) => find.descendant(
 );
 
 void main() {
+  test('the playing caption never promises space when space types', () {
+    expect(
+      TransportBar.captionFor(TransportStatus.playing, 1),
+      'Space to pause',
+    );
+    expect(
+      TransportBar.captionFor(TransportStatus.playing, 1, spaceToggles: false),
+      'Click to pause',
+    );
+    expect(
+      TransportBar.captionFor(TransportStatus.paused, 1, spaceToggles: false),
+      'Paused',
+    );
+  });
+
   testWidgets('transport captions follow the relisten schedule', (
     tester,
   ) async {

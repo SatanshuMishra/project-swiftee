@@ -19,10 +19,12 @@ class TransportBar extends StatelessWidget {
     required this.elapsed,
     required this.duration,
     required this.onToggle,
+    this.spaceToggles = true,
   });
 
   static const int fullClipSeconds = 30;
   static const String playingCaption = 'Space to pause';
+  static const String clickCaption = 'Click to pause';
   static const String pausedCaption = 'Paused';
   static const String loadingCaption = 'Loading the clip…';
   static const String extendedNote = 'Clip extended to help with your guess';
@@ -40,18 +42,21 @@ class TransportBar extends StatelessWidget {
   final double elapsed;
   final double duration;
   final VoidCallback? onToggle;
+  final bool spaceToggles;
 
   static String captionFor(
     TransportStatus status,
-    int stage,
-  ) => switch (status) {
+    int stage, {
+    bool spaceToggles = true,
+  }) => switch (status) {
     TransportStatus.ended =>
       stage + 1 >= fullClipThreshold
           ? 'Play full clip (${fullClipSeconds}s)'
           : 'Listen again (${relistenSchedule[math.max(0, stage)].round()}s)',
     TransportStatus.paused => pausedCaption,
     TransportStatus.loading => loadingCaption,
-    TransportStatus.idle || TransportStatus.playing => playingCaption,
+    TransportStatus.idle ||
+    TransportStatus.playing => spaceToggles ? playingCaption : clickCaption,
   };
 
   static String timeFor(double elapsed, double duration) =>
@@ -62,7 +67,7 @@ class TransportBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final caption = captionFor(status, stage);
+    final caption = captionFor(status, stage, spaceToggles: spaceToggles);
     final fraction = duration > 0 ? (elapsed / duration).clamp(0.0, 1.0) : 0.0;
     return SizedBox(
       width: AppLayout.of(context).sleeve,
