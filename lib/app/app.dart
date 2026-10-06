@@ -158,8 +158,9 @@ class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
           AppMotion.duration(context, AppMotion.themeFade),
         PersistenceStatus.idle || PersistenceStatus.loading => Duration.zero,
       },
-      builder: (context, navigator) => ColoredBox(
+      builder: (context, navigator) => Material(
         color: AppTokens.of(context).bg,
+        animationDuration: Duration.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

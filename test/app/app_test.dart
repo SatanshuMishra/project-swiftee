@@ -837,4 +837,22 @@ void main() {
       harness.expectOnlyScreen(MainMenu);
     });
   });
+
+  testWidgets('the title bar text takes the theme, not the fallback style', (
+    tester,
+  ) async {
+    final harness = _Harness(tester);
+    await harness.launch();
+
+    final title = tester.widget<RichText>(
+      find
+          .descendant(
+            of: find.byType(AppTitleBar),
+            matching: find.byType(RichText),
+          )
+          .first,
+    );
+    expect(title.text.style?.decoration, isNot(TextDecoration.underline));
+    expect(title.text.style?.fontFamily, isNot('monospace'));
+  });
 }
