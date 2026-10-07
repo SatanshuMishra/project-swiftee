@@ -24,7 +24,7 @@ Tests pin the bundle's SHA-256 and that it holds the roots behind LRCLIB, Deezer
 
 ## Refreshing the bundle
 
-Replace `assets/certs/cacert.pem` with the current file from https://curl.se/ca/cacert.pem, check it against https://curl.se/ca/cacert.pem.sha256, and put the new hash in `_bundledRootsSha256` in `test/services/network/bundled_roots_test.dart`. The release check (`tool/release/check_release.dart`) refuses to release a bundle taken from Mozilla more than 180 days earlier, so a refresh happens at least twice a year and Mozilla's removals reach players.
+Replace `assets/certs/cacert.pem` with the current file from https://curl.se/ca/cacert.pem, check it against https://curl.se/ca/cacert.pem.sha256, and put the new hash in `_bundledRootsSha256` in `test/services/network/bundled_roots_test.dart`. `.gitattributes` keeps git from converting the file's line endings, so a Windows checkout ships the same bytes curl published. The release check (`tool/release/check_release.dart`) refuses to release a bundle taken from Mozilla more than 180 days earlier, so a refresh happens at least twice a year and Mozilla's removals reach players.
 
 ## Accepted risks
 
