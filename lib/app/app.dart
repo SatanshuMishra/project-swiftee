@@ -9,15 +9,16 @@ import 'package:swiftie_quiz/app/window_setup.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
+import 'package:swiftie_quiz/state/covers.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/chrome/title_bar.dart';
+import 'package:swiftie_quiz/ui/misu/misu_host.dart';
 import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
 import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
 import 'package:swiftie_quiz/ui/overlays/toast_host.dart';
 import 'package:swiftie_quiz/ui/overlays/update_badge.dart';
-import 'package:swiftie_quiz/ui/chrome/title_bar.dart';
-import 'package:swiftie_quiz/ui/misu/misu_host.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart';
 import 'package:swiftie_quiz/ui/screens/lyrics_game_screen.dart';
@@ -162,6 +163,7 @@ class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
   @override
   Widget build(BuildContext context) {
     final failures = ref.watch(renderFailuresProvider);
+    ref.watch(coverCleanupProvider);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: SwiftieQuizApp.title,

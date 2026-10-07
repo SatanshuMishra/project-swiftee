@@ -20,7 +20,7 @@ Future<void> main() async {
   try {
     for (final MapEntry(:key, value: size) in wanted.entries) {
       final file = File(p.join(folder.path, '$key.jpg'));
-      if (file.existsSync()) {
+      if (file.existsSync() && jpegWidth(file.readAsBytesSync()) == size) {
         continue;
       }
       final url = deezerCoverUrl(key, size);

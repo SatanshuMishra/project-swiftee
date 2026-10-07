@@ -38,8 +38,14 @@ void main() {
       reason: 'run dart run tool/catalog/bundle_covers.dart',
     );
     expect(files.keys.toSet(), {for (final key in wanted.keys) '$key.jpg'});
-    for (final file in files.values) {
-      expect(file.readAsBytesSync().take(3), [0xFF, 0xD8, 0xFF]);
+    for (final MapEntry(key: name, value: file) in files.entries) {
+      final bytes = file.readAsBytesSync();
+      expect(bytes.take(3), [0xFF, 0xD8, 0xFF], reason: name);
+      expect(
+        jpegWidth(bytes),
+        wanted[p.basenameWithoutExtension(name)],
+        reason: name,
+      );
     }
   });
 

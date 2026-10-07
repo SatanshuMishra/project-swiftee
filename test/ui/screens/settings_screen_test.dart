@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:swiftie_quiz/data/covers/cover_store.dart';
 import 'package:swiftie_quiz/data/save/save_error.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
@@ -83,24 +80,15 @@ Future<SettingsHarness> pumpSettings(
         (ref) => fakeUpdater = FakeUpdater(ref),
       ),
       appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
-      coverStoreProvider.overrideWith(
-        (ref) => CoverStore(
-          client: MockClient((request) async => http.Response('', 404)),
-          bundledKeys: () async => const {},
-          loadAsset: (asset) async => throw StateError(asset),
-          folder:
-              coversFolder ??
-              Directory('${Directory.systemTemp.path}/no-covers-kept'),
-          save: ref.watch(
-            gameControllerProvider.select(
-              (game) => game.progress.settings.saveCovers,
-            ),
-          ),
-        ),
+      coversFolderProvider.overrideWithValue(
+        () =>
+            coversFolder ??
+            Directory('${Directory.systemTemp.path}/no-covers-kept'),
       ),
     ],
   );
   setup?.call(container);
+  container.read(coverCleanupProvider);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       key: ObjectKey(container),

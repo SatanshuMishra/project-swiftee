@@ -14,7 +14,6 @@ import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/domain/together/server_link.dart';
-import 'package:swiftie_quiz/state/covers.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
@@ -186,9 +185,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             settings: progress.settings.copyWith(saveCovers: enabled),
           ),
         );
-    if (!enabled) {
-      unawaited(ref.read(coverStoreProvider).forget());
-    }
   }
 
   void _setAutoCheck(bool enabled) {

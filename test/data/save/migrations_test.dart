@@ -97,7 +97,7 @@ Map<String, Object?> currentSave() => {
 
 void main() {
   group('migrations parity', () {
-    test('current save version is 5', () {
+    test('current save version is 6', () {
       expect(currentSaveVersion, 6);
     });
 

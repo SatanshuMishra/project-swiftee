@@ -31,8 +31,8 @@ void main() {
       }),
       bundledKeys: () async => const {},
       loadAsset: (asset) async => throw StateError(asset),
-      folder: Directory.systemTemp.createTempSync('cover_picture_test'),
-      save: false,
+      folder: () => Directory('${Directory.systemTemp.path}/no-covers-kept'),
+      save: () => false,
       retryAfter: Duration.zero,
     );
     Future<void> show(Widget child) async {
@@ -45,10 +45,12 @@ void main() {
           ),
         ),
       );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)),
-      );
-      await tester.pump();
+      for (var step = 0; step < 20; step++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
     }
 
     RawImage? drawn() =>
