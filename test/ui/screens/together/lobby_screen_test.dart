@@ -432,7 +432,7 @@ void main() {
     expect(together.leaves, 0);
 
     await tapAndSettle(tester, find.text('Leave room'));
-    relay.pushGame(_maya.id, const GameStarting());
+    relay.pushGame(_maya.id, const GameStarting(settings: RoomSettings()));
     await settle(tester);
     expect(find.byType(TogetherGameScreen), findsOneWidget);
     expect(inDialog('Leave'), findsOneWidget);
