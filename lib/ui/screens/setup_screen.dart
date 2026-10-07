@@ -342,6 +342,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         ? SetupScreen.shuffleSubline(count, quiz: _quizType)
         : SetupScreen.erasSubline(count, quiz: _quizType);
     final choiceColumns = layout.isNarrow ? 1 : 2;
+    final scaler = MediaQuery.textScalerOf(context);
+    final choiceWidth = ChoiceRow.minWidthFor(scaler);
     return ScreenEnter(
       child: TwoPane(
         left: Padding(
@@ -419,6 +421,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 children: [
                   _ChoiceGrid(
                     columns: choiceColumns,
+                    minTileWidth: choiceWidth,
                     children: [
                       for (final choice in SetupScreen.quizTypes)
                         ChoiceRow(
@@ -439,6 +442,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     children: [
                       _ChoiceGrid(
                         columns: choiceColumns,
+                        minTileWidth: choiceWidth,
                         children: [
                           for (final choice in SetupScreen.lyricsModes)
                             ChoiceRow(
@@ -463,6 +467,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     children: [
                       _ChoiceGrid(
                         columns: choiceColumns,
+                        minTileWidth: choiceWidth,
                         children: [
                           for (final choice in SetupScreen.recordingChoices)
                             _versionCard(choice, versions, source),
@@ -482,6 +487,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     children: [
                       _ChoiceGrid(
                         columns: choiceColumns,
+                        minTileWidth: choiceWidth,
                         children: [
                           for (final choice in SetupScreen.takeChoices)
                             if (source.versions.offers(choice.value))
@@ -497,6 +503,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 children: [
                   _ChoiceGrid(
                     columns: SetupScreen.difficulties.length,
+                    minTileWidth: OptionTile.minWidthFor(scaler),
                     children: [
                       for (final choice in SetupScreen.difficulties)
                         OptionTile(
@@ -555,18 +562,21 @@ class _Section extends StatelessWidget {
 }
 
 class _ChoiceGrid extends StatelessWidget {
-  const _ChoiceGrid({required this.columns, required this.children});
+  const _ChoiceGrid({
+    required this.columns,
+    required this.minTileWidth,
+    required this.children,
+  });
 
   static const double gap = 10;
 
   final int columns;
+  final double minTileWidth;
   final List<Widget> children;
 
-  int _columnsIn(double width, TextScaler scaler) =>
-      ((width + gap) / (OptionTile.minWidthFor(scaler) + gap)).floor().clamp(
-        1,
-        columns,
-      );
+  int _columnsIn(double width) => width.isFinite
+      ? ((width + gap) / (minTileWidth + gap)).floor().clamp(1, columns)
+      : columns;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -574,9 +584,7 @@ class _ChoiceGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: gap,
       children: [
-        for (final row in children.slices(
-          _columnsIn(constraints.maxWidth, MediaQuery.textScalerOf(context)),
-        ))
+        for (final row in children.slices(_columnsIn(constraints.maxWidth)))
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -18,10 +18,10 @@ class OptionTile extends StatelessWidget {
   static const radius = BorderRadius.all(Radius.circular(14));
   static const double textGap = 2;
   static const double titleSize = 24;
-  static const double minWidth = 120;
+  static const double minTextWidth = 88;
 
   static double minWidthFor(TextScaler scaler) =>
-      minWidth * scaler.scale(titleSize) / titleSize;
+      padding.horizontal + minTextWidth * scaler.scale(titleSize) / titleSize;
 
   final String title;
   final String description;

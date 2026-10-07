@@ -171,6 +171,11 @@ void main() {
           tester.getTopLeft(find.text(label)).dy,
       };
       expect(tops, hasLength(1));
+      expect(
+        tester.getTopLeft(find.text('Lyrics')).dy ==
+            tester.getTopLeft(find.text('Sound')).dy,
+        window.width >= 900,
+      );
     });
   }
 

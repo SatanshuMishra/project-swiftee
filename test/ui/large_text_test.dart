@@ -18,6 +18,7 @@ import 'package:swiftie_quiz/ui/misu/misu_host.dart';
 import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
 import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
@@ -53,10 +54,25 @@ const Player _christopher = Player(
   avatar: 'seedChristopher',
 );
 
-final String _longestWordedTitle = maxBy(
-  albums.bundled.allTracks.map(songTitle),
-  (title) => title.split(' ').map((word) => word.length).max,
-)!;
+String get _widestWordTitle =>
+    maxBy(albums.bundled.allTracks.map(songTitle), (title) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: title,
+          style: const TextStyle(
+            fontFamily: AppType.serifFamily,
+            fontStyle: FontStyle.italic,
+            fontSize: _revealSize,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final width = painter.minIntrinsicWidth;
+      painter.dispose();
+      return width;
+    })!;
+
+const double _revealSize = 56;
 
 PlayerScore _score(Player player, int score) => PlayerScore(
   id: player.id,
@@ -241,7 +257,7 @@ void main() {
         expect(faults, isEmpty);
       });
 
-      testWidgets('a reveal of the longest-worded song fits', (tester) async {
+      testWidgets('a reveal of the widest-worded song fits', (tester) async {
         expect(
           await faultsOf(
             tester,
@@ -249,7 +265,7 @@ void main() {
               tester,
               difficulty: Difficulty.easy,
               answer: true,
-              title: _longestWordedTitle,
+              title: _widestWordTitle,
             ),
           ),
           isEmpty,
