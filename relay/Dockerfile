@@ -1,4 +1,4 @@
-FROM dart:3.13 AS build
+FROM dart:3.13.4@sha256:33faf91bc941466a767ce845b4bbb5d578ecd180abe5ee243e9c8c039109d215 AS build
 WORKDIR /src
 COPY packages/together_protocol packages/together_protocol
 COPY relay relay
