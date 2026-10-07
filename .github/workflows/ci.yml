@@ -134,6 +134,11 @@ jobs:
           flutter-version: "3.47.5"
           cache: true
 
+      - name: Test certificate trust on Windows
+        if: steps.app.outputs.present == 'true'
+        shell: bash
+        run: flutter test test/services/network/
+
       - name: Build the Windows app
         if: steps.app.outputs.present == 'true'
         run: flutter build windows --release --dart-define=EDITION=ana
