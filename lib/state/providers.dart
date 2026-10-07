@@ -13,6 +13,7 @@ import 'package:swiftie_quiz/data/lyrics/danger_zones.dart';
 import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
 import 'package:swiftie_quiz/data/save/save_location.dart';
 import 'package:swiftie_quiz/data/save/save_store.dart';
+import 'package:swiftie_quiz/data/together/relay_connection.dart';
 
 final appVersionProvider = FutureProvider<String>(
   (ref) async => (await PackageInfo.fromPlatform()).version,
@@ -66,5 +67,14 @@ final catalogueStoreProvider = Provider<CatalogueStore>(
       p.join(p.dirname(defaultSaveFilePath()), catalogueUpdatesFileName),
     ),
     now: ref.watch(clockProvider),
+  ),
+);
+
+final relayConnectorProvider = Provider<RelayConnector>(
+  (ref) => HttpRelayConnector(
+    client: ref.watch(httpClientProvider),
+    openSocket: (uri, headers) async =>
+        (await WebSocket.connect(uri.toString(), headers: headers))
+          ..pingInterval = const Duration(seconds: 20),
   ),
 );
