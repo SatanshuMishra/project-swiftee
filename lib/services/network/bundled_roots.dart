@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -21,8 +22,21 @@ Future<void> trustBundledRootsOnWindows(AssetBundle bundle) async {
   if (defaultTargetPlatform != TargetPlatform.windows) {
     return;
   }
-  final roots = await bundle.load(bundledRootsAsset);
-  HttpOverrides.global = BundledRootsOverrides(
-    roots.buffer.asUint8List(roots.offsetInBytes, roots.lengthInBytes),
-  );
+  try {
+    final roots = await bundle.load(bundledRootsAsset);
+    HttpOverrides.global = BundledRootsOverrides(
+      roots.buffer.asUint8List(roots.offsetInBytes, roots.lengthInBytes),
+    );
+  } on FlutterError catch (error, stackTrace) {
+    _logUntrusted(error, stackTrace);
+  } on TlsException catch (error, stackTrace) {
+    _logUntrusted(error, stackTrace);
+  }
 }
+
+void _logUntrusted(Object error, StackTrace stackTrace) => developer.log(
+  'The bundled roots could not be trusted; using the Windows store alone',
+  name: 'swiftie_quiz.network',
+  error: error,
+  stackTrace: stackTrace,
+);

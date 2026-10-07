@@ -18,11 +18,17 @@ The relay a player adds in Settings depends on the same luck: whether a host wor
 
 macOS is unchanged: Dart verifies there through the system's own trust evaluation, which fetches what it needs.
 
-A test pins that the bundle holds the roots behind LRCLIB, Deezer, GitHub and the relay, and another checks with a local HTTPS server that a client trusts a bundled root only through the override.
+If the bundle cannot be read or parsed, the app logs it and keeps Windows' own store, so it still starts and still verifies every certificate.
+
+Tests pin the bundle's SHA-256 and that it holds the roots behind LRCLIB, Deezer, GitHub and the relay. Against local HTTPS servers they check that a client trusts a bundled root only through the override, still refuses a root outside the bundle and a certificate for another host name, and that a client given its own security context keeps it. CI runs these tests on the Windows runner too, where Dart's Windows trust code is the one under test.
 
 ## Refreshing the bundle
 
-Replace `assets/certs/cacert.pem` with the current file from https://curl.se/ca/cacert.pem and check it against https://curl.se/ca/cacert.pem.sha256. Doing it once or twice a year keeps up with Mozilla's additions and removals; roots change slowly, and the Windows store still applies alongside it.
+Replace `assets/certs/cacert.pem` with the current file from https://curl.se/ca/cacert.pem, check it against https://curl.se/ca/cacert.pem.sha256, and put the new hash in `_bundledRootsSha256` in `test/services/network/bundled_roots_test.dart`. The release check (`tool/release/check_release.dart`) refuses to release a bundle taken from Mozilla more than 180 days earlier, so a refresh happens at least twice a year and Mozilla's removals reach players.
+
+## Accepted risks
+
+The bundle is plain PEM, so it cannot carry what Firefox applies on top of Mozilla's list: name constraints on some roots, distrust-after dates, and revoked intermediates (OneCRL). A root that a user or an administrator removed from the Windows store is trusted again through the bundle. The app talks to a handful of fixed hosts plus one relay the player chooses, verifies every host name, and refreshes the bundle at least every 180 days, so these stay accepted.
 
 ## Not decided here
 

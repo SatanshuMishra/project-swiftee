@@ -9,6 +9,22 @@ const minimumPublicKeyLength = 64;
 const pubspecPath = 'pubspec.yaml';
 const changelogPath = 'CHANGELOG.md';
 const updateConfigPath = 'lib/services/updater/update_config.dart';
+const trustedRootsPath = 'assets/certs/cacert.pem';
+const maxTrustedRootsAge = Duration(days: 180);
+const months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 final updaterPublicKeyLine = RegExp(
   r"^const updaterPublicKey = '([^']*)';$",
@@ -16,6 +32,11 @@ final updaterPublicKeyLine = RegExp(
 );
 final standardBase64 = RegExp(r'^[A-Za-z0-9+/]+={0,2}$');
 final releaseVersion = RegExp(r'^\d+\.\d+\.\d+$');
+final trustedRootsTaken = RegExp(
+  r'^## Certificate data from Mozilla as of: \w{3} (\w{3}) +(\d{1,2}) '
+  r'\d{2}:\d{2}:\d{2} (\d{4}) GMT$',
+  multiLine: true,
+);
 
 final class ReleaseCheckFailure implements Exception {
   const ReleaseCheckFailure(this.message);
@@ -99,6 +120,37 @@ void checkUpdaterPublicKey(String updateConfig) {
   }
 }
 
+DateTime? trustedRootsDate(String pem) {
+  final match = trustedRootsTaken.firstMatch(pem);
+  final month = months.indexOf(match?.group(1) ?? '') + 1;
+  if (match == null || month == 0) {
+    return null;
+  }
+  return DateTime.utc(
+    int.parse(match.group(3)!),
+    month,
+    int.parse(match.group(2)!),
+  );
+}
+
+void checkTrustedRootsAge(String pem, DateTime now) {
+  final taken = trustedRootsDate(pem);
+  if (taken == null) {
+    throw const ReleaseCheckFailure(
+      '$trustedRootsPath does not say when its roots were taken from '
+      'Mozilla; replace it with https://curl.se/ca/cacert.pem',
+    );
+  }
+  if (now.difference(taken) > maxTrustedRootsAge) {
+    throw ReleaseCheckFailure(
+      '$trustedRootsPath holds Mozilla roots from '
+      '${taken.toIso8601String().substring(0, 10)}, more than '
+      '${maxTrustedRootsAge.inDays} days old. Refresh it as '
+      'docs/decisions/2026-10-07-windows-trusted-roots.md describes.',
+    );
+  }
+}
+
 String checkRelease({
   required String tag,
   required String pubspec,
@@ -128,6 +180,7 @@ int runCheckRelease(
   required String root,
   required StringSink output,
   required StringSink errors,
+  required DateTime now,
 }) {
   if (arguments.length != 1 || arguments.single.isEmpty) {
     errors.writeln('usage: dart run tool/release/check_release.dart <tag>');
@@ -136,14 +189,14 @@ int runCheckRelease(
   String read(String relativePath) =>
       File(p.join(root, relativePath)).readAsStringSync();
   try {
-    output.writeln(
-      checkRelease(
-        tag: arguments.single,
-        pubspec: read(pubspecPath),
-        changelog: read(changelogPath),
-        updateConfig: read(updateConfigPath),
-      ),
+    final notes = checkRelease(
+      tag: arguments.single,
+      pubspec: read(pubspecPath),
+      changelog: read(changelogPath),
+      updateConfig: read(updateConfigPath),
     );
+    checkTrustedRootsAge(read(trustedRootsPath), now);
+    output.writeln(notes);
     return 0;
   } on ReleaseCheckFailure catch (failure) {
     errors.writeln('::error::${failure.message}');
@@ -160,5 +213,6 @@ void main(List<String> arguments) {
     root: Directory.current.path,
     output: stdout,
     errors: stderr,
+    now: DateTime.now().toUtc(),
   );
 }

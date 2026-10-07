@@ -45,6 +45,16 @@ String developmentKey() => base64.encode(
   ),
 );
 
+const trustedRoots = '''
+##
+## Bundle of CA Root Certificates
+##
+## Certificate data from Mozilla as of: Fri Sep 25 03:12:01 2026 GMT
+##
+''';
+
+final DateTime releaseDay = DateTime.utc(2026, 10, 7);
+
 Matcher refusesWith(String text) => throwsA(
   isA<ReleaseCheckFailure>().having(
     (failure) => failure.message,
@@ -54,6 +64,23 @@ Matcher refusesWith(String text) => throwsA(
 );
 
 void main() {
+  group('trusted roots age', () {
+    test('reads the date curl stamps on the bundle', () {
+      expect(trustedRootsDate(trustedRoots), DateTime.utc(2026, 9, 25));
+      expect(
+        trustedRootsDate(File('assets/certs/cacert.pem').readAsStringSync()),
+        isNotNull,
+      );
+    });
+
+    test('refuses a bundle that does not say when it was taken', () {
+      expect(
+        () => checkTrustedRootsAge('-----BEGIN CERTIFICATE-----', releaseDay),
+        refusesWith('does not say when its roots were taken'),
+      );
+    });
+  });
+
   group('release checks', () {
     test('accepts a coherent release and returns its CHANGELOG section', () {
       final notes = checkRelease(
@@ -242,6 +269,7 @@ void main() {
           'lib/services/updater/update_config.dart',
           updateConfigWith(productionKey),
         );
+        writeRepoFile('assets/certs/cacert.pem', trustedRoots);
       });
 
       tearDown(() => root.deleteSync(recursive: true));
@@ -252,6 +280,7 @@ void main() {
           root: root.path,
           output: output,
           errors: errors,
+          now: releaseDay,
         );
 
         expect(code, 0);
@@ -271,6 +300,7 @@ void main() {
           root: root.path,
           output: output,
           errors: errors,
+          now: releaseDay,
         );
 
         expect(code, 1);
@@ -287,6 +317,7 @@ void main() {
           root: root.path,
           output: output,
           errors: errors,
+          now: releaseDay,
         );
 
         expect(code, 1);
@@ -294,9 +325,63 @@ void main() {
         expect(errors.toString(), contains('update_config.dart'));
       });
 
+      test('refuses trusted roots more than 180 days old', () {
+        final code = runCheckRelease(
+          ['v0.3.0'],
+          root: root.path,
+          output: output,
+          errors: errors,
+          now: DateTime.utc(2027, 3, 25),
+        );
+
+        expect(code, 1);
+        expect(output.toString(), isEmpty);
+        expect(
+          errors.toString(),
+          startsWith(
+            '::error::assets/certs/cacert.pem holds Mozilla roots from '
+            '2026-09-25, more than 180 days old.',
+          ),
+        );
+      });
+
+      test('accepts trusted roots exactly 180 days old', () {
+        final code = runCheckRelease(
+          ['v0.3.0'],
+          root: root.path,
+          output: output,
+          errors: errors,
+          now: DateTime.utc(2027, 3, 24),
+        );
+
+        expect(code, 0);
+        expect(errors.toString(), isEmpty);
+      });
+
+      test('fails when the trusted roots file is missing', () {
+        File('${root.path}/assets/certs/cacert.pem').deleteSync();
+
+        final code = runCheckRelease(
+          ['v0.3.0'],
+          root: root.path,
+          output: output,
+          errors: errors,
+          now: releaseDay,
+        );
+
+        expect(code, 1);
+        expect(errors.toString(), contains('cacert.pem'));
+      });
+
       test('requires exactly one tag argument', () {
         expect(
-          runCheckRelease([], root: root.path, output: output, errors: errors),
+          runCheckRelease(
+            [],
+            root: root.path,
+            output: output,
+            errors: errors,
+            now: releaseDay,
+          ),
           64,
         );
         expect(errors.toString(), contains('usage:'));
