@@ -14,15 +14,16 @@ The picker offered the thirteen era tiles only. Fans also think in releases (one
 
 **Releases can be filtered and searched.** All, Albums, EPs and Singles narrow the list. The search matches release titles first, then the songs on each release, and names the song that matched ("with “Cruel Summer”"). It ignores case, punctuation, accents and curly apostrophes, and its folded titles are built once per catalogue.
 
-**Version types are chosen on Set up, for Sound only.** "Which versions" offers Every version, Taylor's Version and No live takes, and the track count updates as it changes. It sits on Set up rather than the picker, so it covers Shuffle everything and tonight's era too. Lyrics games read one studio take per song, so the choice would change nothing there and is not shown.
+**Version types are chosen on Set up, for Sound only.** Revised on 2026-10-07: the first version offered Every version, Taylor's Version and No live takes as one single choice, which mixed two questions and could not combine them. Set up now asks two multi-select questions, with every card selected by default, and the track count updates as they change. It sits on Set up rather than the picker, so it covers Shuffle everything and tonight's era too. Lyrics games read one studio take per song, so the questions would change nothing there and are not shown.
 
-- Taylor's Version drops an original when the pick holds a re-recording of the same song. Shuffle everything loses 98 of its 420 recordings. A pick holding only originals, such as the Red album, keeps them.
-- No live takes drops recordings whose title marks them live or from the Long Pond sessions: 53 of 420.
-- A choice that would leave nothing to play, as No live takes would for any of the 13 all-live releases, is dimmed and falls back to Every version.
+- **Recordings: Taylor's Version · Originals.** Shown only when the pick holds a song in both a re-recording and an original, which happens on Fearless, Speak Now, Red and 1989. A recording of such a song plays only when its kind is selected; songs never re-recorded and vault songs always play. Taylor's Version alone drops 98 of Shuffle everything's 420 recordings and keeps every song. One kind must stay selected.
+- **Also play: Live takes · Acoustic & other takes.** Each card shows only when the pick holds that kind of take, as sorted by `takeOf` (see 2026-10-07-catalogue-growth.md): 53 live and 28 other takes of 420. Studio takes always play.
+- A recording plays when both of its labels are selected, so "State Of Grace (Acoustic Version) (Taylor's Version)" needs Taylor's Version and Acoustic & other takes, and "Haunted (Live/2011)" needs Originals and Live takes.
+- A card that would leave nothing to play, such as Live takes for an all-live release, cannot be turned off, and a remembered choice that leaves nothing for a new pick falls back to everything.
+- The cards are compact one-line toggles with a check, so Start stays in view on a 1024 by 768 screen.
 
 Picks and the version choice last the session and are not written to `save.json`, so the save format does not change.
 
 ## Not decided here
 
-- Combining Taylor's Version with No live takes. The choice is single for now.
 - Remembering the version choice across launches. That needs a save format version bump and a migration.

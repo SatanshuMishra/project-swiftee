@@ -18,6 +18,7 @@ class Pressable extends StatefulWidget {
     this.enabled = true,
     this.focusRadius = BorderRadius.zero,
     this.selected,
+    this.checked,
     this.semanticLabel,
     this.autofocus = false,
     this.focusNode,
@@ -31,6 +32,7 @@ class Pressable extends StatefulWidget {
   final bool enabled;
   final BorderRadius focusRadius;
   final bool? selected;
+  final bool? checked;
   final String? semanticLabel;
   final bool autofocus;
   final FocusNode? focusNode;
@@ -118,6 +120,7 @@ class _PressableState extends State<Pressable> {
           button: true,
           enabled: enabled,
           selected: widget.selected,
+          checked: widget.checked,
           label: widget.semanticLabel,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,

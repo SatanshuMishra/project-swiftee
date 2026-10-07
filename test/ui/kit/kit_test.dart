@@ -4,6 +4,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
+import 'package:swiftie_quiz/ui/kit/selected_check.dart';
 import 'package:swiftie_quiz/ui/kit/arrow_row.dart';
 import 'package:swiftie_quiz/ui/kit/bead.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
@@ -985,5 +987,36 @@ void main() {
     await tester.tap(find.text('Back'));
     await tester.tap(find.text('Settings'));
     expect(taps, ['back', 'settings']);
+  });
+
+  testWidgets('a toggle card shows a check when on and an empty ring when '
+      'off, and reports its checked state', (tester) async {
+    var taps = 0;
+    await pumpKit(
+      tester,
+      Column(
+        children: [
+          ToggleCard(title: 'Live takes', checked: true, onTap: () => taps++),
+          ToggleCard(title: 'Originals', checked: false, onTap: () => taps++),
+        ],
+      ),
+    );
+
+    final checks = tester
+        .widgetList<SelectedCheck>(find.byType(SelectedCheck))
+        .map((check) => check.checked);
+    expect(checks, [true, false]);
+    expect(find.text(SelectedCheck.glyph), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text('Live takes')),
+      isSemantics(hasCheckedState: true, isChecked: true, isButton: true),
+    );
+    expect(
+      tester.getSemantics(find.text('Originals')),
+      isSemantics(hasCheckedState: true, isChecked: false),
+    );
+
+    await tester.tap(find.text('Originals'));
+    expect(taps, 1);
   });
 }

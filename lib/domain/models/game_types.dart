@@ -56,17 +56,67 @@ enum LyricsMode {
       values.firstWhereOrNull((value) => value.wireName == wireName);
 }
 
-enum TrackVersions {
-  every('every'),
-  taylorsVersion('taylors-version'),
-  noLive('no-live');
+enum VersionOption { taylorsVersions, originals, liveTakes, otherTakes }
 
-  const TrackVersions(this.wireName);
+final class VersionChoice {
+  const VersionChoice({
+    this.taylorsVersions = true,
+    this.originals = true,
+    this.liveTakes = true,
+    this.otherTakes = true,
+  });
 
-  final String wireName;
+  static const VersionChoice all = VersionChoice();
 
-  static TrackVersions? fromWireName(String wireName) =>
-      values.firstWhereOrNull((value) => value.wireName == wireName);
+  bool includes(VersionOption option) => switch (option) {
+    VersionOption.taylorsVersions => taylorsVersions,
+    VersionOption.originals => originals,
+    VersionOption.liveTakes => liveTakes,
+    VersionOption.otherTakes => otherTakes,
+  };
+
+  VersionChoice toggled(VersionOption option) => switch (option) {
+    VersionOption.taylorsVersions => copyWith(
+      taylorsVersions: !taylorsVersions,
+    ),
+    VersionOption.originals => copyWith(originals: !originals),
+    VersionOption.liveTakes => copyWith(liveTakes: !liveTakes),
+    VersionOption.otherTakes => copyWith(otherTakes: !otherTakes),
+  };
+
+  final bool taylorsVersions;
+  final bool originals;
+  final bool liveTakes;
+  final bool otherTakes;
+
+  VersionChoice copyWith({
+    bool? taylorsVersions,
+    bool? originals,
+    bool? liveTakes,
+    bool? otherTakes,
+  }) => VersionChoice(
+    taylorsVersions: taylorsVersions ?? this.taylorsVersions,
+    originals: originals ?? this.originals,
+    liveTakes: liveTakes ?? this.liveTakes,
+    otherTakes: otherTakes ?? this.otherTakes,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is VersionChoice &&
+      other.taylorsVersions == taylorsVersions &&
+      other.originals == originals &&
+      other.liveTakes == liveTakes &&
+      other.otherTakes == otherTakes;
+
+  @override
+  int get hashCode =>
+      Object.hash(taylorsVersions, originals, liveTakes, otherTakes);
+
+  @override
+  String toString() =>
+      'VersionChoice(taylorsVersions: $taylorsVersions, originals: $originals, '
+      'liveTakes: $liveTakes, otherTakes: $otherTakes)';
 }
 
 enum Difficulty {

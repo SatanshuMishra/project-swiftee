@@ -61,7 +61,7 @@ class GameController extends Notifier<GameState> {
   void clearSelection() =>
       state = state.copyWith(selectedEraKeys: [], selectedReleaseIds: []);
 
-  void setVersions(TrackVersions versions) =>
+  void setVersions(VersionChoice versions) =>
       state = state.copyWith(versions: versions);
 
   void beginSetup(GameMode mode) => state = state.copyWith(

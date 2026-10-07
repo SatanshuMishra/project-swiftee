@@ -67,7 +67,7 @@ final class GameState {
     lyricsMode: null,
     selectedEraKeys: [],
     selectedReleaseIds: [],
-    versions: TrackVersions.every,
+    versions: VersionChoice.all,
     currentTrack: null,
     trackPool: [],
     options: [],
@@ -98,7 +98,7 @@ final class GameState {
   final LyricsMode? lyricsMode;
   final List<String> selectedEraKeys;
   final List<int> selectedReleaseIds;
-  final TrackVersions versions;
+  final VersionChoice versions;
   final Track? currentTrack;
   final List<Track> trackPool;
   final List<Track> options;
@@ -134,7 +134,7 @@ final class GameState {
     Object? lyricsMode = _unchanged,
     List<String>? selectedEraKeys,
     List<int>? selectedReleaseIds,
-    TrackVersions? versions,
+    VersionChoice? versions,
     Object? currentTrack = _unchanged,
     List<Track>? trackPool,
     List<Track>? options,
