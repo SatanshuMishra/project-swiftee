@@ -1,0 +1,11 @@
+.git
+build/
+.dart_tool/
+**/.dart_tool/
+relay/output/
+macos/
+windows/
+docs/
+design/
+test/
+assets/
