@@ -218,12 +218,14 @@ final class Rooms {
       return;
     }
     final fromHost = room.isHost(connection);
-    if (fromHost) {
+    final recipients = fromHost
+        ? room.guests
+              .where((guest) => to == null || guest.player.id == to)
+              .toList()
+        : [room.host];
+    if (fromHost && recipients.isNotEmpty) {
       _rooms = _with(_rooms, room.code, room.copyWith(active: _clock.elapsed));
     }
-    final recipients = fromHost
-        ? room.guests.where((guest) => to == null || guest.player.id == to)
-        : [room.host];
     for (final member in recipients) {
       _sendText(member.connection, text, bytes);
     }
