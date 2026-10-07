@@ -61,34 +61,38 @@ class ConfirmDialog extends StatelessWidget {
     return SwiftieModal(
       maxWidth: maxWidth,
       onDismiss: () => onAnswer(false),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            title,
-            style: AppType.display(30, height: 34 / 30, color: tokens.fg),
-          ),
-          const SizedBox(height: gap),
-          Text(message, style: AppType.body.copyWith(color: tokens.mut)),
-          const SizedBox(height: gap + actionsTop),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              PillButton(
-                label: confirmDialogCancelLabel,
-                kind: PillKind.quiet,
-                onPressed: () => onAnswer(false),
-              ),
-              const SizedBox(width: gap),
-              PillButton(
-                label: confirmLabel,
-                kind: destructive ? PillKind.danger : PillKind.coral,
-                onPressed: () => onAnswer(true),
-              ),
-            ],
-          ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: AppType.display(30, height: 34 / 30, color: tokens.fg),
+            ),
+            const SizedBox(height: gap),
+            Text(message, style: AppType.body.copyWith(color: tokens.mut)),
+            const SizedBox(height: gap + actionsTop),
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                PillButton(
+                  label: confirmDialogCancelLabel,
+                  kind: PillKind.quiet,
+                  onPressed: () => onAnswer(false),
+                ),
+                PillButton(
+                  label: confirmLabel,
+                  kind: destructive ? PillKind.danger : PillKind.coral,
+                  onPressed: () => onAnswer(true),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

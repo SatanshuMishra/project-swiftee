@@ -262,13 +262,16 @@ class PillButton extends StatelessWidget {
                         ),
                         const SizedBox(width: leadingGap),
                       ],
-                      Text(
-                        label,
-                        style: AppType.sized(
-                          size.fontSize,
-                          size.lineHeight,
-                          weight: weight,
-                        ).copyWith(color: color),
+                      Flexible(
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: AppType.sized(
+                            size.fontSize,
+                            size.lineHeight,
+                            weight: weight,
+                          ).copyWith(color: color),
+                        ),
                       ),
                     ],
                   ),
