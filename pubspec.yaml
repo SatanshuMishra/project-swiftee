@@ -39,6 +39,7 @@ flutter:
   assets:
     - assets/brand/
     - assets/catalog/
+    - assets/certs/
     - assets/cat/
     - assets/sounds/
   fonts:
