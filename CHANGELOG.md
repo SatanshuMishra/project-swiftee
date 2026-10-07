@@ -4,6 +4,23 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-10-07
+
+### Added
+- Play together. Host a room, share its 4-letter code, and up to 8 players hear the same songs at the same time, each under the nickname they already use and a blob avatar drawn fresh every time they join.
+- The host picks Classic, Quick draw or Lyrics or Lie, the number of rounds and the difficulty, and either shuffles everything or picks eras and releases. The host can change any of it from the lobby while the room stays open.
+- Play together needs a server link. Whoever runs your server shares one, and you paste it under Play together in Settings. Until then the menu row stays off and says where to add it.
+- Games played together are one-off: nothing from a room is saved, and they do not count towards your record shelf or stats.
+- In Set up, choose which recordings play with cards you can combine: Taylor's Version, Originals, Live takes, and Acoustic and other takes. They replace the single choice between every version, Taylor's Versions only and no live takes.
+
+### Changed
+- New albums, singles and editions sort into the right era and version on their own, so a new release lands in place without waiting for an app update. The app looks for new releases whenever it checks for updates.
+
+### Fixed
+- The first round of a sound game now waits behind the loader like every other round, so its answers can no longer be picked before the song plays, and no round's timer starts before its song is ready.
+- Update notes show as headings and bullet points instead of raw formatting symbols.
+- Songs with an unusual label in brackets, such as Mary's Song (Oh My My My), are no longer filed as alternate takes.
+
 ## [0.4.1] - 2026-10-06
 
 ### Updating from v0.4.0
