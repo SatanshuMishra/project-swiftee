@@ -147,8 +147,8 @@ void main() {
       .first;
 
   Finder panel() => find
-      .ancestor(
-        of: find.byType(Column),
+      .descendant(
+        of: find.byType(UpdateModal),
         matching: find.byWidgetPredicate(
           (widget) =>
               widget is DecoratedBox &&
@@ -580,6 +580,46 @@ void main() {
     final text = tester.getRect(find.text(firstBullet));
     expect(dot.right, lessThanOrEqualTo(text.left));
     expect(text.left - dot.left, 21);
+  });
+
+  testWidgets('every panel fits at twice the text size', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    for (final state in <UpdaterMachineState>[
+      const UpdaterAvailable(manifest: manifest),
+      const UpdaterDownloading(manifest: manifest, progress: 40),
+      const UpdaterReady(manifest: manifest),
+      const UpdaterError(
+        subtype: UpdaterErrorSubtype.download,
+        message: 'The download failed.',
+      ),
+      const UpdaterInstalled(manifest: manifest),
+      const UpdaterUpToDate(),
+    ]) {
+      await openWith(tester, state);
+
+      expect(tester.takeException(), isNull, reason: '$state');
+      expect(
+        tester.getRect(panel()).bottom,
+        lessThanOrEqualTo(surface.height),
+        reason: '$state',
+      );
+    }
+  });
+
+  testWidgets('at twice the text size the actions scroll into view and '
+      'still work', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await openWith(tester, const UpdaterAvailable(manifest: manifest));
+
+    await tester.ensureVisible(find.text('Download'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Download'));
+    await tester.pump();
+
+    expect(updater.calls, ['download']);
+    expect(find.text(firstBullet), findsOneWidget);
   });
 
   testWidgets('long release notes scroll inside the panel', (tester) async {

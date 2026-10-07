@@ -286,6 +286,38 @@ void main() {
     },
   );
 
+  testWidgets('the confirm dialog fits and answers at twice the text size', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await pumpKit(tester, const SizedBox.expand());
+    final context = tester.element(find.byType(SizedBox));
+
+    final answer = showConfirmDialog(
+      context,
+      title: 'Reset all progress?',
+      message:
+          "This clears Ana's record shelf and stats. Backups stay available.",
+      confirmLabel: 'Reset progress',
+      destructive: true,
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.ensureVisible(find.text('Reset progress'));
+    await tester.pumpAndSettle();
+    final screen = Offset.zero & tester.view.physicalSize;
+    expect(
+      screen.contains(tester.getRect(find.text('Reset progress')).bottomRight),
+      isTrue,
+    );
+    await tester.tap(find.text('Reset progress'));
+    await tester.pumpAndSettle();
+
+    expect(await answer, isTrue);
+  });
+
   testWidgets('the confirm dialog draws the handoff panel and buttons', (
     tester,
   ) async {

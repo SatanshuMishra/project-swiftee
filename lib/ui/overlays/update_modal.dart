@@ -218,43 +218,47 @@ class _PanelBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: UpdateModal.gap,
-      children: [
-        Semantics(
-          header: true,
-          namesRoute: true,
-          child: Text(
-            panel.title,
-            style: AppType.display(
-              UpdateModal.titleSize,
-              height: UpdateModal.titleLineHeight / UpdateModal.titleSize,
-              color: tokens.fg,
-            ),
-          ),
-        ),
-        if (panel.notes case final notes?) Flexible(child: _Notes(notes)),
-        if (panel.progress case final progress?) _ProgressBar(value: progress),
-        if (panel.paragraph case final paragraph?)
-          Text(paragraph, style: AppType.body.copyWith(color: tokens.mut)),
-        if (panel.banner case final banner?) _Banner(banner),
-        Padding(
-          padding: const EdgeInsets.only(top: UpdateModal.actionsTop),
-          child: _ActionRow(
-            children: [
-              for (final action in panel.actions)
-                PillButton(
-                  key: ValueKey(action.label),
-                  label: action.label,
-                  kind: action.kind,
-                  onPressed: action.onPressed,
+    return LayoutBuilder(
+      builder: (context, viewport) => SingleChildScrollView(
+        child: _PanelColumn(
+          viewportHeight: viewport.maxHeight,
+          notesIndex: panel.notes == null ? null : 1,
+          children: [
+            Semantics(
+              header: true,
+              namesRoute: true,
+              child: Text(
+                panel.title,
+                style: AppType.display(
+                  UpdateModal.titleSize,
+                  height: UpdateModal.titleLineHeight / UpdateModal.titleSize,
+                  color: tokens.fg,
                 ),
-            ],
-          ),
+              ),
+            ),
+            if (panel.notes case final notes?) _Notes(notes),
+            if (panel.progress case final progress?)
+              _ProgressBar(value: progress),
+            if (panel.paragraph case final paragraph?)
+              Text(paragraph, style: AppType.body.copyWith(color: tokens.mut)),
+            if (panel.banner case final banner?) _Banner(banner),
+            Padding(
+              padding: const EdgeInsets.only(top: UpdateModal.actionsTop),
+              child: _ActionRow(
+                children: [
+                  for (final action in panel.actions)
+                    PillButton(
+                      key: ValueKey(action.label),
+                      label: action.label,
+                      kind: action.kind,
+                      onPressed: action.onPressed,
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -452,6 +456,169 @@ class _RestartingCover extends StatelessWidget {
   }
 }
 
+List<RenderBox> _childrenOf<P extends ContainerBoxParentData<RenderBox>>(
+  ContainerRenderObjectMixin<RenderBox, P> parent,
+) {
+  final children = <RenderBox>[];
+  var child = parent.firstChild;
+  while (child != null) {
+    children.add(child);
+    child = parent.childAfter(child);
+  }
+  return List.unmodifiable(children);
+}
+
+class _PanelColumn extends MultiChildRenderObjectWidget {
+  const _PanelColumn({
+    required this.viewportHeight,
+    required this.notesIndex,
+    required super.children,
+  });
+
+  static const double minNotesHeight = 96;
+
+  final double viewportHeight;
+  final int? notesIndex;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderPanelColumn(
+    viewportHeight: viewportHeight,
+    notesIndex: notesIndex,
+  );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderPanelColumn renderObject,
+  ) => renderObject
+    ..viewportHeight = viewportHeight
+    ..notesIndex = notesIndex;
+}
+
+class _PanelColumnParentData extends ContainerBoxParentData<RenderBox> {}
+
+class _RenderPanelColumn extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _PanelColumnParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _PanelColumnParentData> {
+  _RenderPanelColumn({
+    required this._viewportHeight,
+    required this._notesIndex,
+  });
+
+  static const double gap = UpdateModal.gap;
+
+  double _viewportHeight;
+  int? _notesIndex;
+
+  set viewportHeight(double value) {
+    if (value != _viewportHeight) {
+      _viewportHeight = value;
+      markNeedsLayout();
+    }
+  }
+
+  set notesIndex(int? value) {
+    if (value != _notesIndex) {
+      _notesIndex = value;
+      markNeedsLayout();
+    }
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _PanelColumnParentData) {
+      child.parentData = _PanelColumnParentData();
+    }
+  }
+
+  double _gaps(List<RenderBox> children) =>
+      gap * math.max(0, children.length - 1);
+
+  Size _arrange(BoxConstraints constraints, ChildLayouter layoutChild) {
+    final width = constraints.maxWidth;
+    final children = _childrenOf(this);
+    final notes = switch (_notesIndex) {
+      final index? => children.elementAtOrNull(index),
+      null => null,
+    };
+    var used = _gaps(children);
+    for (final child in children) {
+      if (!identical(child, notes)) {
+        used += layoutChild(
+          child,
+          BoxConstraints.tightFor(width: width),
+        ).height;
+      }
+    }
+    if (notes != null) {
+      final room = math.max(
+        _viewportHeight - used,
+        _PanelColumn.minNotesHeight,
+      );
+      used += layoutChild(
+        notes,
+        BoxConstraints(minWidth: width, maxWidth: width, maxHeight: room),
+      ).height;
+    }
+    return constraints.constrain(Size(width, used));
+  }
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) =>
+      _arrange(constraints, ChildLayoutHelper.dryLayoutChild);
+
+  @override
+  double computeMinIntrinsicWidth(double height) => _childrenOf(this).fold(
+    0.0,
+    (widest, child) => math.max(widest, child.getMinIntrinsicWidth(height)),
+  );
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => _childrenOf(this).fold(
+    0.0,
+    (widest, child) => math.max(widest, child.getMaxIntrinsicWidth(height)),
+  );
+
+  @override
+  double computeMinIntrinsicHeight(double width) {
+    final children = _childrenOf(this);
+    return children.fold(
+          0.0,
+          (sum, child) => sum + child.getMinIntrinsicHeight(width),
+        ) +
+        _gaps(children);
+  }
+
+  @override
+  double computeMaxIntrinsicHeight(double width) {
+    final children = _childrenOf(this);
+    return children.fold(
+          0.0,
+          (sum, child) => sum + child.getMaxIntrinsicHeight(width),
+        ) +
+        _gaps(children);
+  }
+
+  @override
+  void performLayout() {
+    size = _arrange(constraints, ChildLayoutHelper.layoutChild);
+    var top = 0.0;
+    for (final child in _childrenOf(this)) {
+      (child.parentData! as _PanelColumnParentData).offset = Offset(0, top);
+      top += child.size.height + gap;
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
+}
+
 class _ActionRow extends MultiChildRenderObjectWidget {
   const _ActionRow({required super.children});
 
@@ -481,15 +648,7 @@ class _RenderActionRow extends RenderBox
     }
   }
 
-  List<RenderBox> get _children {
-    final children = <RenderBox>[];
-    var child = firstChild;
-    while (child != null) {
-      children.add(child);
-      child = childAfter(child);
-    }
-    return children;
-  }
+  List<RenderBox> get _children => _childrenOf(this);
 
   List<_MeasuredLine> _measureLines(double maxWidth) {
     final childConstraints = BoxConstraints(maxWidth: maxWidth);
