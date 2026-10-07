@@ -12,6 +12,8 @@ import 'package:swiftie_quiz/services/window/window_controls.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/ui/chrome/title_bar.dart';
+import 'package:swiftie_quiz/ui/screens/album_grid.dart';
+import 'package:swiftie_quiz/ui/screens/game_screen.dart' show songTitle;
 import 'package:swiftie_quiz/ui/misu/misu_host.dart';
 import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
 import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
@@ -50,6 +52,11 @@ const Player _christopher = Player(
   name: 'Christopher',
   avatar: 'seedChristopher',
 );
+
+final String _longestWordedTitle = maxBy(
+  albums.bundled.allTracks.map(songTitle),
+  (title) => title.split(' ').map((word) => word.length).max,
+)!;
 
 PlayerScore _score(Player player, int score) => PlayerScore(
   id: player.id,
@@ -114,6 +121,7 @@ void main() {
         Future<void> Function()? then,
       }) => layoutFaults(tester, () async {
         await tester.pumpWidget(const SizedBox.shrink());
+        useLargeText(tester, window);
         await open();
         useLargeText(tester, window);
         await _settle(tester);
@@ -125,6 +133,7 @@ void main() {
         for (final (edition, name) in const [
           (Edition.ana, null),
           (Edition.open, 'Christopher'),
+          (Edition.open, 'Bartholomewsworthing'),
         ]) {
           for (final now in [
             DateTime(2026, 10, 6, 8),
@@ -230,6 +239,32 @@ void main() {
           }
         }
         expect(faults, isEmpty);
+      });
+
+      testWidgets('a reveal of the longest-worded song fits', (tester) async {
+        expect(
+          await faultsOf(
+            tester,
+            () => sound.openSoundGame(
+              tester,
+              difficulty: Difficulty.easy,
+              answer: true,
+              title: _longestWordedTitle,
+            ),
+          ),
+          isEmpty,
+        );
+      });
+
+      testWidgets('the releases tab fits', (tester) async {
+        expect(
+          await faultsOf(
+            tester,
+            () => albums.pumpAlbumGrid(tester),
+            then: () => _choose(tester, AlbumGrid.releasesTab),
+          ),
+          isEmpty,
+        );
       });
 
       testWidgets('every lyrics game round and reveal fits', (tester) async {

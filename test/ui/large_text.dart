@@ -6,13 +6,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
 
-const double largestTextScale = 2;
+const double largestTextScale = 2.25;
 
-const List<Size> largeTextWindows = [Size(1024, 768), Size(686, 571)];
+const List<Size> largeTextWindows = [
+  Size(686, 571),
+  Size(900, 700),
+  Size(1024, 768),
+  Size(1199, 800),
+  Size(1200, 800),
+];
 
 Future<void> loadRealFonts() async {
-  final sdkFonts =
-      '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts';
+  final sdk = Platform.environment['FLUTTER_ROOT'];
+  if (sdk == null) {
+    fail('FLUTTER_ROOT is not set, so the Roboto test font cannot be found');
+  }
+  final sdkFonts = '$sdk/bin/cache/artifacts/material_fonts';
   await Future.wait([
     _load(AppType.serifFamily, const [
       'assets/fonts/InstrumentSerif-Regular.ttf',
@@ -73,7 +82,7 @@ bool _breaksAWord(RenderParagraph paragraph) =>
     paragraph.hasSize &&
     paragraph.attached &&
     paragraph.softWrap &&
-    paragraph.maxLines == null &&
+    paragraph.maxLines != 1 &&
     paragraph.constraints.hasBoundedWidth &&
     paragraph.getMinIntrinsicWidth(double.infinity) >
         paragraph.constraints.maxWidth + 0.5;
