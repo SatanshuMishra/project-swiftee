@@ -263,13 +263,14 @@ class _Notes extends StatelessWidget {
   const _Notes(this.notes);
 
   static const double sectionGap = 12;
-  static const double bulletGap = 4;
+  static const double itemGap = 4;
 
   final String notes;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
+    final blocks = parseReleaseNotes(notes);
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -282,13 +283,14 @@ class _Notes extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final (index, block) in parseReleaseNotes(notes).indexed)
+            for (final (index, block) in blocks.indexed)
               Padding(
                 padding: EdgeInsets.only(
                   top: index == 0
                       ? 0
-                      : block.kind == NotesBlockKind.bullet
-                      ? bulletGap
+                      : block.kind == NotesBlockKind.item ||
+                            blocks[index - 1].kind == NotesBlockKind.heading
+                      ? itemGap
                       : sectionGap,
                 ),
                 child: _NotesBlock(block),
@@ -303,8 +305,8 @@ class _Notes extends StatelessWidget {
 class _NotesBlock extends StatelessWidget {
   const _NotesBlock(this.block);
 
-  static const String bullet = '•';
   static const double bulletWidth = 14;
+  static const double numberWidth = 24;
 
   final NotesBlock block;
 
@@ -320,18 +322,30 @@ class _NotesBlock extends StatelessWidget {
           style: AppType.sectionLabel.copyWith(color: tokens.fg),
         ),
       ),
-      NotesBlockKind.bullet => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: bulletWidth,
-            child: ExcludeSemantics(child: Text(bullet, style: body)),
-          ),
-          Expanded(child: Text(block.text, style: body)),
-        ],
-      ),
+      NotesBlockKind.item => _item(context, body),
       NotesBlockKind.paragraph => Text(block.text, style: body),
     };
+  }
+
+  Widget _item(BuildContext context, TextStyle body) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final bullet = block.marker == bulletMarker;
+    final marker = Text(block.marker, style: body);
+    return Padding(
+      padding: EdgeInsets.only(left: scaler.scale(bulletWidth) * block.depth),
+      child: MergeSemantics(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: scaler.scale(bullet ? bulletWidth : numberWidth),
+              child: bullet ? ExcludeSemantics(child: marker) : marker,
+            ),
+            Expanded(child: Text(block.text, style: body)),
+          ],
+        ),
+      ),
+    );
   }
 }
 

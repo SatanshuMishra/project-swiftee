@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/domain/engine/release_notes.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
@@ -15,7 +16,8 @@ import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 const Size surface = Size(800, 600);
 const String notes =
-    '### Added\n- **Records everywhere.** Every win is a record.\n- Misu drops by now and then.';
+    'Added\n• Records everywhere. Every win is a record.\n'
+    '• Misu drops by now and then.';
 const String firstHeading = 'Added';
 const String firstBullet = 'Records everywhere. Every win is a record.';
 const UpdateManifest manifest = UpdateManifest(
@@ -484,7 +486,7 @@ void main() {
     );
   });
 
-  testWidgets('release notes show headings and bullets, not Markdown', (
+  testWidgets('Markdown release notes still show headings and bullets', (
     tester,
   ) async {
     await openWith(
@@ -514,6 +516,70 @@ void main() {
       tester.getSemantics(find.text('Fixed')),
       isSemantics(isHeader: true, label: 'Fixed'),
     );
+  });
+
+  testWidgets('plain release notes show steps, nesting and headings, and '
+      'read each step with its number', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await openWith(
+      tester,
+      UpdaterAvailable(
+        manifest: UpdateManifest(
+          version: '0.5.0',
+          notes: plainReleaseNotes(
+            '### Updating from v0.4.1\n'
+            'Two steps:\n\n'
+            '1. Open Settings.\n'
+            '   - On Windows, as admin.\n'
+            '2. Click Check now.\n\n'
+            '### Fixed\n'
+            '- The window fits.',
+          ),
+          pubDate: '',
+        ),
+      ),
+    );
+
+    for (final heading in ['Updating from v0.4.1', 'Fixed']) {
+      expect(
+        tester.getSemantics(find.text(heading)),
+        isSemantics(isHeader: true, label: heading),
+      );
+    }
+    expect(find.text('Two steps:'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text('Open Settings.')),
+      isSemantics(label: '1.\nOpen Settings.'),
+    );
+    expect(
+      tester.getSemantics(find.text('Click Check now.')),
+      isSemantics(label: '2.\nClick Check now.'),
+    );
+    expect(
+      tester.getSemantics(find.text('The window fits.')),
+      isSemantics(label: 'The window fits.'),
+    );
+    expect(find.bySemanticsLabel(RegExp('•')), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('•').first).dx,
+      greaterThan(tester.getTopLeft(find.text('1.')).dx),
+    );
+    expect(
+      tester.getTopLeft(find.text('On Windows, as admin.')).dx,
+      greaterThan(tester.getTopLeft(find.text('Open Settings.')).dx),
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('the bullet column grows with the text size', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await openWith(tester, const UpdaterAvailable(manifest: manifest));
+
+    final dot = tester.getRect(find.text('•').first);
+    final text = tester.getRect(find.text(firstBullet));
+    expect(dot.right, lessThanOrEqualTo(text.left));
+    expect(text.left - dot.left, 21);
   });
 
   testWidgets('long release notes scroll inside the panel', (tester) async {
