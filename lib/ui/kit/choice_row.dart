@@ -41,9 +41,7 @@ class ChoiceRow extends StatelessWidget {
         curve: Curves.ease,
         padding: padding,
         decoration: BoxDecoration(
-          color: selected
-              ? tokens.designCard
-              : tokens.designCard.withValues(alpha: 0),
+          color: selected ? tokens.card : tokens.card.withValues(alpha: 0),
           borderRadius: radius,
           border: Border.all(color: state.hovered ? tokens.coral : ring),
         ),

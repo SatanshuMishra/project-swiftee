@@ -675,12 +675,12 @@ void main() {
                   .decoration!
               as BoxDecoration;
 
-      expect(card('Sound').color, tokens.designCard, reason: name);
+      expect(card('Sound').color, tokens.card, reason: name);
       expect(card('Sound').border, Border.all(color: tokens.coral));
       expect(card('Sound').borderRadius, ChoiceRow.radius);
       expect(card('Lyrics').color?.a, 0, reason: name);
       expect(card('Lyrics').border, Border.all(color: tokens.line2));
-      expect(card('Medium').color, tokens.designCard, reason: name);
+      expect(card('Medium').color, tokens.card, reason: name);
       expect(card('Medium').border, Border.all(color: tokens.coral));
       expect(card('Easy').border, Border.all(color: tokens.line2));
 

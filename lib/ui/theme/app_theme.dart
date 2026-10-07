@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
-abstract final class AppRadii {
-  static const double md = 6;
-  static const double lg = 8;
-  static const double xl = 12;
-  static const double xl2 = 16;
-}
-
 class CssBoxShadow extends BoxShadow {
   const CssBoxShadow({
     required super.color,
@@ -18,85 +11,6 @@ class CssBoxShadow extends BoxShadow {
          blurRadius: blur > 1 ? (blur / 2 - 0.5) / 0.57735 : 0,
          spreadRadius: spread,
        );
-}
-
-class CssDropShadow extends Shadow {
-  const CssDropShadow({
-    required super.color,
-    required super.offset,
-    required double blur,
-  }) : super(blurRadius: blur > 0.5 ? (blur - 0.5) / 0.57735 : 0);
-}
-
-abstract final class AppShadows {
-  static const _tenPercentBlack = Color.from(
-    alpha: 0.1,
-    red: 0,
-    green: 0,
-    blue: 0,
-  );
-
-  static const sm = <BoxShadow>[
-    CssBoxShadow(color: _tenPercentBlack, offset: Offset(0, 1), blur: 3),
-    CssBoxShadow(
-      color: _tenPercentBlack,
-      offset: Offset(0, 1),
-      blur: 2,
-      spread: -1,
-    ),
-  ];
-
-  static const lg = <BoxShadow>[
-    CssBoxShadow(
-      color: _tenPercentBlack,
-      offset: Offset(0, 10),
-      blur: 15,
-      spread: -3,
-    ),
-    CssBoxShadow(
-      color: _tenPercentBlack,
-      offset: Offset(0, 4),
-      blur: 6,
-      spread: -4,
-    ),
-  ];
-
-  static const xl = <BoxShadow>[
-    CssBoxShadow(
-      color: _tenPercentBlack,
-      offset: Offset(0, 20),
-      blur: 25,
-      spread: -5,
-    ),
-    CssBoxShadow(
-      color: _tenPercentBlack,
-      offset: Offset(0, 8),
-      blur: 10,
-      spread: -6,
-    ),
-  ];
-
-  static const xl2 = <BoxShadow>[
-    CssBoxShadow(
-      color: Color.from(alpha: 0.25, red: 0, green: 0, blue: 0),
-      offset: Offset(0, 25),
-      blur: 50,
-      spread: -12,
-    ),
-  ];
-
-  static const drop2xl = <Shadow>[
-    CssDropShadow(
-      color: Color.from(alpha: 0.15, red: 0, green: 0, blue: 0),
-      offset: Offset(0, 25),
-      blur: 25,
-    ),
-  ];
-
-  static List<BoxShadow> hidden(List<BoxShadow> shadows) => List.unmodifiable([
-    for (final shadow in shadows)
-      BoxShadow(color: shadow.color.withValues(alpha: 0)),
-  ]);
 }
 
 abstract final class AppText {
@@ -219,28 +133,28 @@ abstract final class AppTheme {
   static ThemeData build(AppTokens tokens, Brightness brightness) {
     final colorScheme = ColorScheme(
       brightness: brightness,
-      primary: tokens.primary,
-      onPrimary: tokens.primaryForeground,
-      secondary: tokens.muted,
-      onSecondary: tokens.foreground,
-      error: tokens.destructive,
-      onError: AppPalette.white,
-      surface: tokens.background,
-      onSurface: tokens.foreground,
-      onSurfaceVariant: tokens.mutedForeground,
-      surfaceContainerHighest: tokens.muted,
-      outline: tokens.border,
-      outlineVariant: tokens.border,
+      primary: tokens.coral,
+      onPrimary: tokens.onCoral,
+      secondary: tokens.hover,
+      onSecondary: tokens.fg,
+      error: tokens.rose,
+      onError: tokens.bg,
+      surface: tokens.bg,
+      onSurface: tokens.fg,
+      onSurfaceVariant: tokens.mut,
+      surfaceContainerHighest: tokens.hover,
+      outline: tokens.line2,
+      outlineVariant: tokens.line,
     );
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: tokens.background,
-      canvasColor: tokens.background,
-      cardColor: tokens.card,
-      dividerColor: tokens.border,
-      textTheme: _textTheme(tokens.foreground),
+      scaffoldBackgroundColor: tokens.bg,
+      canvasColor: tokens.bg,
+      cardColor: tokens.panel,
+      dividerColor: tokens.line,
+      textTheme: _textTheme(tokens.fg),
       splashFactory: NoSplash.splashFactory,
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,

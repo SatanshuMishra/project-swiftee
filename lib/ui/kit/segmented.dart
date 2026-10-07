@@ -32,7 +32,7 @@ class Segmented<T> extends StatelessWidget {
     return Container(
       padding: trackPadding,
       decoration: BoxDecoration(
-        color: tokens.designCard,
+        color: tokens.card,
         borderRadius: radius,
         border: Border.all(color: tokens.line),
       ),

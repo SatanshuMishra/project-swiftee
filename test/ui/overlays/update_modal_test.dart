@@ -373,7 +373,7 @@ void main() {
       notesBox.top - tester.getRect(find.text('Version 0.3.1 is here')).bottom,
       12,
     );
-    expect(notesDecoration.color, tokens.designCard);
+    expect(notesDecoration.color, tokens.card);
     expect(notesDecoration.border, Border.all(color: tokens.line));
     expect(
       notesDecoration.borderRadius,
@@ -441,7 +441,7 @@ void main() {
     );
     final notesBox =
         tester.widget<Container>(boxAround(notes)).decoration! as BoxDecoration;
-    expect(notesBox.color, tokens.designCard);
+    expect(notesBox.color, tokens.card);
     expect(notesBox.border, Border.all(color: tokens.line));
     expect(tester.widget<Text>(find.text(notes)).style!.color, tokens.mut);
 

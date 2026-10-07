@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
-import 'package:swiftie_quiz/ui/widgets/primary_button.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
 
 void restartAppWidgetTree() {
   final root = WidgetsBinding.instance.rootElement?.widget;
@@ -36,6 +37,8 @@ class ErrorScreen extends StatelessWidget {
   static const String restartLabel = 'Restart';
   static const double padding = 32;
   static const double gap = 16;
+  static const double titleSize = 30;
+  static const double titleLineHeight = 34;
 
   final Object? error;
   final VoidCallback onRestart;
@@ -73,7 +76,7 @@ class ErrorScreen extends StatelessWidget {
     final tokens = AppTokens.of(context);
     final viewport = MediaQuery.maybeSizeOf(context) ?? Size.zero;
     return Material(
-      color: tokens.background,
+      color: tokens.bg,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final content = ConstrainedBox(
@@ -95,23 +98,23 @@ class ErrorScreen extends StatelessWidget {
                     header: true,
                     child: Text(
                       title,
-                      style: AppText.xl2
-                          .copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: tokens.destructive,
-                          )
-                          .trackingTight,
+                      textAlign: TextAlign.center,
+                      style: AppType.display(
+                        titleSize,
+                        height: titleLineHeight / titleSize,
+                        color: tokens.rose,
+                      ),
                     ),
                   ),
                   Text(
                     messageOf(error),
                     textAlign: TextAlign.center,
-                    style: AppText.sm.copyWith(color: tokens.mutedForeground),
+                    style: AppType.body.copyWith(color: tokens.mut),
                   ),
-                  PrimaryButton(
+                  PillButton(
                     label: restartLabel,
-                    variant: PrimaryButtonVariant.restart,
                     onPressed: onRestart,
+                    size: PillSize.large,
                   ),
                 ],
               ),

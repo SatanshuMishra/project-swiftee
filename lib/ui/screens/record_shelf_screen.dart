@@ -520,7 +520,7 @@ class _ShelfRecordState extends State<ShelfRecord> {
                 builder: (context, box) => VinylDisc(
                   size: box.maxWidth,
                   labelUrl: widget.coverUrl,
-                  labelColor: widget.placeholder ?? tokens.designCard,
+                  labelColor: widget.placeholder ?? tokens.card,
                   labelFraction: ShelfRecord.discLabel,
                   style: VinylStyle.tile,
                 ),

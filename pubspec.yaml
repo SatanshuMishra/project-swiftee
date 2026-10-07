@@ -36,8 +36,6 @@ flutter:
     - assets/brand/
     - assets/catalog/
     - assets/cat/
-    - assets/cats/
-    - assets/icons/
     - assets/sounds/
   fonts:
     - family: Instrument Serif
