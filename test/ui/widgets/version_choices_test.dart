@@ -26,12 +26,4 @@ void main() {
       'Live · Taylor’s Version',
     );
   });
-
-  test('a card names the recording choice that leaves it empty', () {
-    expect(
-      VersionCopy.noneWith(Rerecorded.taylorsVersion),
-      'None in Taylor’s Version',
-    );
-    expect(VersionCopy.noneWith(Rerecorded.original), 'None in the originals');
-  });
 }

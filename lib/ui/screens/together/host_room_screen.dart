@@ -39,19 +39,33 @@ String roomScopeLabel(RoomScope scope, int tracks) => scope.everything
         tracks,
       );
 
-void storeRoomScope(WidgetRef ref, RoomScope scope) {
-  final settings = ref.read(roomControllerProvider).settings;
-  final index = VersionIndex(
-    scope.tracksIn(ref.read(catalogControllerProvider).catalogue),
+void storeRoomSettings(WidgetRef ref, RoomSettings next) {
+  final catalogue = ref.read(catalogControllerProvider).catalogue;
+  final room = ref.read(roomControllerProvider.notifier);
+  if (catalogue.isEmpty) {
+    room.setSettings(
+      next,
+      next.scope.everything
+          ? MainMenu.shuffleTitle
+          : ref.read(roomControllerProvider).scopeLabel,
+    );
+    return;
+  }
+  final index = VersionIndex(next.scope.tracksIn(catalogue));
+  final fitted = next.copyWith(versions: index.fitted(next.versions));
+  room.setSettings(
+    fitted,
+    roomScopeLabel(
+      fitted.scope,
+      index.count(fitted.playsSound ? fitted.versions : VersionChoice.all),
+    ),
   );
-  final versions = index.fitted(settings.versions);
-  ref
-      .read(roomControllerProvider.notifier)
-      .setSettings(
-        settings.copyWith(scope: scope, versions: versions),
-        roomScopeLabel(scope, index.count(versions)),
-      );
 }
+
+void storeRoomScope(WidgetRef ref, RoomScope scope) => storeRoomSettings(
+  ref,
+  ref.read(roomControllerProvider).settings.copyWith(scope: scope),
+);
 
 void storePickedScope(WidgetRef ref) {
   final game = ref.read(gameControllerProvider);
@@ -125,8 +139,7 @@ class HostRoomScreen extends ConsumerWidget {
     final code = room.code;
     final failure = room.status == RoomStatus.idle ? room.failure : null;
 
-    void change(RoomSettings next, [String? scopeLabel]) =>
-        roomController.setSettings(next, scopeLabel ?? room.scopeLabel);
+    void change(RoomSettings next) => storeRoomSettings(ref, next);
 
     void pickEras() {
       final game = ref.read(gameControllerProvider.notifier)..clearSelection();
@@ -237,10 +250,8 @@ class HostRoomScreen extends ConsumerWidget {
                     if (settings.playsSound)
                       _HostVersions(
                         settings: settings,
-                        onChanged: (versions, label) => change(
-                          settings.copyWith(versions: versions),
-                          label,
-                        ),
+                        onChanged: (versions) =>
+                            change(settings.copyWith(versions: versions)),
                       ),
                   ],
                 ),
@@ -355,7 +366,7 @@ class _HostVersions extends ConsumerStatefulWidget {
   const _HostVersions({required this.settings, required this.onChanged});
 
   final RoomSettings settings;
-  final void Function(VersionChoice versions, String scopeLabel) onChanged;
+  final ValueChanged<VersionChoice> onChanged;
 
   @override
   ConsumerState<_HostVersions> createState() => _HostVersionsState();
@@ -396,8 +407,6 @@ class _HostVersionsState extends ConsumerState<_HostVersions> {
     final scope = widget.settings.scope;
     final index = _indexFor(catalogue, scope);
     final versions = index.usable(widget.settings.versions);
-    void choose(VersionChoice next) =>
-        widget.onChanged(next, roomScopeLabel(scope, index.count(next)));
     return Entrance(
       fromOffset: const Offset(0, HostRoomScreen.versionsRise),
       child: Padding(
@@ -410,7 +419,11 @@ class _HostVersionsState extends ConsumerState<_HostVersions> {
             _Group(
               label: VersionCopy.versionsLabel,
               children: [
-                TakeCards(index: index, choice: versions, onChanged: choose),
+                TakeCards(
+                  index: index,
+                  choice: versions,
+                  onChanged: widget.onChanged,
+                ),
               ],
             ),
             if (index.hasRerecorded)
@@ -420,7 +433,7 @@ class _HostVersionsState extends ConsumerState<_HostVersions> {
                   RerecordedChoice(
                     index: index,
                     choice: versions,
-                    onChanged: choose,
+                    onChanged: widget.onChanged,
                   ),
                 ],
               ),
