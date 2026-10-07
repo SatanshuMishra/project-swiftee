@@ -4,6 +4,19 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-10-06
+
+### Updating from v0.4.0
+- On Windows, if an earlier update stopped with "Failed to kill Project Swiftie", try it again. This version's installer gets past the stuck copy, and restarting Windows afterwards frees the memory it held.
+
+### Fixed
+- On Windows, closing the app or installing an update after a song has played no longer leaves the app stuck in the background. A stuck copy could not be closed, kept its files locked and stopped the next update until Windows restarted.
+- On Windows, an update now installs even when an older copy is stuck, and an update that cannot finish leaves the installed version as it was.
+- The window opens inside the usable part of the screen, so on smaller screens, such as a 1366 by 768 laptop, its bottom no longer sits under the Windows taskbar.
+
+### Changed
+- The error screen matches the new design, and artwork the old design used is gone, so the app is a little smaller.
+
 ## [0.4.0] - 2026-10-06
 
 ### Updating from v0.3.0
