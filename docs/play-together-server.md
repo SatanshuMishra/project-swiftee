@@ -43,7 +43,8 @@ sudo chmod 600 /srv/swiftie-relay/relay.key
 ## 2. Start the relay
 
 The relay joins an existing Docker network and publishes no ports, so only
-the tunnel or proxy on that network can reach it. Create the network once,
+the tunnel or proxy on that network can reach it. Keep that network for the
+relay and its tunnel or proxy alone; see step 3. Create the network once,
 tell the compose file where the key is, then start the relay from the
 `relay/deploy` folder of the repository:
 
@@ -86,11 +87,15 @@ docker compose up -d
 Every player then reaches the relay from the tunnel's address, and Cloudflare
 tells the relay each player's real address in a header. With the setting on,
 the relay's limits apply to each player rather than to the tunnel as a whole.
+The relay ignores that header when it does not hold a valid IP address and
+counts the connection under the tunnel's address instead.
+
+Only the tunnel container may share the relay's Docker network. Any other
+container on it can reach the relay directly, and with `RELAY_TRUST_CF_IP`
+on it could send a made-up address in that header and dodge the limits.
 
 Keep `RELAY_TRUST_CF_IP` set to `false` whenever the relay's port can be
-reached without going through Cloudflare. Anyone who can reach the port
-directly could otherwise send a made-up address in that header and dodge
-the limits.
+reached without going through Cloudflare, for the same reason.
 
 **With a reverse proxy**, put the proxy on the same Docker network and
 forward your hostname to `swiftie-relay:8080`. In Caddy that takes one site
@@ -102,20 +107,21 @@ relay.example.com {
 }
 ```
 
-Leave `RELAY_TRUST_CF_IP` at `false` here. Every player then arrives from
-the proxy's address, so the per-address limits below apply to all your
-players together: at most 16 connections at once, and 10 wrong keys in 10
-minutes locks everyone out for the rest of those 10 minutes.
+Leave `RELAY_TRUST_CF_IP` at `false` here, and keep the relay's network for
+the relay and the proxy alone. Every player then arrives from the proxy's
+address, so the per-address limits below apply to all your players
+together: at most 16 connections and 2 open rooms at once, and 20 refused
+joins in 10 minutes turns everyone's joins away for the rest of those 10
+minutes. Wrong keys never lock out players who hold the right key.
 
 To check the setup from any computer, open `https://<host>/` in a browser.
 It shows a line naming Project Swiftie. On the server you can also check
-the key:
+the key. This hands the key to curl on its standard input, so it never
+shows up in the process list or your shell history:
 
 ```sh
-curl -s -o /dev/null -w '%{http_code}\n' \
-  -H "Authorization: Bearer $(sudo cat /srv/swiftie-relay/relay.key)" \
-  -H 'x-swiftie-relay: 1' \
-  https://<host>/v1/check
+printf 'Authorization: Bearer %s\nx-swiftie-relay: 1\n' "$(sudo cat /srv/swiftie-relay/relay.key)" |
+  curl -s -o /dev/null -w '%{http_code}\n' -H @- https://<host>/v1/check
 ```
 
 It prints `204` with the key and `401` without it.
@@ -160,15 +166,23 @@ different version is turned away with a line asking them to update.
 ## Limits
 
 The relay closes or refuses anything beyond these limits, so one
-misbehaving copy cannot take it down for everyone else:
+misbehaving copy cannot take it down for everyone else. An IPv6 address
+counts by its /64 network, because one home or phone usually holds a whole
+/64:
 
 | Limit | Value |
 |---|---|
 | Connections at once | 200, and 16 from one address |
-| Open rooms | 50 |
+| Open rooms | 50, and 2 opened from one address |
 | Players in a room | 8 |
-| Message size | 64 KiB |
+| A room whose host sends nothing | Closed after 2 hours |
+| Message size | 64 KiB, also once the relay has added who sent it |
+| Data a connection sends | 256 KiB a second, and 128 KiB since its last whole message |
 | Messages per connection | 60 a second |
+| Data waiting for a player who stopped reading | 256 KiB, then that connection is closed |
 | Time to open or join a room after connecting | 10 seconds |
-| Wrong keys from one address | 10 in 10 minutes, then refused until the 10 minutes pass |
+| Refused joins | 3 per connection, then it is closed; 20 from one address in 10 minutes, then that address's joins are refused without looking at the code |
+| Wrong keys from one address | 10 in 10 minutes, then that address's wrong keys get 429 until the 10 minutes pass; the right key still works |
+| A connection that has not sent a whole request | Closed within 15 to 30 seconds |
+| Addresses remembered for wrong keys and refused joins | 4096 each, oldest forgotten first |
 | Memory | 128 MB |
