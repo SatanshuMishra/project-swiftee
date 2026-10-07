@@ -1,13 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:swiftie_quiz/data/covers/cover_store.dart';
 import 'package:swiftie_quiz/data/save/save_error.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
+import 'package:swiftie_quiz/state/covers.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
@@ -61,6 +67,7 @@ Future<SettingsHarness> pumpSettings(
   WidgetTester tester, {
   Edition edition = Edition.open,
   FakePersistence? persistence,
+  Directory? coversFolder,
   void Function(ProviderContainer container)? setup,
 }) async {
   tester.view.physicalSize = const Size(1024, 800);
@@ -76,6 +83,21 @@ Future<SettingsHarness> pumpSettings(
         (ref) => fakeUpdater = FakeUpdater(ref),
       ),
       appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
+      coverStoreProvider.overrideWith(
+        (ref) => CoverStore(
+          client: MockClient((request) async => http.Response('', 404)),
+          bundledKeys: () async => const {},
+          loadAsset: (asset) async => throw StateError(asset),
+          folder:
+              coversFolder ??
+              Directory('${Directory.systemTemp.path}/no-covers-kept'),
+          save: ref.watch(
+            gameControllerProvider.select(
+              (game) => game.progress.settings.saveCovers,
+            ),
+          ),
+        ),
+      ),
     ],
   );
   setup?.call(container);
@@ -198,6 +220,10 @@ void expectSections() {
     'Check now',
     'Check for updates automatically',
     'Sends only a standard request to GitHub. No analytics or tracking.',
+    'Storage',
+    'Save album covers',
+    'Keeps covers for new releases on this computer. Turning it off removes '
+        'them.',
     'Backups',
     'The three most recent automatic backups are kept.',
     'Progress',
@@ -618,6 +644,33 @@ void main() {
       );
       expect(autoCheck(), isTrue);
       expect(switchColor(tester), AppTokens.dark.coral);
+    });
+
+    testWidgets('saving album covers starts off, and turning it off removes '
+        'the covers it kept', (tester) async {
+      final folder = Directory.systemTemp.createTempSync('settings_covers');
+      addTearDown(() {
+        if (folder.existsSync()) {
+          folder.deleteSync(recursive: true);
+        }
+      });
+      final harness = await pumpSettings(tester, coversFolder: folder);
+      bool saving() => settingsOf(harness.container).saveCovers;
+      expect(saving(), isFalse);
+
+      await tapAndSettle(tester, find.text('Save album covers'));
+      expect(saving(), isTrue);
+      File('${folder.path}/kept.jpg').writeAsBytesSync([0xFF, 0xD8]);
+
+      await tapAndSettle(tester, find.text('Save album covers'));
+      for (var step = 0; step < 5 && folder.existsSync(); step++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      expect(saving(), isFalse);
+      expect(folder.existsSync(), isFalse);
     });
 
     testWidgets('Back returns to the menu', (tester) async {
