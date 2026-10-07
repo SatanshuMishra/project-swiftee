@@ -1,0 +1,44 @@
+services:
+  relay:
+    build:
+      context: ../..
+      dockerfile: relay/Dockerfile
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    pids_limit: 64
+    environment:
+      RELAY_KEY_FILE: /run/relay.key
+      RELAY_TRUST_CF_IP: ${RELAY_TRUST_CF_IP:-false}
+    volumes:
+      - type: bind
+        source: ${RELAY_KEY_PATH:?Set RELAY_KEY_PATH to the key file}
+        target: /run/relay.key
+        read_only: true
+    healthcheck:
+      test: ["CMD", "/app/bin/relay", "--health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      edge:
+        aliases:
+          - swiftie-relay
+
+networks:
+  edge:
+    name: ${RELAY_NETWORK:-swiftie-edge}
+    external: true

@@ -39,6 +39,22 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Protocol package
+        working-directory: packages/together_protocol
+        run: |
+          dart pub get --enforce-lockfile
+          dart format --output=none --set-exit-if-changed .
+          dart analyze --fatal-infos
+          dart test
+
+      - name: Relay
+        working-directory: relay
+        run: |
+          dart pub get --enforce-lockfile
+          dart format --output=none --set-exit-if-changed .
+          dart analyze --fatal-infos
+          dart test
+
   build-macos:
     name: Build (macos-26)
     needs: [analyze]
