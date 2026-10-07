@@ -46,17 +46,52 @@ String? versionLabel(String title, {required String shown}) {
   return labels.isEmpty ? null : labels.join(' · ');
 }
 
-bool isStudioVersion(String title) => _titleParts(title).every(
-  (part) =>
-      _taylorsVersion.hasMatch(part) ||
-      _fromTheVault.hasMatch(part) ||
-      _featuring.hasMatch(part) ||
-      _soundtrack.hasMatch(part),
+enum Take { studio, live, alternate }
+
+enum _Label { studio, live, alternate, unknown }
+
+final RegExp _liveLabel = RegExp(r'\blive\b|long pond', caseSensitive: false);
+final RegExp _alternateLabel = RegExp(
+  r'\b(acoustic|piano|demo|stripped|rehearsal|remix|mix|short film|'
+  r'video edition)\b|\bversion$',
+  caseSensitive: false,
+);
+final RegExp _studioLabel = RegExp(
+  r'^(\d+ minute version|bonus track|featured in .+|oh my my my|'
+  r'no really i can)$',
+  caseSensitive: false,
 );
 
-final RegExp _liveTake = RegExp(r'\blive\b|long pond', caseSensitive: false);
+_Label _labelOf(String part) {
+  if (_liveLabel.hasMatch(part)) {
+    return _Label.live;
+  }
+  if (_taylorsVersion.hasMatch(part) ||
+      _fromTheVault.hasMatch(part) ||
+      _featuring.hasMatch(part) ||
+      _soundtrack.hasMatch(part) ||
+      _studioLabel.hasMatch(part)) {
+    return _Label.studio;
+  }
+  if (_alternateLabel.hasMatch(part)) {
+    return _Label.alternate;
+  }
+  return _Label.unknown;
+}
+
+Take takeOf(String title) {
+  final labels = _titleParts(title).map(_labelOf).toSet();
+  return labels.contains(_Label.live)
+      ? Take.live
+      : labels.contains(_Label.alternate)
+      ? Take.alternate
+      : Take.studio;
+}
+
+List<String> unknownTitleLabels(String title) => List.unmodifiable([
+  for (final part in _titleParts(title))
+    if (_labelOf(part) == _Label.unknown) part,
+]);
 
 bool isTaylorsVersion(String title) =>
     _titleParts(title).any(_taylorsVersion.hasMatch);
-
-bool isLiveTake(String title) => _titleParts(title).any(_liveTake.hasMatch);

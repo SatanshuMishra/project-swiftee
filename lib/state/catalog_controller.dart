@@ -138,8 +138,8 @@ class CatalogController extends Notifier<CatalogState> {
     }
   }
 
-  Future<void> checkForNewReleases() =>
-      _releaseCheck ??= _checkForNewReleases();
+  Future<void> checkForNewReleases() => _releaseCheck ??= _checkForNewReleases()
+      .whenComplete(() => _releaseCheck = null);
 
   Future<void> _checkForNewReleases() async {
     await loadCatalogue();
@@ -147,20 +147,27 @@ class CatalogController extends Notifier<CatalogState> {
       return;
     }
     if (state.catalogue.isEmpty) {
-      _releaseCheck = null;
       return;
     }
     try {
       final client = await ref.read(deezerClientProvider.future);
       final current = state.catalogue;
-      final added = await ref
-          .read(catalogueStoreProvider)
-          .addNewReleases(client, current.releaseIds);
-      if (added.isNotEmpty && ref.mounted) {
-        _apply(buildCatalogue([...current.sources, ...added]));
+      final changed = await ref.read(catalogueStoreProvider).refreshReleases(
+        client,
+        {for (final release in current.sources) release.id: release},
+      );
+      if (changed.isNotEmpty && ref.mounted) {
+        final byId = {for (final release in changed) release.id: release};
+        _apply(
+          buildCatalogue([
+            for (final release in current.sources) byId[release.id] ?? release,
+            for (final release in changed)
+              if (!current.releaseIds.contains(release.id)) release,
+          ]),
+        );
       }
     } on Object {
-      _releaseCheck = null;
+      return;
     }
   }
 

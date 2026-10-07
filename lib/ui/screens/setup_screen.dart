@@ -214,16 +214,19 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadSource());
   }
 
-  List<Era> _sourceEras(GameMode mode, List<String> selectedEraKeys) =>
-      switch (mode) {
-        GameMode.random => const [],
-        GameMode.album => List.unmodifiable(
-          selectedEraKeys.map(eraByKey).nonNulls,
-        ),
-        GameMode.tonight => List.unmodifiable([
-          tonightsEra(ref.read(clockProvider)()),
-        ]),
-      };
+  List<Era> _sourceEras(
+    GameMode mode,
+    Catalogue catalogue,
+    List<String> selectedEraKeys,
+  ) => switch (mode) {
+    GameMode.random => const [],
+    GameMode.album => List.unmodifiable(
+      selectedEraKeys.map(catalogue.eraByKey).nonNulls,
+    ),
+    GameMode.tonight => List.unmodifiable([
+      tonightsEra(ref.read(clockProvider)()),
+    ]),
+  };
 
   List<CatalogueRelease> _sourceReleases(
     GameMode mode,
@@ -314,7 +317,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         ),
       ),
     );
-    final eras = _sourceEras(mode, selectedKeys);
+    final eras = _sourceEras(mode, catalogue, selectedKeys);
     final releases = _sourceReleases(mode, catalogue, selectedIds);
     final known = !catalogue.isEmpty;
     final source = _sourceOf(catalogue, ref.read(gameControllerProvider));
@@ -368,7 +371,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     covers: [
                       for (final era
                           in eras.isEmpty && releases.isEmpty
-                              ? curatedEras
+                              ? catalogue.albumEras
                               : eras)
                         (
                           url: catalogue.coverFor(era.key),
@@ -378,7 +381,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                         (
                           url: release.coverMedium,
                           placeholder: Color(
-                            (eraByKey(release.eraKey) ?? singlesEra)
+                            (catalogue.eraByKey(release.eraKey) ?? singlesEra)
                                 .placeholderArgb,
                           ),
                         ),

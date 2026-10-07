@@ -1,6 +1,3 @@
-import 'package:collection/collection.dart';
-import 'package:swiftie_quiz/domain/models/track.dart';
-
 final class Era {
   const Era({
     required this.key,
@@ -138,16 +135,5 @@ const Era singlesEra = Era(
 
 const List<Era> eraGroups = [...curatedEras, singlesEra];
 
-Era? eraByKey(String key) =>
-    eraGroups.firstWhereOrNull((era) => era.key == key);
-
 Era tonightsEra(DateTime now) =>
     curatedEras[dayOfYear(now) % curatedEras.length];
-
-Era? eraOfTrack(Track track) => switch (track.eraKey) {
-  final key? => eraByKey(key),
-  null => eraForAlbumId(track.album.id),
-};
-
-Era? eraForAlbumId(int albumId) =>
-    curatedEras.firstWhereOrNull((era) => era.deezerAlbumId == albumId);

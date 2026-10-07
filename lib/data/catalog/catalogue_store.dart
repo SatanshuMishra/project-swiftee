@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:swiftie_quiz/data/catalog/catalog_error.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/data/catalog/deezer_client.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
@@ -15,68 +16,99 @@ final class CatalogueStore {
     required this._now,
   });
 
-  static const int releasesPerRefresh = 8;
+  static const Duration recentWindow = Duration(days: 90);
 
   final Future<String> Function() _loadBundled;
   final File updatesFile;
   final DateTime Function() _now;
 
   Future<List<RawRelease>> load() async {
-    final bundled = decodeCatalogue(await _loadBundled());
-    final bundledIds = {for (final release in bundled) release.id};
+    final bundled = decodeCatalogueEntries(await _loadBundled());
+    final bundledAt = {
+      for (final entry in bundled) entry.release.id: entry.fetchedAt,
+    };
     final updates = await _readUpdates();
-    final unbundled = [
-      for (final release in updates)
-        if (!bundledIds.contains(release.id)) release,
+    final kept = [
+      for (final entry in updates)
+        if (bundledAt[entry.release.id] case final bundledTime
+            when bundledTime == null || entry.fetchedAt.isAfter(bundledTime))
+          entry,
     ];
-    if (unbundled.length != updates.length) {
-      await _pruneUpdates(unbundled);
+    if (kept.length != updates.length) {
+      await _pruneUpdates(kept);
     }
-    return List.unmodifiable([...bundled, ...unbundled]);
+    final newer = {for (final entry in kept) entry.release.id: entry.release};
+    return List.unmodifiable([
+      for (final entry in bundled) newer[entry.release.id] ?? entry.release,
+      for (final entry in kept)
+        if (!bundledAt.containsKey(entry.release.id)) entry.release,
+    ]);
   }
 
-  Future<void> _pruneUpdates(List<RawRelease> unbundled) async {
+  Future<void> _pruneUpdates(List<CatalogueEntry> kept) async {
     try {
-      await _writeUpdates(unbundled);
+      await _writeUpdates(kept);
     } on FileSystemException {
       return;
     }
   }
 
-  Future<List<RawRelease>> addNewReleases(
+  Future<List<RawRelease>> refreshReleases(
     DeezerClient client,
-    Set<int> knownIds,
+    Map<int, RawRelease> known,
   ) async {
-    final unknown = (await client.fetchReleaseSummaries())
-        .where((release) => !knownIds.contains(release.id))
-        .take(releasesPerRefresh)
-        .toList(growable: false);
-    final added = <RawRelease>[
-      for (final release in unknown)
-        release.copyWith(tracks: await client.fetchReleaseTracks(release.id)),
+    final since = _now().subtract(recentWindow);
+    final due = [
+      for (final summary in await client.fetchReleaseSummaries())
+        if (!known.containsKey(summary.id) || _releasedSince(summary, since))
+          summary,
     ];
-    if (added.isNotEmpty) {
-      await _writeUpdates([...await _readUpdates(), ...added]);
+    final fetched = <CatalogueEntry>[];
+    for (final summary in due) {
+      final List<RawTrack> tracks;
+      try {
+        tracks = await client.fetchReleaseTracks(summary.id);
+      } on CatalogError {
+        break;
+      }
+      final release = summary.copyWith(tracks: tracks);
+      if (known[summary.id] != release) {
+        fetched.add((release: release, fetchedAt: _now()));
+      }
     }
-    return List.unmodifiable(added);
+    if (fetched.isNotEmpty) {
+      final refreshed = {for (final entry in fetched) entry.release.id};
+      await _writeUpdates([
+        for (final entry in await _readUpdates())
+          if (!refreshed.contains(entry.release.id)) entry,
+        ...fetched,
+      ]);
+    }
+    return List.unmodifiable([for (final entry in fetched) entry.release]);
   }
 
-  Future<List<RawRelease>> _readUpdates() async {
+  static bool _releasedSince(RawRelease release, DateTime since) =>
+      switch (DateTime.tryParse(release.releaseDate)) {
+        final date? => !date.isBefore(since),
+        null => false,
+      };
+
+  Future<List<CatalogueEntry>> _readUpdates() async {
     if (!updatesFile.existsSync()) {
       return const [];
     }
     try {
-      return decodeCatalogue(await updatesFile.readAsString());
+      return decodeCatalogueEntries(await updatesFile.readAsString());
     } on Object {
       return const [];
     }
   }
 
-  Future<void> _writeUpdates(List<RawRelease> releases) async {
+  Future<void> _writeUpdates(List<CatalogueEntry> entries) async {
     await updatesFile.parent.create(recursive: true);
     final temp = File(p.setExtension(updatesFile.path, '.json.tmp'));
     await temp.writeAsString(
-      encodeCatalogue(releases, fetchedAt: _now().toUtc().toIso8601String()),
+      encodeCatalogueEntries(entries, fetchedAt: _now()),
       flush: true,
     );
     await temp.rename(updatesFile.path);

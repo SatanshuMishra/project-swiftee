@@ -67,7 +67,7 @@ List<Track> lyricsSources(Iterable<Track> tracks, {Random? random}) {
   return UnmodifiableListView([
     for (final takes in versions.values)
       _pick(switch (takes
-          .where((track) => isStudioVersion(track.title))
+          .where((track) => takeOf(track.title) == Take.studio)
           .toList()) {
         [] => takes,
         final studio => studio,

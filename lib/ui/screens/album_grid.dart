@@ -175,7 +175,7 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
     List<String> picked,
     ValueChanged<String> onToggle,
   ) => [
-    for (final era in eraGroups)
+    for (final era in catalogue.eras)
       if (catalogue.trackCount(era.key) > 0)
         (
           key: ValueKey(era.key),
@@ -198,7 +198,7 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
         if (_filter.allows(match.release)) match,
     ];
     return [
-      for (final era in eraGroups)
+      for (final era in catalogue.eras)
         if ([
               for (final match in matches)
                 if (match.release.eraKey == era.key)

@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
+import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
@@ -42,9 +44,13 @@ class RoundSummaryScreen extends ConsumerStatefulWidget {
   static int rightCount(List<RoundOutcome> results) =>
       results.where((outcome) => outcome.correct).length;
 
-  static Era roundEra(List<RoundOutcome> results, DateTime now) =>
+  static Era roundEra(
+    List<RoundOutcome> results,
+    DateTime now,
+    Catalogue catalogue,
+  ) =>
       results
-          .map((outcome) => eraOfTrack(outcome.track))
+          .map((outcome) => catalogue.eraOfTrack(outcome.track))
           .nonNulls
           .firstOrNull ??
       tonightsEra(now);
@@ -79,14 +85,19 @@ class _RoundSummaryScreenState extends ConsumerState<RoundSummaryScreen> {
     final results = ref.watch(
       gameControllerProvider.select((state) => state.roundResults),
     );
+    final catalogue = ref.watch(
+      catalogControllerProvider.select((catalog) => catalog.catalogue),
+    );
     final era = RoundSummaryScreen.roundEra(
       results,
       ref.watch(clockProvider)(),
+      catalogue,
     );
     final game = ref.read(gameControllerProvider.notifier);
     final known = [
       for (final outcome in results)
-        if (outcome.correct) outcome.track,
+        if (outcome.correct)
+          (track: outcome.track, era: catalogue.eraOfTrack(outcome.track)),
     ];
     return ScreenEnter(
       child: TwoPane(
@@ -228,6 +239,8 @@ class _InsetOval extends CustomClipper<Rect> {
   bool shouldReclip(_InsetOval oldClipper) => oldClipper.inset != inset;
 }
 
+typedef _Known = ({Track track, Era? era});
+
 class _KnownColumn extends StatelessWidget {
   const _KnownColumn({
     required this.known,
@@ -240,7 +253,7 @@ class _KnownColumn extends StatelessWidget {
   static const double labelGap = 14;
   static const double buttonGap = 12;
 
-  final List<Track> known;
+  final List<_Known> known;
   final VoidCallback onAgain;
   final VoidCallback onMenu;
 
@@ -296,7 +309,7 @@ class _KnownGrid extends StatelessWidget {
   static const double subpixels = 64;
   static const Duration rise = Duration(milliseconds: 400);
 
-  final List<Track> tracks;
+  final List<_Known> tracks;
 
   static double tileWidth(double width) =>
       ((width - columnGap * (columns - 1)) / columns * subpixels)
@@ -311,13 +324,17 @@ class _KnownGrid extends StatelessWidget {
         spacing: columnGap,
         runSpacing: rowGap,
         children: [
-          for (final (index, track) in tracks.indexed)
+          for (final (index, known) in tracks.indexed)
             SizedBox(
               key: ValueKey(index),
               width: width,
               child: RiseIn(
                 duration: rise,
-                child: _KnownRecord(track: track, size: width),
+                child: _KnownRecord(
+                  track: known.track,
+                  era: known.era,
+                  size: width,
+                ),
               ),
             ),
         ],
@@ -327,19 +344,24 @@ class _KnownGrid extends StatelessWidget {
 }
 
 class _KnownRecord extends StatelessWidget {
-  const _KnownRecord({required this.track, required this.size});
+  const _KnownRecord({
+    required this.track,
+    required this.era,
+    required this.size,
+  });
 
   static const double titleGap = 6;
   static const double titleSize = 16;
   static const double titleLineHeight = 19;
 
   final Track track;
+  final Era? era;
   final double size;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    final era = eraOfTrack(track);
+    final era = this.era;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: titleGap,

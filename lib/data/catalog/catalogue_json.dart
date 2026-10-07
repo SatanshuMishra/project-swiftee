@@ -45,6 +45,8 @@ RawTrack parseRawTrack(Object? json) => switch (json) {
   _ => throw const ParseError('expected a track'),
 };
 
+typedef CatalogueEntry = ({RawRelease release, DateTime fetchedAt});
+
 String encodeCatalogue(
   Iterable<RawRelease> releases, {
   required String fetchedAt,
@@ -54,13 +56,59 @@ String encodeCatalogue(
   'releases': [for (final release in releases) _encodeRelease(release)],
 });
 
-List<RawRelease> decodeCatalogue(String text) {
-  final Object? json;
+String encodeCatalogueEntries(
+  Iterable<CatalogueEntry> entries, {
+  required DateTime fetchedAt,
+}) => jsonEncode({
+  'format': catalogueFormat,
+  'fetchedAt': fetchedAt.toUtc().toIso8601String(),
+  'releases': [
+    for (final entry in entries)
+      {
+        ..._encodeRelease(entry.release),
+        'fetched': entry.fetchedAt.toUtc().toIso8601String(),
+      },
+  ],
+});
+
+List<CatalogueEntry> decodeCatalogueEntries(String text) {
+  final json = _decodeJson(text);
+  return switch (json) {
+    {
+      'format': catalogueFormat,
+      'fetchedAt': final String fetchedAt,
+      'releases': final List<Object?> releases,
+    } =>
+      List.unmodifiable([
+        for (final release in releases)
+          (
+            release: _decodeRelease(release),
+            fetchedAt: _fetchedAt(release) ?? _parseTime(fetchedAt),
+          ),
+      ]),
+    _ => throw const ParseError('unsupported catalogue'),
+  };
+}
+
+DateTime? _fetchedAt(Object? release) => switch (release) {
+  {'fetched': final String fetched} => _parseTime(fetched),
+  _ => null,
+};
+
+DateTime _parseTime(String value) =>
+    DateTime.tryParse(value)?.toUtc() ??
+    (throw const ParseError('invalid catalogue time'));
+
+Object? _decodeJson(String text) {
   try {
-    json = jsonDecode(text);
+    return jsonDecode(text);
   } on FormatException catch (error) {
     throw ParseError(error.message);
   }
+}
+
+List<RawRelease> decodeCatalogue(String text) {
+  final json = _decodeJson(text);
   return switch (json) {
     {'format': catalogueFormat, 'releases': final List<Object?> releases} =>
       List.unmodifiable(releases.map(_decodeRelease)),

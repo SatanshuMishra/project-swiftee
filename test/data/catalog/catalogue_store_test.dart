@@ -90,49 +90,173 @@ void main() {
       },
     );
 
-    test('fetches only releases it has not seen and keeps them', () async {
+    DeezerClient deezer(
+      List<Map<String, Object?>> summaries,
+      Map<int, List<Map<String, Object?>>> tracks, {
+      Set<int> failing = const {},
+      List<String>? requested,
+    }) => DeezerClient(
+      client: MockClient((request) async {
+        requested?.add(request.url.path);
+        final path = request.url.path;
+        final albumId = int.tryParse(
+          RegExp(r'^/album/(\d+)/tracks$').firstMatch(path)?[1] ?? '',
+        );
+        final body = switch (path) {
+          '/artist/12246/albums' => {'data': summaries},
+          _ when failing.contains(albumId) => {
+            'error': {'message': 'unavailable'},
+          },
+          _ when tracks.containsKey(albumId) => {'data': tracks[albumId]},
+          _ => {
+            'error': {'message': 'unexpected ${request.url}'},
+          },
+        };
+        return http.Response(jsonEncode(body), 200);
+      }),
+      userAgent: 'test',
+    );
+
+    Map<String, Object?> summary(int id, String title, String date) => {
+      'id': id,
+      'title': title,
+      'record_type': 'album',
+      'release_date': date,
+      'cover_medium': null,
+    };
+
+    final known = {for (final release in bundled) release.id: release};
+
+    test('fetches every release it has not seen, however many, and keeps '
+        'them', () async {
       final requested = <String>[];
-      final client = DeezerClient(
-        client: MockClient((request) async {
-          requested.add(request.url.path);
-          final body = switch (request.url.path) {
-            '/artist/12246/albums' => {
-              'data': [
-                {
-                  'id': 1103662682,
-                  'title': 'The Life of a Showgirl: The Encore',
-                  'record_type': 'album',
-                  'release_date': '2026-09-25',
-                  'cover_medium': null,
-                },
-                {
-                  'id': 130721292,
-                  'title': 'Red',
-                  'record_type': 'album',
-                  'release_date': '2012-10-22',
-                  'cover_medium': null,
-                },
-              ],
-            },
-            '/album/1103662682/tracks' => {
-              'data': [deezerTrack(72, 'Babylon', isrc: 'SG02')],
-            },
-            _ => {
-              'error': {'message': 'unexpected ${request.url}'},
-            },
-          };
-          return http.Response(jsonEncode(body), 200);
-        }),
-        userAgent: 'test',
+      final client = deezer(
+        [
+          for (var id = 1; id <= 12; id++)
+            summary(5000 + id, 'Single $id', '2020-01-$id'.padLeft(10, '0')),
+          summary(130721292, 'Red', '2012-10-22'),
+        ],
+        {
+          for (var id = 1; id <= 12; id++)
+            5000 + id: [deezerTrack(6000 + id, 'Song $id', isrc: 'S$id')],
+        },
+        requested: requested,
       );
 
-      final added = await store().addNewReleases(client, {130721292});
+      final changed = await store().refreshReleases(client, known);
 
-      expect(added.map((release) => release.id), [1103662682]);
-      expect(added.single.tracks.single.title, 'Babylon');
-      expect(requested, ['/artist/12246/albums', '/album/1103662682/tracks']);
+      expect(changed, hasLength(12));
+      expect(requested, isNot(contains('/album/130721292/tracks')));
       final reloaded = await store().load();
-      expect(reloaded.map((release) => release.id), [130721292, 1103662682]);
+      expect(reloaded.first.id, 130721292);
+      expect(reloaded.skip(1).map((release) => release.id), [
+        for (var id = 1; id <= 12; id++) 5000 + id,
+      ]);
+    });
+
+    test('fetches a release from the last 90 days again and keeps tracks '
+        'Deezer added to it, but leaves older releases alone', () async {
+      final recent = rawRelease(1103662682, 'The Encore', '2026-09-25', [
+        rawTrack(72, 'Babylon', isrc: 'SG02'),
+      ]);
+      final client = deezer(
+        [
+          summary(1103662682, 'The Encore', '2026-09-25'),
+          summary(130721292, 'Red', '2012-10-22'),
+        ],
+        {
+          1103662682: [
+            deezerTrack(72, 'Babylon', isrc: 'SG02'),
+            deezerTrack(73, 'Bonus Song', isrc: 'SG03'),
+          ],
+        },
+      );
+
+      final changed = await store().refreshReleases(client, {
+        ...known,
+        recent.id: recent,
+      });
+
+      expect(changed.single.tracks.map((track) => track.title), [
+        'Babylon',
+        'Bonus Song',
+      ]);
+    });
+
+    test('an unchanged recent release is not written again', () async {
+      final encore = summary(1103662682, 'The Encore', '2026-09-25');
+      final babylon = deezerTrack(72, 'Babylon', isrc: 'SG02');
+      final client = deezer(
+        [encore],
+        {
+          1103662682: [babylon],
+        },
+      );
+
+      final changed = await store().refreshReleases(client, {
+        ...known,
+        1103662682: parseReleaseSummary(encore)
+            .copyWith(tracks: [parseRawTrack(babylon)]),
+      });
+
+      expect(changed, isEmpty);
+      expect(
+        File('${folder.path}/$catalogueUpdatesFileName').existsSync(),
+        isFalse,
+      );
+    });
+
+    test('a release that fails to load keeps the ones fetched before it, '
+        'and the next check picks it up', () async {
+      final client = deezer(
+        [
+          summary(5001, 'First', '2020-01-01'),
+          summary(5002, 'Broken', '2020-01-02'),
+          summary(5003, 'Third', '2020-01-03'),
+        ],
+        {
+          5001: [deezerTrack(6001, 'One', isrc: 'S1')],
+          5003: [deezerTrack(6003, 'Three', isrc: 'S3')],
+        },
+        failing: {5002},
+      );
+
+      final changed = await store().refreshReleases(client, known);
+
+      expect(changed.map((release) => release.id), [5001]);
+      final reloaded = await store().load();
+      expect(reloaded.map((release) => release.id), [130721292, 5001]);
+    });
+
+    test('a bundled release fetched again since the bundle was built uses '
+        'the newer copy', () async {
+      final updates = File('${folder.path}/$catalogueUpdatesFileName');
+      final grown = fixtureReleases.first.copyWith(
+        tracks: [
+          ...fixtureReleases.first.tracks,
+          rawTrack(9, 'A Song Deezer Added', isrc: 'RED09'),
+        ],
+      );
+      updates.writeAsStringSync(
+        encodeCatalogueEntries([
+          (release: grown, fetchedAt: DateTime.utc(2026, 10, 7)),
+        ], fetchedAt: DateTime.utc(2026, 10, 7)),
+      );
+
+      final loaded = await store().load();
+
+      expect(loaded, [grown]);
+      expect(decodeCatalogue(updates.readAsStringSync()), [grown]);
+    });
+
+    test('an updates file from v0.4 without per-release times uses its '
+        'file time', () {
+      final text = encodeCatalogue(bundled, fetchedAt: '2026-10-01T00:00:00Z');
+
+      expect(
+        decodeCatalogueEntries(text).single.fetchedAt,
+        DateTime.utc(2026, 10, 1),
+      );
     });
   });
 }

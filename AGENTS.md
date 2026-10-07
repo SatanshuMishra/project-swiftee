@@ -46,6 +46,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 | Change save format              | bump currentSaveVersion in lib/data/save/migrations.dart:5 and defaultProgress in lib/domain/models/progress.dart:9 + a migration step in migrations.dart |
 | Fix smart-clip behaviour        | lib/domain/engine/clip_selector.dart + lib/data/lyrics/danger_zones.dart |
 | Change how songs and lyrics avoid repeating | lib/domain/engine/play_order.dart + lib/state/play_history_controller.dart + docs/decisions/2026-10-06-repetition.md |
+| Change how new releases, eras and takes are sorted | lib/domain/engine/catalogue_rules.dart + takeOf in lib/domain/util/song_title.dart + lib/data/catalog/catalogue_store.dart + docs/decisions/2026-10-07-catalogue-growth.md |
 | Change the era and release picker | lib/ui/screens/album_grid.dart + Catalogue.releases in lib/domain/models/catalogue.dart + lib/domain/engine/release_search.dart + docs/decisions/2026-10-06-release-picker.md |
 | Change which versions a sound game plays | lib/domain/engine/version_filter.dart + the versions section in lib/ui/screens/setup_screen.dart |
 | Change a Deezer or LRCLIB call  | lib/data/catalog/deezer_client.dart or lib/data/lyrics/lrclib_client.dart + providers in lib/state/providers.dart |

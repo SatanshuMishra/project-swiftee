@@ -9,7 +9,7 @@ List<Track> keepVersions(List<Track> tracks, TrackVersions versions) =>
       TrackVersions.taylorsVersion => _replacedByTaylorsVersion(tracks),
       TrackVersions.noLive => List.unmodifiable([
         for (final track in tracks)
-          if (!isLiveTake(track.title)) track,
+          if (takeOf(track.title) != Take.live) track,
       ]),
     };
 

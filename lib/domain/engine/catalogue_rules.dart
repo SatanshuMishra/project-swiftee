@@ -7,6 +7,7 @@ import 'package:swiftie_quiz/domain/models/track.dart';
 const int taylorArtistId = 12246;
 const String _taylorName = 'Taylor Swift';
 const int minimumSongSeconds = 60;
+const int minimumEraSongs = 5;
 
 const List<String> _remixPatterns = [
   'remix',
@@ -87,13 +88,43 @@ Catalogue buildCatalogue(Iterable<RawRelease> releases) {
       songEras.putIfAbsent(normalizeTitle(track.title), () => era);
     }
   }
+  final derivedEras = <Era>[];
+  final foundedBy = <int, String>{};
+  for (final release in ordered) {
+    if (byTitle[release.id] != null || release.kind != ReleaseKind.album) {
+      continue;
+    }
+    final songs = {
+      for (final track in release.tracks.where(isPlayableRecording))
+        normalizeTitle(track.title),
+    };
+    final fresh = songs.where((song) => !songEras.containsKey(song)).length;
+    if (songs.length < minimumEraSongs || fresh * 2 <= songs.length) {
+      continue;
+    }
+    final era = Era(
+      key: 'album-${release.id}',
+      deezerAlbumId: release.id,
+      eraName: eraNameOf(release.title),
+      subLabel: release.releaseDate.split('-').first,
+      placeholderArgb: singlesEra.placeholderArgb,
+    );
+    derivedEras.add(era);
+    foundedBy[release.id] = era.key;
+    for (final song in songs) {
+      songEras.putIfAbsent(song, () => era.key);
+    }
+  }
   final eraSongs = <String, Set<String>>{};
   for (final MapEntry(key: song, value: era) in songEras.entries) {
     (eraSongs[era] ??= {}).add(song);
   }
   final releaseEras = {
     for (final release in ordered)
-      release.id: byTitle[release.id] ?? _eraBySongs(release, eraSongs),
+      release.id:
+          byTitle[release.id] ??
+          foundedBy[release.id] ??
+          _eraBySongs(release, eraSongs),
   };
   final homes =
       <String, ({RawRelease release, RawTrack track, int position})>{};
@@ -112,6 +143,7 @@ Catalogue buildCatalogue(Iterable<RawRelease> releases) {
   }
   return Catalogue(
     sources: ordered,
+    derivedEras: derivedEras,
     releaseEras: releaseEras,
     recordings: [
       for (final MapEntry(key: isrc, value: home) in homes.entries)
@@ -132,6 +164,13 @@ Catalogue buildCatalogue(Iterable<RawRelease> releases) {
         ),
     ],
   );
+}
+
+final RegExp _editionSuffix = RegExp(r'\s*(\([^)]*\)|\[[^\]]*\]|:.*|\s-\s.*)$');
+
+String eraNameOf(String releaseTitle) {
+  final name = releaseTitle.replaceAll(_editionSuffix, '').trim();
+  return name.isEmpty ? releaseTitle : name;
 }
 
 String _eraBySongs(RawRelease release, Map<String, Set<String>> eraSongs) {

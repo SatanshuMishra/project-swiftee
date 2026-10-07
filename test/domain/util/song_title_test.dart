@@ -109,8 +109,9 @@ void main() {
     });
   });
 
-  group('isStudioVersion', () {
-    test('counts album, re-recorded, vault, featured and soundtrack takes', () {
+  group('takeOf', () {
+    test('counts album, re-recorded, vault, featured, soundtrack and '
+        'subtitled songs as studio takes', () {
       for (final title in [
         'Fearless',
         "Fearless (Taylor's Version)",
@@ -119,23 +120,58 @@ void main() {
         'Snow On The Beach (feat. More Lana Del Rey)',
         'I Knew It, I Knew You (From "Toy Story 5")',
         "Safe & Sound (From The Hunger Games Soundtrack) (Taylor's Version)",
+        "All Too Well (10 Minute Version) (Taylor's Version) (From The Vault)",
+        "Mary's Song (Oh My My My)",
+        'I Can Fix Him (No Really I Can)',
+        'Right Where You Left Me (bonus track)',
+        'Only The Young (Featured in Miss Americana)',
       ]) {
-        expect(isStudioVersion(title), isTrue, reason: title);
+        expect(takeOf(title), Take.studio, reason: title);
       }
     });
 
-    test('leaves out live, acoustic, demo and remixed takes', () {
+    test('spots live and Long Pond takes from their labels', () {
       for (final title in [
         'Fearless (Live from Clear Channel Stripped 2008)',
-        'Fearless - Demo',
+        'Speak Now (Live/2011)',
         'Cruel Summer (Live from TS | The Eras Tour)',
         'invisible string (the long pond studio sessions)',
+        'All Too Well (Sad Girl Autumn Version) - Recorded at Long Pond '
+            'Studios',
+        'Christmas Tree Farm (Recorded Live at the 2019 iHeartRadio Jingle '
+            'Ball)',
+      ]) {
+        expect(takeOf(title), Take.live, reason: title);
+      }
+      expect(takeOf('Long Live'), Take.studio);
+      expect(takeOf("Long Live (Taylor's Version)"), Take.studio);
+    });
+
+    test('spots acoustic, piano, demo and other named takes', () {
+      for (final title in [
         'Forever & Always (Piano Version)',
-        'Wildest Dreams (Taylor\'s Version) - Acoustic',
+        'Fearless - Demo',
+        'Red (Original Demo Recording)',
+        "Wildest Dreams (Taylor's Version) - Acoustic",
+        "State Of Grace (Acoustic Version) (Taylor's Version)",
+        'Teardrops on My Guitar (Pop Version)',
+        'cardigan (cabin in candlelight version)',
+        'the lakes (original version)',
+        'All Too Well (10 Minute Version) (The Short Film)',
+        'I Knew It, I Knew You (Piano Version From "Toy Story 5")',
         'Lover (Remix) (feat. Shawn Mendes)',
       ]) {
-        expect(isStudioVersion(title), isFalse, reason: title);
+        expect(takeOf(title), Take.alternate, reason: title);
       }
+    });
+
+    test('names the labels it does not know, and counts them as studio', () {
+      expect(unknownTitleLabels('Fearless'), isEmpty);
+      expect(unknownTitleLabels("Mary's Song (Oh My My My)"), isEmpty);
+      expect(unknownTitleLabels('Tim McGraw (Some New Subtitle) (Acoustic)'), [
+        'Some New Subtitle',
+      ]);
+      expect(takeOf('Tim McGraw (Some New Subtitle)'), Take.studio);
     });
   });
 
@@ -149,24 +185,6 @@ void main() {
       );
       expect(isTaylorsVersion('Red'), isFalse);
       expect(isTaylorsVersion("Taylor's Version"), isFalse);
-    });
-
-    test('spots a live or Long Pond take from its version label', () {
-      expect(
-        isLiveTake('Fearless (Live From Clear Channel Stripped 2008)'),
-        isTrue,
-      );
-      expect(isLiveTake('Speak Now (Live/2011)'), isTrue);
-      expect(isLiveTake('cardigan (the long pond studio sessions)'), isTrue);
-      expect(
-        isLiveTake(
-          'All Too Well (Sad Girl Autumn Version) - Recorded at Long Pond Studios',
-        ),
-        isTrue,
-      );
-      expect(isLiveTake('Long Live'), isFalse);
-      expect(isLiveTake("Long Live (Taylor's Version)"), isFalse);
-      expect(isLiveTake('Forever & Always (Piano Version)'), isFalse);
     });
   });
 }
