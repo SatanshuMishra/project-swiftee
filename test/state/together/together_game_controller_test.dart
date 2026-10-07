@@ -576,7 +576,7 @@ void main() {
       });
     });
 
-    test('the host plays a whole game and can play again', () {
+    test('the host plays a whole game and returns to the room with Next', () {
       fakeAsync((async) {
         final host = _Harness(async);
         host.game.setVersions(const VersionChoice(liveTakes: false));
@@ -823,6 +823,23 @@ void main() {
         );
         expect(guest.state.stage, TogetherStage.starting);
         expect(guest.state.mode, TogetherMode.quickDraw);
+      });
+    });
+
+    test("a host's next during a round neither unlocks the room nor stops "
+        'the round', () {
+      fakeAsync((async) {
+        final host = _Harness(async);
+        host
+          ..hostRoom(const RoomSettings(rounds: 5))
+          ..start()
+          ..countdown();
+        expect(host.state.stage, TogetherStage.round);
+        final sent = host.relay.sent;
+
+        host.together.next();
+        expect(host.relay.sent, sent);
+        expect(host.state.stage, TogetherStage.round);
       });
     });
 

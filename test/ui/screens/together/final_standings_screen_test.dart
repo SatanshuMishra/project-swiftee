@@ -269,4 +269,28 @@ void main() {
     expect(find.text('Maya closed the room.'), findsOneWidget);
     expect(find.text('Back to menu'), findsOneWidget);
   });
+
+  testWidgets('a host whose connection drops on the results sees it after '
+      'Next', (tester) async {
+    final host = await pumpEnd(
+      tester,
+      edition: Edition.open,
+      viewer: _ana,
+      hosting: true,
+      standings: [
+        _score(_ana.id, 420, best: 4),
+        _score(_maya.id, 300, best: 2),
+      ],
+    );
+    await host.relay.end();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Next →'), findsOneWidget);
+
+    await tester.tap(find.text('Next →'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Lost the connection to the room.'), findsOneWidget);
+    expect(find.text('Back to menu'), findsOneWidget);
+  });
 }

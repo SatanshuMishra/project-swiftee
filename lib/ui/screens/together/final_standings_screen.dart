@@ -44,7 +44,6 @@ class FinalStandingsScreen extends ConsumerWidget {
     final tokens = AppTokens.of(context);
     final layout = AppLayout.of(context);
     final game = ref.watch(togetherGameControllerProvider);
-    final room = ref.watch(roomControllerProvider);
     final viewerName = displayName(
       ref.watch(editionProvider),
       ref.watch(
@@ -53,7 +52,8 @@ class FinalStandingsScreen extends ConsumerWidget {
         ),
       ),
     );
-    final youId = room.you?.id ?? '';
+    final youId =
+        ref.watch(roomControllerProvider.select((room) => room.you?.id)) ?? '';
     String nameOf(String id) => id == youId
         ? you
         : game.roster.firstWhereOrNull((player) => player.id == id)?.name ?? '';
