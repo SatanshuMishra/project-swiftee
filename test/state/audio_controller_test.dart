@@ -131,6 +131,7 @@ final class _FakeEngine implements AudioEngine {
   List<Completer<void>> decodeGates = const [];
   Map<AudioVoice, double?> _positions = const {};
   int _nextVoice = 1;
+  Object? playFailure;
 
   AudioVoice get lastVoice => slices.last.voice;
 
@@ -164,6 +165,9 @@ final class _FakeEngine implements AudioEngine {
     double durationSeconds,
     double volume,
   ) {
+    if (playFailure case final failure?) {
+      throw failure;
+    }
     final voice = AudioVoice(_nextVoice);
     _nextVoice += 1;
     slices = [
@@ -704,6 +708,35 @@ void main() {
           );
           expect(harness.engine.stopped.last, previous);
         }
+      });
+    });
+
+    test('a relisten that cannot play keeps its stage and stays quiet', () {
+      fakeAsync((async) {
+        final harness = _Harness();
+        unawaited(harness.audio.play(_enchanted));
+        async.flushMicrotasks();
+        harness.engine.end(harness.engine.lastVoice);
+        async.elapse(progressPollInterval);
+        final played = harness.engine.slices.length;
+        harness.engine.playFailure = StateError('audio device lost');
+
+        harness.audio.relisten();
+
+        expect(harness.engine.slices, hasLength(played));
+        expect(harness.container.read(gameControllerProvider).relistenCount, 0);
+        expect(harness.state.relistenStage, 0);
+        expect(harness.state.clipDuration, sliceDurationSeconds);
+        expect(harness.state.playing, isFalse);
+        expect(harness.state.error, isNull);
+
+        harness.engine.playFailure = null;
+        harness.audio.relisten();
+
+        expect(harness.engine.slices.last.duration, 10.0);
+        expect(harness.container.read(gameControllerProvider).relistenCount, 1);
+        expect(harness.state.relistenStage, 1);
+        expect(harness.state.playing, isTrue);
       });
     });
 
