@@ -14,6 +14,7 @@ import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
 import 'package:swiftie_quiz/data/save/save_location.dart';
 import 'package:swiftie_quiz/data/save/save_store.dart';
 import 'package:swiftie_quiz/data/together/relay_connection.dart';
+import 'package:together_protocol/together_protocol.dart' show maxMessageBytes;
 
 final appVersionProvider = FutureProvider<String>(
   (ref) async => (await PackageInfo.fromPlatform()).version,
@@ -77,6 +78,7 @@ final relayConnectorProvider = Provider<RelayConnector>(
       uri.toString(),
       headers: headers,
       compression: CompressionOptions.compressionOff,
+      maxPayloadLength: maxMessageBytes,
     ))..pingInterval = const Duration(seconds: 20),
   ),
 );
