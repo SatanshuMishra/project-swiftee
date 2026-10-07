@@ -134,6 +134,10 @@ final class _SocketConnection implements RelayConnection {
     if (_messages.isClosed) {
       return;
     }
+    if (frame is String && frame.length > maxMessageBytes) {
+      unawaited(_end(closeTooBig));
+      return;
+    }
     final message = frame is String ? _decoded(frame) : null;
     if (message == null) {
       unawaited(_end(closePolicy));
