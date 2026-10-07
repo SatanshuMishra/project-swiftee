@@ -152,6 +152,9 @@ final class _QuackOnlyEngine implements AudioEngine {
 
   @override
   Future<void> dispose() async {}
+
+  @override
+  Future<void> shutdown() async {}
 }
 
 final class _Harness {

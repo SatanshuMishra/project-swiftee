@@ -29,6 +29,8 @@ const double snippetVolumeShare = 0.7;
 const Duration snippetRest = Duration(milliseconds: 250);
 const Duration prefetchedLinkLifetime = Duration(minutes: 10);
 
+const Duration audioShutdownLimit = Duration(seconds: 2);
+
 final class AudioState {
   const AudioState({
     required this.playing,
@@ -117,6 +119,9 @@ final audioEngineProvider = Provider<AudioEngine>((ref) {
   ref.onDispose(() => unawaited(engine.dispose()));
   return engine;
 });
+
+Future<void> shutDownAudio(AudioEngine engine) =>
+    engine.shutdown().timeout(audioShutdownLimit).catchError((Object _) {});
 
 final previewDownloaderProvider = FutureProvider<PreviewDownloader>(
   (ref) async => PreviewDownloader(

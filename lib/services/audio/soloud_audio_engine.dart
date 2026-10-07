@@ -134,6 +134,14 @@ final class SoLoudAudioEngine implements AudioEngine {
     }
   }
 
+  @override
+  Future<void> shutdown() async {
+    await dispose();
+    if (_soloud.isInitialized) {
+      _soloud.deinit();
+    }
+  }
+
   bool _isLive(AudioVoice voice) =>
       _soloud.isInitialized &&
       _soloud.getIsValidVoiceHandle(SoundHandle(voice.id));

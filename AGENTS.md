@@ -50,7 +50,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 | Change which versions a sound game plays | lib/domain/engine/version_filter.dart + the versions section in lib/ui/screens/setup_screen.dart |
 | Change a Deezer or LRCLIB call  | lib/data/catalog/deezer_client.dart or lib/data/lyrics/lrclib_client.dart + providers in lib/state/providers.dart |
 | Change the updater              | lib/services/updater/ (protocol) + lib/state/updater_controller.dart (schedule and states) |
-| Change the Windows installer    | installer/windows/swiftie-quiz.nsi + test/installer/nsis_script_test.dart |
+| Change the Windows installer    | installer/windows/swiftie-quiz.nsi + test/installer/nsis_script_test.dart + docs/decisions/2026-10-06-windows-update-exit.md |
 | Change CI or the release flow   | .github/workflows/ + tool/release/ + docs/decisions/2026-10-04-ci-hardening.md; required check is the `CI OK` job name |
 
 ## Notes

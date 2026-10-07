@@ -30,7 +30,12 @@ SetCompressor /SOLID lzma
 !define MANUKEY "Software\${MANUFACTURER}"
 !define MANUPRODUCTKEY "${MANUKEY}\${PRODUCTNAME}"
 !define /ifndef INSTALLERICON "..\..\windows\runner\resources\app_icon.ico"
+!define REPLACEDMARK ".replaced-"
+!define CLOSEWAITSTEPS "20"
 Var PassiveMode
+Var AppStillRunning
+Var ReplacedStamp
+Var LockedFile
 Var UpdateMode
 Var NoShortcutMode
 Var DeleteAppDataCheckbox
@@ -95,13 +100,18 @@ LangString deleteAppData ${LANG_ENGLISH} "Delete the application data"
   ${EndIf}
 !macroend
 
-!macro CloseRunningApp
-  ReadEnvStr $R3 USERNAME
+!macro FindRunningApp
   nsExec::ExecToStack `"$SYSDIR\tasklist.exe" /NH /FO CSV /FI "IMAGENAME eq ${MAINBINARYNAME}.exe" /FI "USERNAME eq $R3"`
   Pop $R0
   Pop $R1
   ClearErrors
   ${WordFind} "$R1" `"${MAINBINARYNAME}.exe"` "E+1" $R2
+!macroend
+
+!macro CloseRunningApp
+  ReadEnvStr $R3 USERNAME
+  StrCpy $AppStillRunning 0
+  !insertmacro FindRunningApp
   ${IfNot} ${Errors}
     ${IfNot} ${Silent}
     ${AndIf} $PassiveMode <> 1
@@ -112,13 +122,59 @@ LangString deleteAppData ${LANG_ENGLISH} "Delete the application data"
     nsExec::ExecToStack `"$SYSDIR\taskkill.exe" /IM ${MAINBINARYNAME}.exe /F /FI "USERNAME eq $R3"`
     Pop $R0
     Pop $R1
-    Sleep 500
-    ${If} $R0 <> 0
-    ${AndIf} $R0 <> 128
-      Abort "$(failedToKillApp)"
-    ${EndIf}
+    StrCpy $AppStillRunning 1
+    StrCpy $R4 0
+    ${Do}
+      Sleep 250
+      IntOp $R4 $R4 + 1
+      !insertmacro FindRunningApp
+      ${If} ${Errors}
+        StrCpy $AppStillRunning 0
+        ${ExitDo}
+      ${EndIf}
+    ${LoopUntil} $R4 >= ${CLOSEWAITSTEPS}
   ${EndIf}
 !macroend
+
+Function MoveAsideIfLocked
+  ClearErrors
+  ${WordFind} "$R7" "${REPLACEDMARK}" "E+1" $0
+  ${If} ${Errors}
+    ClearErrors
+    Delete "$R9"
+    ${If} ${Errors}
+      ClearErrors
+      Rename "$R9" "$R9${REPLACEDMARK}$ReplacedStamp"
+      ${If} ${Errors}
+        StrCpy $LockedFile "$R9"
+        Push "StopLocate"
+        Return
+      ${EndIf}
+    ${EndIf}
+  ${Else}
+    Delete "$R9"
+  ${EndIf}
+  ClearErrors
+  Push ""
+FunctionEnd
+
+Function ClearAppFiles
+  System::Call 'kernel32::GetTickCount() i .r0'
+  StrCpy $ReplacedStamp $0
+  StrCpy $LockedFile ""
+  ${Locate} "$INSTDIR" "/L=F /M=*${REPLACEDMARK}* /G=0" MoveAsideIfLocked
+  ${Locate} "$INSTDIR" "/L=F /M=${MAINBINARYNAME}.exe /G=0" MoveAsideIfLocked
+  ${If} $LockedFile == ""
+    ${Locate} "$INSTDIR" "/L=F /M=*.dll /G=0" MoveAsideIfLocked
+  ${EndIf}
+  ${If} $LockedFile == ""
+  ${AndIf} ${FileExists} "$INSTDIR\data\*.*"
+    ${Locate} "$INSTDIR\data" "/L=F /M=*.* /G=1" MoveAsideIfLocked
+  ${EndIf}
+  ${If} $LockedFile != ""
+    Abort "$(failedToKillApp)"
+  ${EndIf}
+FunctionEnd
 
 Function .onInit
   !insertmacro ReadModeOptions
@@ -132,6 +188,7 @@ FunctionEnd
 Section Install
   SetOutPath $INSTDIR
   !insertmacro CloseRunningApp
+  Call ClearAppFiles
   Delete "$INSTDIR\WebView2Loader.dll"
   RMDir /r "$INSTDIR\resources"
   File /r "${SOURCE_DIR}\*.*"
@@ -286,8 +343,12 @@ FunctionEnd
 
 Section Uninstall
   !insertmacro CloseRunningApp
+  ${If} $AppStillRunning = 1
+    Abort "$(failedToKillApp)"
+  ${EndIf}
   Delete "$INSTDIR\${MAINBINARYNAME}.exe"
   Delete "$INSTDIR\*.dll"
+  Delete "$INSTDIR\*${REPLACEDMARK}*"
   RMDir /r "$INSTDIR\data"
   Delete "$INSTDIR\uninstall.exe"
   RMDir "$INSTDIR"

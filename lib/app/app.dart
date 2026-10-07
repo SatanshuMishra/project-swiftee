@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/app/window_setup.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
+import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
@@ -131,9 +132,12 @@ class SwiftieQuizApp extends ConsumerStatefulWidget {
 }
 
 class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(onExitRequested: _releaseAudio);
     ref.listenManual<Brightness>(
       themeBrightnessProvider,
       (_, brightness) => unawaited(
@@ -141,6 +145,17 @@ class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
       ),
       fireImmediately: true,
     );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  Future<AppExitResponse> _releaseAudio() async {
+    await shutDownAudio(ref.read(audioEngineProvider));
+    return AppExitResponse.exit;
   }
 
   @override

@@ -378,7 +378,11 @@ void main() {
 
     test('closes the current user\'s running swiftie-quiz.exe, asking first '
         'unless passive or silent', () {
-      final close = macroBody(lines, 'CloseRunningApp');
+      final close = expandMacros(lines, macroBody(lines, 'CloseRunningApp'));
+      final find = close.indexOf(
+        r'nsExec::ExecToStack `"$SYSDIR\tasklist.exe" /NH /FO CSV '
+        r'/FI "IMAGENAME eq swiftie-quiz.exe" /FI "USERNAME eq $R3"`',
+      );
       final ask = indexContaining(close, 'MessageBox MB_OKCANCEL');
       final kill = indexContaining(
         close,
@@ -386,13 +390,9 @@ void main() {
       );
 
       expect(close.first, r'ReadEnvStr $R3 USERNAME');
-      expect(
-        close[1],
-        r'nsExec::ExecToStack `"$SYSDIR\tasklist.exe" /NH /FO CSV '
-        r'/FI "IMAGENAME eq swiftie-quiz.exe" /FI "USERNAME eq $R3"`',
-      );
+      expect(find, isNonNegative);
       expect(close[kill], endsWith(r'/FI "USERNAME eq $R3"`'));
-      expect(ask, isNonNegative);
+      expect(ask, greaterThan(find));
       expect(close.sublist(ask - 2, ask), [
         r'${IfNot} ${Silent}',
         r'${AndIf} $PassiveMode <> 1',
@@ -404,6 +404,81 @@ void main() {
         isNot(contains('nsis_tauri_utils')),
         reason: 'the Tauri plugin DLL is not shipped',
       );
+    });
+
+    test('after killing the app, waits up to twenty quarter-second checks for '
+        'it to exit instead of a fixed pause', () {
+      final close = macroBody(lines, 'CloseRunningApp');
+      final kill = indexContaining(close, r'"$SYSDIR\taskkill.exe"');
+      final loop = close.indexOf(r'${Do}');
+      final end = close.indexOf(r'${LoopUntil} $R4 >= 20');
+
+      expect(loop, greaterThan(kill));
+      expect(end, greaterThan(loop));
+      expect(close.sublist(kill, loop), contains(r'StrCpy $AppStillRunning 1'));
+      expect(close.sublist(loop + 1, end), [
+        'Sleep 250',
+        r'IntOp $R4 $R4 + 1',
+        '!insertmacro FindRunningApp',
+        r'${If} ${Errors}',
+        r'StrCpy $AppStillRunning 0',
+        r'${ExitDo}',
+        r'${EndIf}',
+      ]);
+      expect(close, isNot(contains('Sleep 500')));
+      expect(
+        close.where((line) => line.contains('failedToKillApp')),
+        isEmpty,
+        reason: 'a process that will not die no longer stops an install',
+      );
+    });
+
+    test('before copying, deletes the app\'s own files and renames any a '
+        'stuck app still holds', () {
+      final install = sectionBody(lines, 'Install');
+      final clear = functionBody(lines, 'ClearAppFiles');
+      final move = functionBody(lines, 'MoveAsideIfLocked');
+      final locates = [
+        for (final line in clear)
+          if (line.startsWith(r'${Locate}')) line,
+      ];
+
+      expect(
+        install.indexOf('Call ClearAppFiles'),
+        install.indexOf('!insertmacro CloseRunningApp') + 1,
+      );
+      expect(
+        install.indexOf(r'File /r "${SOURCE_DIR}\*.*"'),
+        greaterThan(install.indexOf('Call ClearAppFiles')),
+      );
+      expect(locates, [
+        r'${Locate} "$INSTDIR" "/L=F /M=*.replaced-* /G=0" MoveAsideIfLocked',
+        r'${Locate} "$INSTDIR" "/L=F /M=swiftie-quiz.exe /G=0" '
+            'MoveAsideIfLocked',
+        r'${Locate} "$INSTDIR" "/L=F /M=*.dll /G=0" MoveAsideIfLocked',
+        r'${Locate} "$INSTDIR\data" "/L=F /M=*.* /G=1" MoveAsideIfLocked',
+      ]);
+      expect(clear.sublist(clear.length - 3), [
+        r'${If} $LockedFile != ""',
+        r'Abort "$(failedToKillApp)"',
+        r'${EndIf}',
+      ]);
+
+      final delete = move.indexOf(r'Delete "$R9"');
+      final rename = move.indexOf(
+        r'Rename "$R9" "$R9.replaced-$ReplacedStamp"',
+      );
+      expect(move.first, 'ClearErrors');
+      expect(move[1], r'${WordFind} "$R7" ".replaced-" "E+1" $0');
+      expect(delete, isNonNegative);
+      expect(rename, greaterThan(delete));
+      expect(move.sublist(rename + 1, rename + 5), [
+        r'${If} ${Errors}',
+        r'StrCpy $LockedFile "$R9"',
+        'Push "StopLocate"',
+        'Return',
+      ]);
+      expect(move.sublist(move.length - 2), ['ClearErrors', 'Push ""']);
     });
 
     test('closes the app, then removes Tauri-era files, before copying the '
@@ -474,14 +549,21 @@ void main() {
     test('uninstaller removes files, shortcuts and keys and keeps the save '
         'unless asked', () {
       final uninstall = expandMacros(lines, sectionBody(lines, 'Uninstall'));
+      final closeLength = macroBody(lines, 'CloseRunningApp').length;
 
       expect(
-        uninstall.sublist(0, macroBody(lines, 'CloseRunningApp').length),
+        uninstall.sublist(0, closeLength),
         macroBody(lines, 'CloseRunningApp'),
       );
+      expect(uninstall.sublist(closeLength, closeLength + 3), [
+        r'${If} $AppStillRunning = 1',
+        r'Abort "$(failedToKillApp)"',
+        r'${EndIf}',
+      ]);
       for (final removal in [
         r'Delete "$INSTDIR\swiftie-quiz.exe"',
         r'Delete "$INSTDIR\*.dll"',
+        r'Delete "$INSTDIR\*.replaced-*"',
         r'RMDir /r "$INSTDIR\data"',
         r'Delete "$INSTDIR\uninstall.exe"',
         r'RMDir "$INSTDIR"',

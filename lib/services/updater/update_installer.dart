@@ -18,7 +18,7 @@ typedef ProcessStarter = Future<void> Function(
   ProcessStartMode mode,
 });
 
-typedef ExitProcess = void Function(int code);
+typedef ExitProcess = Future<void> Function(int code);
 
 final class UpdateInstallException implements Exception {
   const UpdateInstallException(this.message);
@@ -73,7 +73,7 @@ final class MacUpdateInstaller implements UpdateInstaller {
     required this.bundlePath,
     required this._createTempDirectory,
     required this._runProcess,
-    this._exitProcess = exit,
+    required this._exitProcess,
   });
 
   final String bundlePath;
@@ -138,7 +138,7 @@ final class MacUpdateInstaller implements UpdateInstaller {
         'Could not relaunch the app: ${result.stderr}'.trim(),
       );
     }
-    _exitProcess(0);
+    await _exitProcess(0);
   }
 
   Future<void> _swapWithAdministratorPrivileges(
@@ -358,7 +358,7 @@ final class WindowsUpdateInstaller implements UpdateInstaller {
   const WindowsUpdateInstaller({
     required this._createTempDirectory,
     required this._startProcess,
-    this._exitProcess = exit,
+    required this._exitProcess,
   });
 
   final TempDirectoryProvider _createTempDirectory;
@@ -382,7 +382,7 @@ final class WindowsUpdateInstaller implements UpdateInstaller {
       windowsInstallerArguments(),
       mode: ProcessStartMode.detached,
     );
-    _exitProcess(0);
+    await _exitProcess(0);
   }
 
   @override
