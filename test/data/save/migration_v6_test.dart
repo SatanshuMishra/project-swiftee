@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/save/migrations.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 
-Map<String, Object?> v4Save() => {
-  'version': 4,
+Map<String, Object?> v5Save() => {
+  'version': 5,
   'achievements': {
     'first_meow': {
       'unlocked': true,
@@ -38,6 +38,7 @@ Map<String, Object?> v4Save() => {
     'hardTimer': 15,
     'misuVisits': 'often',
     'nickname': 'Sam',
+    'togetherLink': 'https://swiftie.satanshu.tech/#key',
   },
   'updater': {
     'autoCheckEnabled': false,
@@ -48,30 +49,41 @@ Map<String, Object?> v4Save() => {
 };
 
 void main() {
-  test('a version 4 save loads unchanged with no server link', () {
-    final input = v4Save();
+  test('a version 5 save loads unchanged with album covers not saved', () {
+    final input = v5Save();
 
     final result = migrateToLatest(input);
 
-    expect(result.keys, v4Save().keys);
-    expect(result['version'], currentSaveVersion);
+    expect(result.keys, v5Save().keys);
+    expect(result['version'], 6);
     for (final key in ['achievements', 'stats', 'updater']) {
-      expect(result[key], v4Save()[key], reason: key);
+      expect(result[key], v5Save()[key], reason: key);
     }
     final settings = result['settings']! as Map<String, Object?>;
-    final before = v4Save()['settings']! as Map<String, Object?>;
-    expect(settings.keys, [...before.keys, 'togetherLink', 'saveCovers']);
+    final before = v5Save()['settings']! as Map<String, Object?>;
+    expect(settings.keys, [...before.keys, 'saveCovers']);
     for (final MapEntry(:key, :value) in before.entries) {
       expect(settings[key], value, reason: key);
     }
-    expect(settings['togetherLink'], isNull);
-    expect(input, v4Save());
+    expect(settings['saveCovers'], isFalse);
+    expect(input, v5Save());
 
     final progress = GameProgress.fromJson(result);
-    expect(progress.version, currentSaveVersion);
-    expect(progress.settings.nickname, 'Sam');
-    expect(progress.settings.misuVisits, MisuVisits.often);
-    expect(progress.settings.togetherLink, isNull);
+    expect(progress.version, 6);
+    expect(
+      progress.settings.togetherLink,
+      'https://swiftie.satanshu.tech/#key',
+    );
+    expect(progress.settings.saveCovers, isFalse);
     expect(GameProgress.fromJson(progress.toJson()), progress);
+  });
+
+  test('saving covers is off for a new player and is kept once on', () {
+    expect(defaultProgress.settings.saveCovers, isFalse);
+    final on = defaultProgress.copyWith(
+      settings: defaultProgress.settings.copyWith(saveCovers: true),
+    );
+
+    expect(GameProgress.fromJson(on.toJson()).settings.saveCovers, isTrue);
   });
 }

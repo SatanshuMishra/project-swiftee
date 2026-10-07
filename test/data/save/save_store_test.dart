@@ -37,7 +37,7 @@ const String tauriDefaultSaveJson = '''
 
 const String defaultSaveJson = '''
 {
-  "version": 5,
+  "version": 6,
   "achievements": {},
   "stats": {
     "totalCorrect": 0,
@@ -54,7 +54,8 @@ const String defaultSaveJson = '''
     "hardTimer": 20,
     "misuVisits": "sometimes",
     "nickname": null,
-    "togetherLink": null
+    "togetherLink": null,
+    "saveCovers": false
   },
   "updater": {
     "autoCheckEnabled": true,
@@ -145,7 +146,7 @@ void main() {
         expect(p.basename(backups.single.path), fixedBackupName);
         expect(await File(backups.single.path).readAsString(), original);
 
-        expect(await readJson(file), containsPair('version', 5));
+        expect(await readJson(file), containsPair('version', 6));
         expect(
           await store.load(),
           LoadLoaded(progress: progressWithTotalCorrect(7)),
@@ -308,7 +309,7 @@ void main() {
         );
       });
 
-      test('writes the pretty-printed version 5 save shape', () async {
+      test('writes the pretty-printed version 6 save shape', () async {
         await storeFor('save.json').save(defaultProgress);
 
         expect(await fileIn('save.json').readAsString(), defaultSaveJson);
