@@ -6,14 +6,12 @@ import 'package:swiftie_quiz/domain/together/standings.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/together/room_controller.dart';
-import 'package:swiftie_quiz/state/together/room_state.dart';
 import 'package:swiftie_quiz/state/together/together_game_controller.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
-import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
@@ -25,8 +23,7 @@ class FinalStandingsScreen extends ConsumerWidget {
   static const String fastestLabel = 'Fastest answer';
   static const String streakLabel = 'Longest streak';
   static const String you = 'You';
-  static const String playAgainLabel = 'Play again →';
-  static const String backToMenuLabel = 'Back to menu';
+  static const String nextLabel = 'Next →';
 
   static String title(String mode) => 'Final standings · $mode';
 
@@ -41,7 +38,6 @@ class FinalStandingsScreen extends ConsumerWidget {
   static const double highlightsTop = 14;
   static const double highlightsGap = 10;
   static const double rightGap = 24;
-  static const double actionsGap = 12;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -158,25 +154,15 @@ class FinalStandingsScreen extends ConsumerWidget {
               spacing: rightGap,
               children: [
                 StandingsList(game: game, viewerId: youId),
-                Wrap(
-                  spacing: actionsGap,
-                  runSpacing: actionsGap,
-                  children: [
-                    if (room.role == RoomRole.host)
-                      PillButton(
-                        label: playAgainLabel,
-                        size: PillSize.large,
-                        onPressed: ref
-                            .read(togetherGameControllerProvider.notifier)
-                            .playAgain,
-                      ),
-                    PillButton(
-                      label: backToMenuLabel,
-                      kind: PillKind.outline,
-                      size: PillSize.large,
-                      onPressed: () => leavePlayTogether(ref),
-                    ),
-                  ],
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: PillButton(
+                    label: nextLabel,
+                    size: PillSize.large,
+                    onPressed: ref
+                        .read(togetherGameControllerProvider.notifier)
+                        .next,
+                  ),
                 ),
               ],
             ),

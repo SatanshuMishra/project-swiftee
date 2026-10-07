@@ -663,11 +663,8 @@ void main() {
           [(_sam.id, 1000), (_maya.id, 950), (_lee.id, 0)],
         );
 
-        host.together.playAgain();
-        expect(host.relay.bodies.last, (
-          to: null,
-          message: const BackToLobby(),
-        ));
+        host.together.next();
+        expect(host.relay.bodies.last.message, isA<GameEnded>());
         expect(host.relay.sent.last, const UnlockRoom());
         expect(host.state, TogetherGameState.initial);
         expect(host.container.read(roomControllerProvider).code, 'BCDF');
@@ -800,13 +797,44 @@ void main() {
           expect(guest.state.stage, TogetherStage.ended);
           expect(guest.state.standings, afterRound);
 
-          guest.fromHost(const BackToLobby());
+          final sent = guest.relay.sent;
+          guest.together.next();
           expect(guest.state, TogetherGameState.initial);
+          expect(guest.relay.sent, sent);
           expect(guest.single.phase, phase);
           expect(guest.phases, isEmpty);
         });
       },
     );
+
+    test('a guest still reading the results joins the next game when the '
+        'host starts it', () {
+      fakeAsync((async) {
+        final guest = _Harness(async, nickname: 'Maya')..joinRoom();
+        guest
+          ..fromHost(const GameStarting(settings: RoomSettings(rounds: 5)))
+          ..fromHost(GameEnded(standings: [PlayerScore.start(_sam.id)]));
+        expect(guest.state.stage, TogetherStage.ended);
+
+        guest.fromHost(
+          const GameStarting(
+            settings: RoomSettings(mode: TogetherMode.quickDraw, rounds: 5),
+          ),
+        );
+        expect(guest.state.stage, TogetherStage.starting);
+        expect(guest.state.mode, TogetherMode.quickDraw);
+      });
+    });
+
+    test('next does nothing before the game has ended', () {
+      fakeAsync((async) {
+        final guest = _Harness(async, nickname: 'Maya')..joinRoom();
+        guest.fromHost(const GameStarting(settings: RoomSettings(rounds: 5)));
+
+        guest.together.next();
+        expect(guest.state.stage, TogetherStage.starting);
+      });
+    });
 
     test("guests play the host's clip start", () {
       fakeAsync((async) {
@@ -1095,7 +1123,7 @@ void main() {
         expect(host.single.progress, progress);
         expect(host.container.read(playHistoryProvider), history);
 
-        host.together.playAgain();
+        host.together.next();
         host.room.setSettings(
           const RoomSettings(mode: TogetherMode.lyricsOrLie, rounds: 5),
           'Shuffle everything',

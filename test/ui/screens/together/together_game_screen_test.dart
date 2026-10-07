@@ -64,7 +64,6 @@ class FakeTogether extends TogetherGameController {
   final TogetherGameState initial;
   List<({int? trackId, bool? real})> answers = const [];
   int nextNows = 0;
-  int plays = 0;
   int leaves = 0;
 
   @override
@@ -83,9 +82,6 @@ class FakeTogether extends TogetherGameController {
 
   @override
   void nextNow() => nextNows += 1;
-
-  @override
-  void playAgain() => plays += 1;
 
   @override
   Future<void> leaveTogether() {
