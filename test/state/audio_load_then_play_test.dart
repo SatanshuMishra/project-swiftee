@@ -13,6 +13,7 @@ import 'package:swiftie_quiz/domain/engine/relisten_schedule.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/services/audio/audio_engine.dart';
+import 'package:swiftie_quiz/services/audio/preview_downloader.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
@@ -232,11 +233,15 @@ void main() {
         expect(state().loading, isFalse);
 
         unawaited(audio.load(_broken).then((value) => loaded = value));
-        async.flushMicrotasks();
+        async
+          ..flushMicrotasks()
+          ..elapse(PreviewDownloader.retryDelay);
         expect(loaded, isFalse);
         expect(state().error, isNotNull);
         unawaited(audio.prepare(_broken).then((value) => prepared = value));
-        async.flushMicrotasks();
+        async
+          ..flushMicrotasks()
+          ..elapse(PreviewDownloader.retryDelay);
         expect(prepared, isNull);
         expect(engine.slices, hasLength(2));
 

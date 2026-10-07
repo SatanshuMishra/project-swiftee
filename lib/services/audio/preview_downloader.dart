@@ -70,10 +70,21 @@ final class PreviewUnreachable extends PreviewError {
   int get hashCode => Object.hash(PreviewUnreachable, detail);
 }
 
+final class _Transient implements Exception {
+  const _Transient(this.error);
+
+  final PreviewError error;
+}
+
 final class PreviewDownloader {
-  PreviewDownloader(this._client, this._userAgent);
+  PreviewDownloader(
+    this._client,
+    this._userAgent, {
+    this._delay = Future<void>.delayed,
+  });
 
   static const Duration requestTimeout = Duration(seconds: 10);
+  static const Duration retryDelay = Duration(milliseconds: 500);
   static const int maxRedirects = 5;
   static const Set<int> _redirectStatuses = {301, 302, 303, 307, 308};
   static const String _signedPreviewHost = 'cdnt-preview.dzcdn.net';
@@ -83,8 +94,22 @@ final class PreviewDownloader {
 
   final http.Client _client;
   final String _userAgent;
+  final Future<void> Function(Duration) _delay;
 
   Future<Uint8List> download(Uri previewUrl) async {
+    try {
+      return await _attempt(previewUrl);
+    } on _Transient {
+      await _delay(retryDelay);
+    }
+    try {
+      return await _attempt(previewUrl);
+    } on _Transient catch (transient) {
+      throw transient.error;
+    }
+  }
+
+  Future<Uint8List> _attempt(Uri previewUrl) async {
     final abort = Completer<void>();
     try {
       return await _fetch(previewUrl, abort.future, maxRedirects).timeout(
@@ -94,12 +119,17 @@ final class PreviewDownloader {
           throw const PreviewUnreachable('request timed out');
         },
       );
+    } on PreviewDownloadFailed catch (error) {
+      if (error.status >= 500) {
+        throw _Transient(error);
+      }
+      rethrow;
     } on PreviewError {
       rethrow;
     } on http.ClientException catch (error) {
-      throw PreviewUnreachable(error.message);
+      throw _Transient(PreviewUnreachable(error.message));
     } on Exception catch (error) {
-      throw PreviewUnreachable('$error');
+      throw _Transient(PreviewUnreachable('$error'));
     }
   }
 

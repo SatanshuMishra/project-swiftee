@@ -30,7 +30,7 @@ typedef _LrclibRecord = ({
   String? plainLyrics,
 });
 
-typedef _BatchOutcome = ({int trackId, TrackLyrics? lyrics, bool cacheable});
+typedef _BatchOutcome = ({int trackId, TrackLyrics? lyrics, bool resolved});
 
 String normaliseTitle(String title) {
   final stripped = title.replaceFirst(_trailingParenthetical, '');
@@ -86,25 +86,23 @@ class LrclibClient {
     };
     for (final chunk in pending.slices(_batchSize)) {
       final outcomes = await Future.wait(chunk.map(_batchOutcome));
-      _remember({
+      final resolved = {
         for (final outcome in outcomes)
-          if (outcome.cacheable) outcome.trackId: outcome.lyrics,
-      });
-      results = {
-        ...results,
-        for (final outcome in outcomes) outcome.trackId: outcome.lyrics,
+          if (outcome.resolved) outcome.trackId: outcome.lyrics,
       };
+      _remember(resolved);
+      results = {...results, ...resolved};
     }
     return Map.unmodifiable(results);
   }
 
   Future<_BatchOutcome> _batchOutcome(Track track) async {
     try {
-      return (trackId: track.id, lyrics: await _lookUp(track), cacheable: true);
+      return (trackId: track.id, lyrics: await _lookUp(track), resolved: true);
     } on LyricsNotFound {
-      return (trackId: track.id, lyrics: null, cacheable: true);
+      return (trackId: track.id, lyrics: null, resolved: true);
     } on LyricsError {
-      return (trackId: track.id, lyrics: null, cacheable: false);
+      return (trackId: track.id, lyrics: null, resolved: false);
     }
   }
 
@@ -126,9 +124,6 @@ class LrclibClient {
         'duration': '${track.duration}',
       }),
     );
-    if (_isServerError(response.statusCode)) {
-      throw const LyricsUnavailable();
-    }
     if (!_isSuccess(response.statusCode)) {
       return null;
     }
@@ -168,18 +163,25 @@ class LrclibClient {
 
   Future<http.Response> _get(Uri uri) async {
     final response = await _send(uri);
-    if (response.statusCode != _tooManyRequests) {
-      return response;
+    if (response case final answered? when !_isTransient(answered)) {
+      return answered;
     }
-    await _delay(_retryAfter(response.headers['retry-after']));
+    await _delay(_retryDelay(response));
     final retried = await _send(uri);
-    if (retried.statusCode == _tooManyRequests) {
-      throw const LyricsUnavailable();
+    if (retried case final answered? when !_isTransient(answered)) {
+      return answered;
     }
-    return retried;
+    throw const LyricsUnavailable();
   }
 
-  Future<http.Response> _send(Uri uri) async {
+  Duration _retryDelay(http.Response? response) => switch (response) {
+    http.Response(statusCode: _tooManyRequests, :final headers) => _retryAfter(
+      headers['retry-after'],
+    ),
+    _ => _defaultRetryAfter,
+  };
+
+  Future<http.Response?> _send(Uri uri) async {
     final abort = Completer<void>();
     final request = http.AbortableRequest(
       'GET',
@@ -195,7 +197,7 @@ class LrclibClient {
       abort.complete();
       throw const LyricsUnavailable();
     } on Exception {
-      throw const LyricsUnavailable();
+      return null;
     }
   }
 
@@ -226,7 +228,9 @@ class LrclibClient {
 
 bool _isSuccess(int statusCode) => statusCode >= 200 && statusCode < 300;
 
-bool _isServerError(int statusCode) => statusCode >= 500 && statusCode < 600;
+bool _isTransient(http.Response response) =>
+    response.statusCode == _tooManyRequests ||
+    (response.statusCode >= 500 && response.statusCode < 600);
 
 int _durationGap(_LrclibRecord record, int targetSeconds) =>
     (record.duration.round() - targetSeconds).abs();

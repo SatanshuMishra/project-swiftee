@@ -272,7 +272,7 @@ class GameScreen extends ConsumerStatefulWidget {
   const GameScreen({super.key});
 
   static const Duration roundLoaderMinimum = Duration(milliseconds: 450);
-  static const int maxUnavailableSkips = 3;
+  static const int maxUnplayableSkips = 3;
   static const Duration roundLoaderTimeout = Duration(seconds: 8);
   static const String modeLabel = 'Name That Song';
   static const String loadingTracksLabel = 'Loading tracks...';
@@ -311,7 +311,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   bool _failed = false;
   bool _redraw = false;
   Track? _unheard;
-  int _unavailableSkips = 0;
+  int _unplayableSkips = 0;
   String? _failure;
   List<Track> _allTracks = const [];
   SoundStage _stage = SoundStage.playing;
@@ -440,7 +440,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     }
     final audio = ref.read(audioControllerProvider);
     if (audio.error == null && !audio.unavailable) {
-      _unavailableSkips = 0;
+      _unplayableSkips = 0;
       if (_unheard case final track?) {
         _unheard = null;
         ref.read(playHistoryProvider.notifier).heard(track);
@@ -657,10 +657,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
   }
 
-  void _skipUnavailable() {
+  void _skipUnplayable() {
     final current = ref.read(gameControllerProvider).currentTrack;
-    _unavailableSkips += 1;
-    if (current == null || _unavailableSkips > GameScreen.maxUnavailableSkips) {
+    _unplayableSkips += 1;
+    if (current == null || _unplayableSkips > GameScreen.maxUnplayableSkips) {
       _fail(null);
       return;
     }
@@ -672,8 +672,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
     _beginRound(ref.read(gameControllerProvider).trackPool);
   }
 
+  bool get _canSkip =>
+      _tracksReady && !_failed && _stage != SoundStage.answered;
+
   void _retry() {
     _redraw = true;
+    _unplayableSkips = 0;
     ref.read(audioControllerProvider.notifier).reset();
     setState(() {
       _failed = false;
@@ -693,16 +697,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _,
       error,
     ) {
-      if (error != null && _tracksReady && !_failed) {
-        _fail(null);
+      if (error != null && _canSkip) {
+        _skipUnplayable();
       }
     });
     ref.listen(audioControllerProvider.select((audio) => audio.unavailable), (
       _,
       unavailable,
     ) {
-      if (unavailable && _tracksReady && !_failed) {
-        _skipUnavailable();
+      if (unavailable && _canSkip) {
+        _skipUnplayable();
       }
     });
     final Widget body;

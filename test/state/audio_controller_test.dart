@@ -987,15 +987,17 @@ void main() {
       });
     });
 
-    test('a failure other than 403 is not refreshed', () {
+    test('a failure other than 403 is retried once but not refreshed', () {
       fakeAsync((async) {
         final harness = _Harness();
         harness.respond = (request) async => _bytes(Uint8List(0), 500);
 
         unawaited(harness.audio.play(_enchanted));
-        async.flushMicrotasks();
+        async
+          ..flushMicrotasks()
+          ..elapse(PreviewDownloader.retryDelay);
 
-        expect(harness.requestedUrls, [_previewUrl]);
+        expect(harness.requestedUrls, [_previewUrl, _previewUrl]);
         expect(harness.state.error, 'Preview download failed: HTTP 500');
         expect(harness.state.loading, isFalse);
       });
@@ -1035,7 +1037,9 @@ void main() {
         harness.respond = (request) async => _bytes(Uint8List(0), 500);
 
         unawaited(harness.audio.play(_enchanted));
-        async.flushMicrotasks();
+        async
+          ..flushMicrotasks()
+          ..elapse(PreviewDownloader.retryDelay);
 
         expect(harness.state.error, isNotNull);
 
@@ -1179,11 +1183,13 @@ void main() {
 
   group('preview downloader', () {
     late List<http.Request> requests;
+    late List<Duration> delays;
     late Future<http.Response> Function(http.Request request) respond;
     late PreviewDownloader downloader;
 
     setUp(() {
       requests = const [];
+      delays = const [];
       respond = (request) async => _bytes(_previewBytes);
       downloader = PreviewDownloader(
         MockClient((request) {
@@ -1191,7 +1197,43 @@ void main() {
           return respond(request);
         }),
         _userAgent,
+        delay: (duration) async => delays = [...delays, duration],
       );
+    });
+
+    test('a dropped connection is fetched again once after 500 ms', () async {
+      respond = (request) async => requests.length == 1
+          ? throw http.ClientException('connection reset', request.url)
+          : _bytes(_previewBytes);
+
+      expect(await downloader.download(Uri.parse(_previewUrl)), _previewBytes);
+      expect(requests, hasLength(2));
+      expect(delays, [PreviewDownloader.retryDelay]);
+      expect(PreviewDownloader.retryDelay, const Duration(milliseconds: 500));
+    });
+
+    test('a server error is fetched again once, then fails', () async {
+      respond = (request) async => _bytes(Uint8List(0), 503);
+
+      await expectLater(
+        downloader.download(Uri.parse(_previewUrl)),
+        throwsA(const PreviewDownloadFailed(503)),
+      );
+      expect(requests, hasLength(2));
+    });
+
+    test('a refusal or a missing clip is not fetched again', () async {
+      for (final status in [403, 404]) {
+        requests = const [];
+        respond = (request) async => _bytes(Uint8List(0), status);
+
+        await expectLater(
+          downloader.download(Uri.parse(_previewUrl)),
+          throwsA(isA<PreviewError>()),
+        );
+        expect(requests, hasLength(1), reason: '$status');
+      }
+      expect(delays, isEmpty);
     });
 
     test('returns the bytes and sends the User-Agent', () async {
@@ -1229,6 +1271,8 @@ void main() {
 
         async.elapse(const Duration(milliseconds: 1));
         expect(failure, const PreviewUnreachable('request timed out'));
+        expect(requests, hasLength(1));
+        expect(delays, isEmpty);
       });
     });
 

@@ -1,5 +1,7 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
+import 'package:swiftie_quiz/data/lyrics/lyrics_error.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/domain/engine/play_order.dart';
@@ -10,6 +12,7 @@ import 'package:swiftie_quiz/state/providers.dart';
 
 const int minLyricsPoolSize = 5;
 const int _initialBatchSize = 8;
+const int _maxInitialBatches = 3;
 const int _rollingBatchSize = 5;
 
 const String noAlbumTracksMessage =
@@ -71,25 +74,44 @@ class LyricsController {
     void Function(int fetched, int total)? onProgress,
   }) async {
     final request = ++_initialRequest;
-    final batch = tracks.take(_initialBatchSize).toList();
-    final total = batch.length;
+    final batches = tracks
+        .slices(_initialBatchSize)
+        .take(_maxInitialBatches)
+        .toList();
+    var pool = const <TrackWithLyrics>[];
+    var fetched = 0;
+    var total = batches.firstOrNull?.length ?? 0;
+    var unchecked = 0;
+    var tried = const <int>{};
     _game.setLyricsFetchProgress((fetched: 0, total: total));
 
-    final results = await (await _lrclib()).fetchLyricsBatch(batch);
-    final pool = _withLyrics(batch, results);
-    if (request != _initialRequest) {
-      return pool;
+    final lrclib = await _lrclib();
+    for (final (index, batch) in batches.indexed) {
+      if (index > 0) {
+        total += batch.length;
+        _game.setLyricsFetchProgress((fetched: fetched, total: total));
+      }
+      final results = await lrclib.fetchLyricsBatch(batch);
+      final found = _withLyrics(batch, results);
+      pool = List.unmodifiable([...pool, ...found]);
+      if (request != _initialRequest) {
+        return pool;
+      }
+      tried = Set.unmodifiable({...tried, for (final track in batch) track.id});
+      _tried = tried;
+      _addToDecoyPool(found);
+      fetched += results.length;
+      unchecked += batch.length - results.length;
+      _game.setLyricsFetchProgress((fetched: fetched, total: total));
+      onProgress?.call(fetched, total);
+      if (results.isEmpty || pool.length >= minLyricsPoolSize) {
+        break;
+      }
     }
-    _tried = Set.unmodifiable({for (final track in batch) track.id});
-    _addToDecoyPool(pool);
-
-    final fetched = results.length;
-    _game.setLyricsFetchProgress((fetched: fetched, total: total));
-    onProgress?.call(fetched, total);
 
     if (pool.length < minLyricsPoolSize) {
       _game.setLyricsFetchProgress(null);
-      return pool;
+      return unchecked > 0 ? throw const LyricsUnavailable() : pool;
     }
 
     _game

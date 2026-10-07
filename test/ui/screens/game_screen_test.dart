@@ -17,6 +17,7 @@ import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/services/audio/audio_engine.dart';
+import 'package:swiftie_quiz/services/audio/preview_downloader.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
@@ -237,6 +238,8 @@ final class _Harness {
   final _RecordingMisu misu;
   late Future<CatalogTracks> Function() _load;
   int previewStatus = 200;
+  int flakyPreviews = 0;
+  Set<int> brokenPreviews = const {};
   Set<int> withdrawn = const {};
   List<String> deezerRequests = const [];
 
@@ -251,7 +254,18 @@ final class _Harness {
     httpClientProvider.overrideWithValue(
       MockClient((request) async {
         if (request.url.host == 'cdnt-preview.dzcdn.net') {
-          return http.Response.bytes([1, 2, 3], previewStatus);
+          if (flakyPreviews > 0) {
+            flakyPreviews -= 1;
+            return http.Response('', 503);
+          }
+          final song = int.tryParse(
+            request.url.pathSegments.last.replaceFirst('.mp3', ''),
+          );
+          return http.Response.bytes([
+            1,
+            2,
+            3,
+          ], brokenPreviews.contains(song) ? 500 : previewStatus);
         }
         final id = int.tryParse(request.url.pathSegments.lastOrNull ?? '');
         if (request.url.host == 'api.deezer.com' && id != null) {
@@ -1066,14 +1080,73 @@ void main() {
       expect(harness.current, _loveStory);
     });
 
-    testWidgets('a clip that cannot download drops the needle', (tester) async {
+    testWidgets('a clip that fails once is fetched again and plays', (
+      tester,
+    ) async {
+      final harness = _Harness(tester)..flakyPreviews = 1;
+      await harness.open();
+      await tester.pump(PreviewDownloader.retryDelay);
+      await harness.settle();
+      await tester.pump(GameScreen.roundLoaderMinimum);
+      await harness.settle();
+
+      expect(find.text("The needle won't drop."), findsNothing);
+      expect(_heading("What's playing?"), findsOneWidget);
+      expect(harness.current, _loveStory);
+    });
+
+    testWidgets('a song whose clip will not download is swapped for another', (
+      tester,
+    ) async {
+      final harness = _Harness(tester)..brokenPreviews = {_loveStory.id};
+      await harness.open();
+      await tester.pump(PreviewDownloader.retryDelay);
+      await harness.settle();
+      await tester.pump(GameScreen.roundLoaderMinimum);
+      await harness.settle();
+
+      expect(find.text("The needle won't drop."), findsNothing);
+      expect(_heading("What's playing?"), findsOneWidget);
+      expect(harness.current, isNot(_loveStory));
+      expect(harness.state.roundNumber, 1);
+    });
+
+    testWidgets('clips that keep failing drop the needle after three '
+        'skipped songs', (tester) async {
       final harness = _Harness(tester)..previewStatus = 500;
       await harness.open();
-      await harness.settle();
+      for (var song = 0; song <= GameScreen.maxUnplayableSkips; song++) {
+        await tester.pump(PreviewDownloader.retryDelay);
+        await harness.settle();
+      }
 
       expect(find.text("The needle won't drop."), findsOneWidget);
       expect(find.text('Back to menu'), findsOneWidget);
       expect(find.byType(AnswerButton), findsNothing);
+    });
+
+    testWidgets('try again after the needle drops starts a fresh run of '
+        'skips', (tester) async {
+      final harness = _Harness(tester)..previewStatus = 500;
+      await harness.open();
+      for (var song = 0; song <= GameScreen.maxUnplayableSkips; song++) {
+        await tester.pump(PreviewDownloader.retryDelay);
+        await harness.settle();
+      }
+      expect(find.text("The needle won't drop."), findsOneWidget);
+
+      harness
+        ..previewStatus = 200
+        ..flakyPreviews = 2;
+      await tester.tap(find.text('Try again'));
+      await harness.settle();
+      await tester.pump(PreviewDownloader.retryDelay);
+      await harness.settle();
+      await tester.pump(GameScreen.roundLoaderMinimum);
+      await harness.settle();
+
+      expect(find.text("The needle won't drop."), findsNothing);
+      expect(_heading("What's playing?"), findsOneWidget);
     });
 
     testWidgets('exit returns to the menu', (tester) async {
