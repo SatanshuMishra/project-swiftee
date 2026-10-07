@@ -34,7 +34,7 @@ class LyricsLoadingScreen extends ConsumerStatefulWidget {
   ];
 
   static const Duration messageInterval = Duration(seconds: 3);
-  static const Duration fetchTimeout = Duration(seconds: 30);
+  static const Duration fetchTimeout = lyricsLoadLimit;
   static const String waitingLabel = 'Getting the songs ready…';
   static const String lostTitle = 'The lyric sheets got lost.';
   static const String lostMessage =
@@ -116,11 +116,15 @@ class _LyricsLoadingScreenState extends ConsumerState<LyricsLoadingScreen> {
 
   void _fail(String message) {
     _rotation?.cancel();
+    ref.read(lyricsControllerProvider).cancelInitial();
     ref.read(gameControllerProvider.notifier).setLyricsFetchProgress(null);
     setState(() => _error = message);
   }
 
-  void _toMenu() => ref.read(gameControllerProvider.notifier).resetGame();
+  void _toMenu() {
+    ref.read(lyricsControllerProvider).cancelInitial();
+    ref.read(gameControllerProvider.notifier).resetGame();
+  }
 
   Future<void> _load() async {
     final lyrics = ref.read(lyricsControllerProvider);

@@ -231,7 +231,6 @@ void main() {
       expect(read().lyricsPool, pool);
       expect(reported, [
         (fetched: 0, total: 8),
-        (fetched: 8, total: 8),
         (fetched: 8, total: 16),
         (fetched: 16, total: 16),
         null,
@@ -272,6 +271,55 @@ void main() {
       await expectLater(
         lyrics().preFetchInitial(_tracks([1, 2, 3, 4, 5, 6, 7, 8])),
         throwsA(isA<LyricsUnavailable>()),
+      );
+      expect(read().lyricsPool, isEmpty);
+    });
+
+    test('too few songs to reach five even with the unchecked ones is not '
+        'enough songs', () async {
+      songsWithLyrics = {1, 2};
+      failingSongs = {3};
+
+      final pool = await lyrics().preFetchInitial(_tracks([1, 2, 3]));
+
+      expect(pool, [_entry(1), _entry(2)]);
+      expect(read().lyricsPool, isEmpty);
+    });
+
+    test(
+      'a song it could not check is tried again when the pool grows',
+      () async {
+        songsWithLyrics = {1, 2, 3, 4, 5, 6, 7, 8};
+        failingSongs = {2};
+        game().setLyricsAvailableTracks(_tracks([1, 2, 3, 4, 5, 6, 7, 8]));
+
+        await lyrics().preFetchInitial(_tracks([1, 2, 3, 4, 5, 6, 7, 8]));
+        failingSongs = {};
+        lyricsLookups = [];
+        await lyrics().extendPool();
+
+        expect(lyricsLookups, [2]);
+        expect(read().lyricsPool.map((entry) => entry.track.id), contains(2));
+      },
+    );
+
+    test('leaving the loader stops it looking further', () async {
+      songsWithLyrics = {1};
+      final release = Completer<void>();
+      heldReplies = release.future;
+      heldSongs = {1};
+
+      final loading = lyrics().preFetchInitial(
+        _tracks([for (var id = 1; id <= 30; id++) id]),
+      );
+      await Future<void>.delayed(Duration.zero);
+      lyrics().cancelInitial();
+      release.complete();
+      await loading;
+
+      expect(
+        lyricsLookups,
+        unorderedEquals([for (var id = 1; id <= 8; id++) id]),
       );
       expect(read().lyricsPool, isEmpty);
     });

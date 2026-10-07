@@ -1222,6 +1222,52 @@ void main() {
       expect(requests, hasLength(2));
     });
 
+    test('a rate limit is fetched again once', () async {
+      respond = (request) async => requests.length == 1
+          ? _bytes(Uint8List(0), 429)
+          : _bytes(_previewBytes);
+
+      expect(await downloader.download(Uri.parse(_previewUrl)), _previewBytes);
+      expect(requests, hasLength(2));
+    });
+
+    test('a clip no longer wanted is not fetched again', () async {
+      respond = (request) async => _bytes(Uint8List(0), 503);
+
+      await expectLater(
+        downloader.download(Uri.parse(_previewUrl), stillWanted: () => false),
+        throwsA(const PreviewDownloadFailed(503)),
+      );
+      expect(requests, hasLength(1));
+    });
+
+    test('a slow failure and its retry share one 10 s limit', () {
+      fakeAsync((async) {
+        final slow = PreviewDownloader(
+          MockClient((request) async {
+            requests = [...requests, request];
+            if (requests.length == 1) {
+              await Future<void>.delayed(const Duration(seconds: 9));
+              return _bytes(Uint8List(0), 503);
+            }
+            return Completer<http.Response>().future;
+          }),
+          _userAgent,
+        );
+        Object? failure;
+        slow
+            .download(Uri.parse(_previewUrl))
+            .then<void>((_) {}, onError: (Object error) => failure = error);
+
+        async.elapse(const Duration(seconds: 9, milliseconds: 999));
+        expect(requests, hasLength(2));
+        expect(failure, isNull);
+
+        async.elapse(const Duration(milliseconds: 1));
+        expect(failure, const PreviewUnreachable('request timed out'));
+      });
+    });
+
     test('a refusal or a missing clip is not fetched again', () async {
       for (final status in [403, 404]) {
         requests = const [];

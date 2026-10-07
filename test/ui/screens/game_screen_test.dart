@@ -1115,14 +1115,34 @@ void main() {
         'skipped songs', (tester) async {
       final harness = _Harness(tester)..previewStatus = 500;
       await harness.open();
-      for (var song = 0; song <= GameScreen.maxUnplayableSkips; song++) {
+      for (var song = 0; song < GameScreen.maxUnplayableSkips; song++) {
         await tester.pump(PreviewDownloader.retryDelay);
         await harness.settle();
       }
+      expect(GameScreen.maxUnplayableSkips, 3);
+      expect(find.text("The needle won't drop."), findsNothing);
+
+      await tester.pump(PreviewDownloader.retryDelay);
+      await harness.settle();
 
       expect(find.text("The needle won't drop."), findsOneWidget);
       expect(find.text('Back to menu'), findsOneWidget);
       expect(find.byType(AnswerButton), findsNothing);
+    });
+
+    testWidgets('a one-song game whose clip fails drops the needle', (
+      tester,
+    ) async {
+      final harness = _Harness(
+        tester,
+        load: () async => (allTracks: [_loveStory], pool: [_loveStory]),
+      )..brokenPreviews = {_loveStory.id};
+      await harness.open();
+      await tester.pump(PreviewDownloader.retryDelay);
+      await harness.settle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text("The needle won't drop."), findsOneWidget);
     });
 
     testWidgets('try again after the needle drops starts a fresh run of '

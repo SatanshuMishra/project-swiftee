@@ -96,31 +96,47 @@ final class PreviewDownloader {
   final String _userAgent;
   final Future<void> Function(Duration) _delay;
 
-  Future<Uint8List> download(Uri previewUrl) async {
+  Future<Uint8List> download(
+    Uri previewUrl, {
+    bool Function() stillWanted = _always,
+  }) {
+    final abort = Completer<void>();
+    return _attempts(previewUrl, abort.future, stillWanted).timeout(
+      requestTimeout,
+      onTimeout: () {
+        abort.complete();
+        throw const PreviewUnreachable('request timed out');
+      },
+    );
+  }
+
+  static bool _always() => true;
+
+  Future<Uint8List> _attempts(
+    Uri previewUrl,
+    Future<void> abortTrigger,
+    bool Function() stillWanted,
+  ) async {
     try {
-      return await _attempt(previewUrl);
-    } on _Transient {
+      return await _attempt(previewUrl, abortTrigger);
+    } on _Transient catch (transient) {
       await _delay(retryDelay);
+      if (!stillWanted()) {
+        throw transient.error;
+      }
     }
     try {
-      return await _attempt(previewUrl);
+      return await _attempt(previewUrl, abortTrigger);
     } on _Transient catch (transient) {
       throw transient.error;
     }
   }
 
-  Future<Uint8List> _attempt(Uri previewUrl) async {
-    final abort = Completer<void>();
+  Future<Uint8List> _attempt(Uri previewUrl, Future<void> abortTrigger) async {
     try {
-      return await _fetch(previewUrl, abort.future, maxRedirects).timeout(
-        requestTimeout,
-        onTimeout: () {
-          abort.complete();
-          throw const PreviewUnreachable('request timed out');
-        },
-      );
+      return await _fetch(previewUrl, abortTrigger, maxRedirects);
     } on PreviewDownloadFailed catch (error) {
-      if (error.status >= 500) {
+      if (error.status >= 500 || error.status == 429) {
         throw _Transient(error);
       }
       rethrow;

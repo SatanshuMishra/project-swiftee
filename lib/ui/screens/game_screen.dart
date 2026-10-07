@@ -660,14 +660,17 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void _skipUnplayable() {
     final current = ref.read(gameControllerProvider).currentTrack;
     _unplayableSkips += 1;
-    if (current == null || _unplayableSkips > GameScreen.maxUnplayableSkips) {
+    final remaining = List<Track>.unmodifiable([
+      for (final track in _allTracks)
+        if (track.id != current?.id) track,
+    ]);
+    if (current == null ||
+        remaining.isEmpty ||
+        _unplayableSkips > GameScreen.maxUnplayableSkips) {
       _fail(null);
       return;
     }
-    _allTracks = List.unmodifiable([
-      for (final track in _allTracks)
-        if (track.id != current.id) track,
-    ]);
+    _allTracks = remaining;
     _redraw = true;
     _beginRound(ref.read(gameControllerProvider).trackPool);
   }

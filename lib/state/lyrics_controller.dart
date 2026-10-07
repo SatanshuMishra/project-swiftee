@@ -13,6 +13,7 @@ import 'package:swiftie_quiz/state/providers.dart';
 const int minLyricsPoolSize = 5;
 const int _initialBatchSize = 8;
 const int _maxInitialBatches = 3;
+const Duration lyricsLoadLimit = Duration(seconds: 30);
 const int _rollingBatchSize = 5;
 
 const String noAlbumTracksMessage =
@@ -86,32 +87,38 @@ class LyricsController {
     _game.setLyricsFetchProgress((fetched: 0, total: total));
 
     final lrclib = await _lrclib();
+    if (request != _initialRequest) {
+      return pool;
+    }
     for (final (index, batch) in batches.indexed) {
-      if (index > 0) {
-        total += batch.length;
-        _game.setLyricsFetchProgress((fetched: fetched, total: total));
-      }
       final results = await lrclib.fetchLyricsBatch(batch);
       final found = _withLyrics(batch, results);
       pool = List.unmodifiable([...pool, ...found]);
       if (request != _initialRequest) {
         return pool;
       }
-      tried = Set.unmodifiable({...tried, for (final track in batch) track.id});
+      tried = Set.unmodifiable({...tried, ...results.keys});
       _tried = tried;
       _addToDecoyPool(found);
       fetched += results.length;
       unchecked += batch.length - results.length;
+      final next = results.isEmpty || pool.length >= minLyricsPoolSize
+          ? null
+          : batches.elementAtOrNull(index + 1);
+      total += next?.length ?? 0;
       _game.setLyricsFetchProgress((fetched: fetched, total: total));
       onProgress?.call(fetched, total);
-      if (results.isEmpty || pool.length >= minLyricsPoolSize) {
+      if (next == null) {
         break;
       }
     }
 
     if (pool.length < minLyricsPoolSize) {
       _game.setLyricsFetchProgress(null);
-      return unchecked > 0 ? throw const LyricsUnavailable() : pool;
+      final unreachable =
+          unchecked > 0 &&
+          (fetched == 0 || pool.length + unchecked >= minLyricsPoolSize);
+      return unreachable ? throw const LyricsUnavailable() : pool;
     }
 
     _game
@@ -119,6 +126,8 @@ class LyricsController {
       ..setLyricsFetchProgress(null);
     return pool;
   }
+
+  void cancelInitial() => _initialRequest++;
 
   Future<List<TrackWithLyrics>> preFetchMore(
     List<Track> tracks,

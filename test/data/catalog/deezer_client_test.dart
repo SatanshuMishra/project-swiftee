@@ -77,10 +77,12 @@ final class FakeDeezer {
       client: MockClient(_handle),
       userAgent: appUserAgent('0.3.0'),
       now: () => _now,
+      delay: (duration) async => delays.add(duration),
     );
   }
 
   late final DeezerClient client;
+  final List<Duration> delays = [];
   DateTime _now = start;
   final List<http.Request> requests = [];
   final Map<String, List<http.Response>> _routes = {};
@@ -471,20 +473,25 @@ void main() {
       fake = FakeDeezer();
     });
 
-    test('transport failures are network errors', () async {
+    test('transport failures are retried once, then network errors', () async {
+      var attempts = 0;
+      final delays = <Duration>[];
       final client = DeezerClient(
-        client: MockClient(
-          (request) async =>
-              throw http.ClientException('Connection refused', request.url),
-        ),
+        client: MockClient((request) async {
+          attempts++;
+          throw http.ClientException('Connection refused', request.url);
+        }),
         userAgent: appUserAgent('0.3.0'),
         now: () => start,
+        delay: (duration) async => delays.add(duration),
       );
 
       await expectLater(
         client.fetchReleaseSummaries(),
         throwsCatalogError(const NetworkError('Connection refused')),
       );
+      expect(attempts, 2);
+      expect(delays, [DeezerClient.retryDelay]);
       expect(
         const NetworkError('Connection refused').message,
         'Network error: Connection refused',
@@ -551,6 +558,73 @@ void main() {
         fake.client.fetchReleaseSummaries(),
         throwsCatalogError(const NetworkError('HTTP 503')),
       );
+      expect(fake.urls, [albumsUrl, albumsUrl]);
+    });
+
+    test('a server error or dropped connection that clears on the retry '
+        'returns the track', () async {
+      fake.on(trackUrl, [
+        jsonResponse('<html>unavailable</html>', 502),
+        fixtureResponse('track'),
+      ]);
+
+      expect((await fake.client.refreshTrack(3579685431)).id, 3579685431);
+      expect(fake.urls, [trackUrl, trackUrl]);
+      expect(fake.delays, [DeezerClient.retryDelay]);
+
+      var attempts = 0;
+      final flaky = DeezerClient(
+        client: MockClient((request) async {
+          if (++attempts == 1) {
+            throw http.ClientException('Connection reset', request.url);
+          }
+          return fixtureResponse('track');
+        }),
+        userAgent: appUserAgent('0.3.0'),
+        now: () => start,
+        delay: (_) async {},
+      );
+      expect((await flaky.refreshTrack(3579685431)).id, 3579685431);
+      expect(attempts, 2);
+    });
+
+    test('a refusal is not retried', () async {
+      fake.on(trackUrl, [jsonResponse('{"error":{"code":800}}', 404)]);
+
+      await expectLater(
+        fake.client.refreshTrack(3579685431),
+        throwsA(isA<ApiError>()),
+      );
+      expect(fake.urls, [trackUrl]);
+      expect(fake.delays, isEmpty);
+    });
+
+    test('a slow failure and its retry share one 10 s limit', () {
+      fakeAsync((async) {
+        var attempts = 0;
+        final client = DeezerClient(
+          client: MockClient((request) async {
+            if (++attempts == 1) {
+              await Future<void>.delayed(const Duration(seconds: 9));
+              throw http.ClientException('Connection reset', request.url);
+            }
+            return Completer<http.Response>().future;
+          }),
+          userAgent: appUserAgent('0.3.0'),
+          now: () => start,
+        );
+        Object? failure;
+        client
+            .refreshTrack(3579685431)
+            .then<void>((_) {}, onError: (Object error) => failure = error);
+
+        async.elapse(const Duration(seconds: 9, milliseconds: 999));
+        expect(attempts, 2);
+        expect(failure, isNull);
+
+        async.elapse(const Duration(milliseconds: 1));
+        expect(failure, const NetworkError('request timed out'));
+      });
     });
   });
 

@@ -31,6 +31,7 @@ import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/state/play_history_controller.dart';
+import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/state/together/room_controller.dart';
 import 'package:swiftie_quiz/state/together/together_game_controller.dart';
@@ -305,6 +306,7 @@ final class _Harness {
   List<GamePhase> phases = const [];
   List<MisuVisit> visits = const [];
   Map<int, Completer<void>> held = const {};
+  Duration lrclibLag = Duration.zero;
 
   TogetherGameController get together =>
       container.read(togetherGameControllerProvider.notifier);
@@ -341,6 +343,9 @@ final class _Harness {
         final id = int.parse(url.pathSegments.last.replaceAll('.mp3', ''));
         await held[id]?.future;
         return http.Response.bytes(_bytesOf(id), 200);
+      case 'lrclib.net' when lrclibLag > Duration.zero:
+        await Future<void>.delayed(lrclibLag);
+        return http.Response('', 404);
       case 'lrclib.net' when url.path == '/api/get':
         final title = url.queryParameters['track_name'];
         final id = _songs.entries.firstWhere((song) => song.value == title).key;
@@ -551,6 +556,24 @@ void main() {
           expect(lyrics.engine.loaded, isEmpty);
         });
       }
+    });
+
+    test('a host whose lyrics load takes over 30 s gives up and can try '
+        'again', () {
+      fakeAsync((async) {
+        final host = _Harness(async)..lrclibLag = const Duration(seconds: 9);
+        host
+          ..hostRoom(
+            const RoomSettings(mode: TogetherMode.lyricsOrLie, rounds: 5),
+          )
+          ..start();
+
+        async.elapse(lyricsLoadLimit - const Duration(milliseconds: 1));
+        expect(host.state.startFailed, isFalse);
+
+        async.elapse(const Duration(milliseconds: 1));
+        expect(host.state.startFailed, isTrue);
+      });
     });
 
     test('the host plays a whole game and can play again', () {

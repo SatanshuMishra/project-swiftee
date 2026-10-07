@@ -367,7 +367,10 @@ class AudioController extends Notifier<AudioState> {
         return;
       }
       final downloader = await ref.read(previewDownloaderProvider.future);
-      final bytes = await downloader.download(Uri.parse(track.preview));
+      final bytes = await downloader.download(
+        Uri.parse(track.preview),
+        stillWanted: () => version == _snippetVersion,
+      );
       if (version != _snippetVersion) {
         return;
       }
@@ -425,8 +428,12 @@ class AudioController extends Notifier<AudioState> {
     if (version != _playVersion) {
       return null;
     }
+    bool stillWanted() => version == _playVersion;
     try {
-      return await downloader.download(Uri.parse(_playable(link)));
+      return await downloader.download(
+        Uri.parse(_playable(link)),
+        stillWanted: stillWanted,
+      );
     } on PreviewForbidden {
       if (fetchedNow) {
         rethrow;
@@ -438,7 +445,10 @@ class AudioController extends Notifier<AudioState> {
       if (version != _playVersion) {
         return null;
       }
-      return downloader.download(Uri.parse(_playable(refreshed)));
+      return downloader.download(
+        Uri.parse(_playable(refreshed)),
+        stillWanted: stillWanted,
+      );
     }
   }
 
