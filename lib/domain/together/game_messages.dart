@@ -31,16 +31,19 @@ final class SettingsChanged extends GameMessage {
 }
 
 final class GameStarting extends GameMessage {
-  const GameStarting();
+  const GameStarting({required this.settings});
+
+  final RoomSettings settings;
 
   @override
-  bool operator ==(Object other) => other is GameStarting;
+  bool operator ==(Object other) =>
+      other is GameStarting && other.settings == settings;
 
   @override
-  int get hashCode => (GameStarting).hashCode;
+  int get hashCode => Object.hash(GameStarting, settings);
 
   @override
-  String toString() => 'GameStarting()';
+  String toString() => 'GameStarting(settings: $settings)';
 }
 
 final class RoundStart extends GameMessage {

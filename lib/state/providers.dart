@@ -73,8 +73,10 @@ final catalogueStoreProvider = Provider<CatalogueStore>(
 final relayConnectorProvider = Provider<RelayConnector>(
   (ref) => HttpRelayConnector(
     client: ref.watch(httpClientProvider),
-    openSocket: (uri, headers) async =>
-        (await WebSocket.connect(uri.toString(), headers: headers))
-          ..pingInterval = const Duration(seconds: 20),
+    openSocket: (uri, headers) async => (await WebSocket.connect(
+      uri.toString(),
+      headers: headers,
+      compression: CompressionOptions.compressionOff,
+    ))..pingInterval = const Duration(seconds: 20),
   ),
 );

@@ -97,7 +97,13 @@ List<GameMessage> everyMessage() => [
     settings: RoomSettings(),
     scopeLabel: 'Shuffle everything',
   ),
-  const GameStarting(),
+  const GameStarting(
+    settings: RoomSettings(
+      mode: TogetherMode.quickDraw,
+      rounds: 15,
+      difficulty: Difficulty.easy,
+    ),
+  ),
   RoundStart(
     number: 3,
     total: 10,
