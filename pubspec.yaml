@@ -14,6 +14,7 @@ dependencies:
   flutter_soloud: ^5.1.6
   flutter_svg: ^2.3.0
   window_manager: ^0.5.2
+  screen_retriever: ^0.2.2
   http: ^1.6.0
   cryptography: ^2.9.0
   archive: ^4.3.0
