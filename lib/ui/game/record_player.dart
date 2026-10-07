@@ -266,9 +266,7 @@ class SleeveBack extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             ColoredBox(
-              color:
-                  placeholder ??
-                  (url == null ? tokens.sleeve : tokens.designCard),
+              color: placeholder ?? (url == null ? tokens.sleeve : tokens.card),
             ),
             if (url != null)
               Image.network(

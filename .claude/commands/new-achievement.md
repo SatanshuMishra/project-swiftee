@@ -1,5 +1,5 @@
 ---
-description: Scaffold a new cat-themed achievement — definition, unlock condition, cat SVG, tests.
+description: Scaffold a new achievement — definition, unlock condition, tests.
 argument-hint: "<achievement_id> \"<description>\""
 ---
 
@@ -17,7 +17,6 @@ Parse `$ARGUMENTS` into `<id>` (snake_case) and `"<description>"` (quoted). If p
      id: '<id>',
      name: '<Title Case Name>',
      description: '<description>',
-     catFile: '<id>.svg',
    ),
    ```
    Ask the user for the name if it cannot be derived from the ID.
@@ -30,15 +29,6 @@ Parse `$ARGUMENTS` into `<id>` (snake_case) and `"<description>"` (quoted). If p
    - Difficulty-gated: `context.difficulty == Difficulty.hard && ...`
    - Speed: `context.timeElapsed <= const Duration(seconds: N)`
 
-5. **`assets/cats/<id>.svg`** — the cat art. If the user has none yet, add a 64 x 64 placeholder:
-   ```svg
-   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-     <rect width="64" height="64" fill="#888"/>
-     <text x="32" y="36" text-anchor="middle" font-size="10" fill="#fff"><id></text>
-   </svg>
-   ```
-   Then add the file's SHA-256 to `achievementCatDigests` in `test/scaffold/assets_test.dart`, which checks every bundled cat byte for byte.
+5. **If the achievement needs a new stat field**, also touch `GameStats` in `lib/domain/models/progress.dart` (field, constructor, `fromJson`, `toJson`, `copyWith`, equality) and `defaultProgress`, plus the increment in the relevant controller in `lib/state/`. A new field must read as its default when missing so older saves still load; a renamed or removed field needs a save version bump and a step in `lib/data/save/migrations.dart`.
 
-6. **If the achievement needs a new stat field**, also touch `GameStats` in `lib/domain/models/progress.dart` (field, constructor, `fromJson`, `toJson`, `copyWith`, equality) and `defaultProgress`, plus the increment in the relevant controller in `lib/state/`. A new field must read as its default when missing so older saves still load; a renamed or removed field needs a save version bump and a step in `lib/data/save/migrations.dart`.
-
-7. **Run `/verify`.**
+6. **Run `/verify`.**

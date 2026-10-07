@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:swiftie_quiz/app/window_setup.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
@@ -254,9 +255,9 @@ void main() {
     });
   });
 
-  group('the title bar stays on screen like Tauri', () {
-    test('a screen shorter than the window keeps the title bar at the top of '
-        'its usable area', () async {
+  group('the window fits the usable area of its screen', () {
+    test('a screen shorter than the window shrinks it to the usable height, '
+        'with the title bar at the top', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
             _screenChannel,
@@ -265,7 +266,7 @@ void main() {
 
       await setUpWindow();
 
-      expect(window.bounds, const Rect.fromLTWH(128, 0, 1024, 800));
+      expect(window.bounds, const Rect.fromLTWH(128, 0, 1024, 672));
       expect(
         window.calls.lastIndexOf('setBounds'),
         lessThan(window.calls.indexOf('show')),
@@ -273,13 +274,83 @@ void main() {
     });
 
     test(
-      'a screen tall enough for the window keeps the window centred',
+      'a screen tall enough for the window keeps its size, centred',
       () async {
         await setUpWindow();
 
-        expect(window.bounds.top, 177.5);
+        expect(window.bounds, const Rect.fromLTWH(352, 177.5, 1024, 800));
       },
     );
+
+    final cases = <({String name, Rect workArea, Rect bounds})>[
+      (
+        name: 'a large screen centres the preferred size',
+        workArea: const Rect.fromLTWH(0, 38, 1728, 1079),
+        bounds: const Rect.fromLTWH(352, 177.5, 1024, 800),
+      ),
+      (
+        name: '1024 by 768 with a taskbar fills the usable area',
+        workArea: const Rect.fromLTWH(0, 0, 1024, 720),
+        bounds: const Rect.fromLTWH(0, 0, 1024, 720),
+      ),
+      (
+        name: '1366 by 768 keeps the width and fits the height',
+        workArea: const Rect.fromLTWH(0, 0, 1366, 720),
+        bounds: const Rect.fromLTWH(171, 0, 1024, 720),
+      ),
+      (
+        name: 'a second screen to the left keeps its own origin',
+        workArea: const Rect.fromLTWH(-1920, 0, 1920, 1032),
+        bounds: const Rect.fromLTWH(-1472, 116, 1024, 800),
+      ),
+      (
+        name: 'a screen below the minimum keeps the minimum size, top left',
+        workArea: const Rect.fromLTWH(0, 0, 640, 480),
+        bounds: const Rect.fromLTWH(0, 0, 686, 571),
+      ),
+    ];
+    for (final (:name, :workArea, :bounds) in cases) {
+      test(name, () {
+        expect(launchWindowBounds(workArea), bounds);
+      });
+    }
+
+    test('the window opens on the screen under the cursor, or on the primary '
+        'screen when the cursor is on none', () {
+      const primary = Display(
+        id: '1',
+        size: Size(1920, 1080),
+        visiblePosition: Offset.zero,
+        visibleSize: Size(1920, 1032),
+      );
+      const left = Display(
+        id: '2',
+        size: Size(1280, 720),
+        visiblePosition: Offset(-1280, 0),
+        visibleSize: Size(1280, 672),
+      );
+      const displays = [primary, left];
+
+      expect(
+        launchWorkArea(displays, const Offset(-600, 300), primary),
+        const Rect.fromLTWH(-1280, 0, 1280, 672),
+      );
+      expect(
+        launchWorkArea(displays, const Offset(900, 500), primary),
+        const Rect.fromLTWH(0, 0, 1920, 1032),
+      );
+      expect(
+        launchWorkArea(displays, const Offset(900, 1060), primary),
+        const Rect.fromLTWH(0, 0, 1920, 1032),
+      );
+    });
+
+    test('a screen that reports no usable area falls back to its full '
+        'size', () {
+      const bare = Display(id: '3', size: Size(1280, 800));
+
+      expect(workAreaOf(bare), const Rect.fromLTWH(0, 0, 1280, 800));
+    });
   });
 
   group('window chrome matches the app background', () {

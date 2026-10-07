@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
-import 'package:swiftie_quiz/ui/widgets/primary_button.dart';
 
 void restartAppWidgetTree() {
   final root = WidgetsBinding.instance.rootElement?.widget;
@@ -73,7 +73,7 @@ class ErrorScreen extends StatelessWidget {
     final tokens = AppTokens.of(context);
     final viewport = MediaQuery.maybeSizeOf(context) ?? Size.zero;
     return Material(
-      color: tokens.background,
+      color: tokens.bg,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final content = ConstrainedBox(
@@ -98,7 +98,7 @@ class ErrorScreen extends StatelessWidget {
                       style: AppText.xl2
                           .copyWith(
                             fontWeight: FontWeight.w700,
-                            color: tokens.destructive,
+                            color: tokens.rose,
                           )
                           .trackingTight,
                     ),
@@ -106,12 +106,12 @@ class ErrorScreen extends StatelessWidget {
                   Text(
                     messageOf(error),
                     textAlign: TextAlign.center,
-                    style: AppText.sm.copyWith(color: tokens.mutedForeground),
+                    style: AppText.sm.copyWith(color: tokens.mut),
                   ),
-                  PrimaryButton(
+                  PillButton(
                     label: restartLabel,
-                    variant: PrimaryButtonVariant.restart,
                     onPressed: onRestart,
+                    size: PillSize.large,
                   ),
                 ],
               ),
