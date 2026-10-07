@@ -9,6 +9,8 @@ enum MisuLine {
   sumHigh,
   sumMid,
   sumLow,
+  closeFinish,
+  wonTogether,
 }
 
 enum DayPart {
@@ -45,46 +47,61 @@ String misuLine(
   required String name,
   required DateTime now,
   int count = 0,
+  double seconds = 0,
 }) => switch (edition) {
-  Edition.ana => _anaLine(kind, now, count),
-  Edition.open => _openLine(kind, name, now, count),
+  Edition.ana => _anaLine(kind, now, count, seconds),
+  Edition.open => _openLine(kind, name, now, count, seconds),
 };
 
 String _countWord(int count) => _numberWords[count] ?? '$count';
 
-String _anaLine(MisuLine kind, DateTime now, int count) => switch (kind) {
-  MisuLine.greet => switch (DayPart.of(now)) {
-    DayPart.morning => "Morning, Ana. I've been up since five.",
-    DayPart.afternoon => "Nap's over. Let's play, Ana.",
-    DayPart.evening => 'Saved you a spot on the couch, Ana.',
-    DayPart.night => "It's late, Ana. One more round?",
-  },
-  MisuLine.intro => _intro,
-  MisuLine.streak5 =>
-    '${_countWord(count)} in a row, Ana. My tail is doing the thing.',
-  MisuLine.streak10 => "Ten in a row. I'm telling everyone.",
-  MisuLine.miss3 => "I'm not judging. I'm a little judging.",
-  MisuLine.sumHigh => "Even I'm impressed. And I'm a cat.",
-  MisuLine.sumMid => "Solid round. I'd like a treat for this.",
-  MisuLine.sumLow => 'Shake it off. Again?',
-};
+String _gap(double seconds) => seconds.toStringAsFixed(1);
 
-String _openLine(MisuLine kind, String name, DateTime now, int count) =>
+String _anaLine(MisuLine kind, DateTime now, int count, double seconds) =>
     switch (kind) {
       MisuLine.greet => switch (DayPart.of(now)) {
-        DayPart.morning => "Morning, $name. Misu's been up since five.",
-        DayPart.afternoon => "Nap's over, $name. Misu's ready.",
-        DayPart.evening => 'Misu saved you a spot on the couch, $name.',
-        DayPart.night => "It's late, $name. Misu says one more round.",
+        DayPart.morning => "Morning, Ana. I've been up since five.",
+        DayPart.afternoon => "Nap's over. Let's play, Ana.",
+        DayPart.evening => 'Saved you a spot on the couch, Ana.',
+        DayPart.night => "It's late, Ana. One more round?",
       },
       MisuLine.intro => _intro,
       MisuLine.streak5 =>
-        "${_countWord(count)} in a row, $name. Misu's tail is doing the thing.",
-      MisuLine.streak10 => "Ten in a row. Misu's telling everyone.",
-      MisuLine.miss3 => "Misu isn't judging. Misu is a little judging.",
-      MisuLine.sumHigh => "Even Misu's impressed, $name.",
-      MisuLine.sumMid => 'Solid round. Misu approves.',
-      MisuLine.sumLow => 'Shake it off, $name. Again?',
+        '${_countWord(count)} in a row, Ana. My tail is doing the thing.',
+      MisuLine.streak10 => "Ten in a row. I'm telling everyone.",
+      MisuLine.miss3 => "I'm not judging. I'm a little judging.",
+      MisuLine.sumHigh => "Even I'm impressed. And I'm a cat.",
+      MisuLine.sumMid => "Solid round. I'd like a treat for this.",
+      MisuLine.sumLow => 'Shake it off. Again?',
+      MisuLine.closeFinish =>
+        "${_gap(seconds)} seconds apart. I'm calling it a tie.",
+      MisuLine.wonTogether => 'You won! I knew you would.',
     };
+
+String _openLine(
+  MisuLine kind,
+  String name,
+  DateTime now,
+  int count,
+  double seconds,
+) => switch (kind) {
+  MisuLine.greet => switch (DayPart.of(now)) {
+    DayPart.morning => "Morning, $name. Misu's been up since five.",
+    DayPart.afternoon => "Nap's over, $name. Misu's ready.",
+    DayPart.evening => 'Misu saved you a spot on the couch, $name.',
+    DayPart.night => "It's late, $name. Misu says one more round.",
+  },
+  MisuLine.intro => _intro,
+  MisuLine.streak5 =>
+    "${_countWord(count)} in a row, $name. Misu's tail is doing the thing.",
+  MisuLine.streak10 => "Ten in a row. Misu's telling everyone.",
+  MisuLine.miss3 => "Misu isn't judging. Misu is a little judging.",
+  MisuLine.sumHigh => "Even Misu's impressed, $name.",
+  MisuLine.sumMid => 'Solid round. Misu approves.',
+  MisuLine.sumLow => 'Shake it off, $name. Again?',
+  MisuLine.closeFinish =>
+    '${_gap(seconds)} seconds apart. Misu calls it a tie.',
+  MisuLine.wonTogether => 'You won, $name! Misu knew it.',
+};
 
 const String _intro = "I'm Misu. I'll drop by now and then.";

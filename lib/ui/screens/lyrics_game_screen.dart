@@ -30,17 +30,6 @@ import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/domain/util/song_title.dart';
 
-int lyricsLineCount(LyricsMode? mode, Difficulty difficulty) =>
-    switch ((mode, difficulty)) {
-      (LyricsMode.nameThatSong, Difficulty.easy) => 4,
-      (LyricsMode.nameThatSong, Difficulty.medium) => 3,
-      (LyricsMode.nameThatSong, Difficulty.hard) => 2,
-      (LyricsMode.lyricsOrLie, Difficulty.easy) => 3,
-      (LyricsMode.lyricsOrLie, Difficulty.medium) => 2,
-      (LyricsMode.lyricsOrLie, Difficulty.hard) => 1,
-      (null, _) => 1,
-    };
-
 String lyricsModeLabel(LyricsMode? mode) => switch (mode) {
   LyricsMode.lyricsOrLie => LyricsGameScreen.lyricsOrLieLabel,
   LyricsMode.nameThatSong || null => LyricsGameScreen.nameThatSongLabel,

@@ -175,48 +175,101 @@ class AudioController extends Notifier<AudioState> {
   }
 
   Future<void> play(Track track, {bool smartClip = true}) async {
-    stop();
-    final version = ++_playVersion;
-    _replaceClip(null);
+    final prepared = prepare(track, smartClip: smartClip);
+    final version = _playVersion;
+    final start = await prepared;
+    if (start != null && version == _playVersion) {
+      playLoaded(start);
+    }
+  }
+
+  Future<bool> load(Track track) async {
+    final version = _beginLoad();
+    try {
+      return await _loadClip(track, version) != null && version == _playVersion;
+    } finally {
+      _endLoad(version);
+    }
+  }
+
+  Future<double?> prepare(Track track, {bool smartClip = true}) async {
+    final version = _beginLoad();
     final dangerZones = smartClip
         ? _dangerZonesFor(track)
         : Future.value(const <DangerZone>[]);
-    state = state.copyWith(loading: true, error: null, unavailable: false);
     try {
-      final bytes = await _downloadPreview(track, version);
-      if (bytes == null || version != _playVersion) {
-        return;
+      final clip = await _loadClip(track, version);
+      if (clip == null) {
+        return null;
       }
-      final clip = await _engine.loadClip(bytes);
-      if (version != _playVersion) {
-        _engine.unloadClip(clip).ignore();
-        return;
-      }
-      _replaceClip(clip);
       final zones = await dangerZones;
       if (version != _playVersion) {
-        return;
+        return null;
       }
       final start = smartClip
           ? await _smartStart(clip, zones)
           : _randomStart(clip.durationSeconds);
-      if (version != _playVersion) {
-        return;
-      }
-      _clipStart = start;
-      _playSlice(clip, start, sliceDurationSeconds);
-    } on PreviewMissing {
-      if (version == _playVersion) {
-        state = state.copyWith(unavailable: true);
-      }
+      return version == _playVersion ? start : null;
     } on Object catch (error) {
       if (version == _playVersion) {
         state = state.copyWith(error: '$error');
       }
+      return null;
     } finally {
-      if (version == _playVersion) {
-        state = state.copyWith(loading: false);
+      _endLoad(version);
+    }
+  }
+
+  void playLoaded(double start) {
+    final clip = _clip;
+    if (clip == null) {
+      return;
+    }
+    _clipStart = start;
+    try {
+      _playSlice(clip, start, sliceDurationSeconds);
+    } on Object catch (error) {
+      state = state.copyWith(error: '$error');
+    }
+  }
+
+  int _beginLoad() {
+    stop();
+    final version = ++_playVersion;
+    _replaceClip(null);
+    state = state.copyWith(loading: true, error: null, unavailable: false);
+    return version;
+  }
+
+  void _endLoad(int version) {
+    if (version == _playVersion) {
+      state = state.copyWith(loading: false);
+    }
+  }
+
+  Future<LoadedClip?> _loadClip(Track track, int version) async {
+    try {
+      final bytes = await _downloadPreview(track, version);
+      if (bytes == null || version != _playVersion) {
+        return null;
       }
+      final clip = await _engine.loadClip(bytes);
+      if (version != _playVersion) {
+        _engine.unloadClip(clip).ignore();
+        return null;
+      }
+      _replaceClip(clip);
+      return clip;
+    } on PreviewMissing {
+      if (version == _playVersion) {
+        state = state.copyWith(unavailable: true);
+      }
+      return null;
+    } on Object catch (error) {
+      if (version == _playVersion) {
+        state = state.copyWith(error: '$error');
+      }
+      return null;
     }
   }
 

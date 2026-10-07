@@ -23,6 +23,17 @@ const Map<String, List<String>> eraGroups = {
 
 typedef ChorusRegion = ({int start, int end});
 
+int lyricsLineCount(LyricsMode? mode, Difficulty difficulty) =>
+    switch ((mode, difficulty)) {
+      (LyricsMode.nameThatSong, Difficulty.easy) => 4,
+      (LyricsMode.nameThatSong, Difficulty.medium) => 3,
+      (LyricsMode.nameThatSong, Difficulty.hard) => 2,
+      (LyricsMode.lyricsOrLie, Difficulty.easy) => 3,
+      (LyricsMode.lyricsOrLie, Difficulty.medium) => 2,
+      (LyricsMode.lyricsOrLie, Difficulty.hard) => 1,
+      (null, _) => 1,
+    };
+
 final RegExp _nonAlphanumericOrSpace = RegExp(r'[^a-z0-9\s]');
 final RegExp _whitespaceRun = RegExp(r'\s+');
 final RegExp _parenthetical = RegExp(r'\s*\([^)]*\)\s*');
