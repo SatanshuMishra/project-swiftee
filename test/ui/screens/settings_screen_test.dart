@@ -228,7 +228,7 @@ void main() {
       await pumpSettings(tester, edition: Edition.ana);
       expectSections();
       expect(find.text('Nickname'), findsNothing);
-      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
       expect(find.text('Made for Ana by Satanshu'), findsOneWidget);
       expect(find.text('Made by Satanshu'), findsNothing);
 
@@ -240,8 +240,8 @@ void main() {
       expect(find.text('Nickname'), findsOneWidget);
       expect(find.text('Made by Satanshu'), findsOneWidget);
       expect(find.text('Made for Ana by Satanshu'), findsNothing);
-      final field = find.byType(TextField);
-      expect(field, findsOneWidget);
+      expect(find.byType(TextField), findsNWidgets(2));
+      final field = find.byType(TextField).first;
       expect(
         find.descendant(of: field, matching: find.text('Sam')),
         findsOneWidget,
@@ -387,7 +387,7 @@ void main() {
         tester,
         setup: (container) => gameOf(container).setNickname('Sam'),
       );
-      final field = find.byType(TextField);
+      final field = find.byType(TextField).first;
       String shown() => tester.widget<TextField>(field).controller!.text;
 
       await tester.ensureVisible(field);
@@ -426,7 +426,7 @@ void main() {
         );
       }
       expect(
-        tester.getSemantics(find.byType(TextField)),
+        tester.getSemantics(find.byType(TextField).first),
         isSemantics(label: 'Nickname', isTextField: true),
       );
       semantics.dispose();

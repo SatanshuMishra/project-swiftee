@@ -128,6 +128,20 @@ class MisuController extends Notifier<MisuState> {
     _show(_line(kind), MisuSide.right);
   }
 
+  void togetherCloseFinish(double seconds) {
+    if (_visits == MisuVisits.off) {
+      return;
+    }
+    _show(_line(MisuLine.closeFinish, seconds: seconds), MisuSide.right);
+  }
+
+  void togetherWon() {
+    if (_visits == MisuVisits.off) {
+      return;
+    }
+    _show(_line(MisuLine.wonTogether), MisuSide.right);
+  }
+
   void dismiss() {
     _cancelHide();
     state = state.copyWith(visit: null);
@@ -147,7 +161,12 @@ class MisuController extends Notifier<MisuState> {
         (last == null || roundNumber <= last || roundNumber - last >= gap);
   }
 
-  String _line(MisuLine kind, {DateTime? now, int count = 0}) {
+  String _line(
+    MisuLine kind, {
+    DateTime? now,
+    int count = 0,
+    double seconds = 0,
+  }) {
     final edition = ref.read(editionProvider);
     return misuLine(
       kind,
@@ -158,6 +177,7 @@ class MisuController extends Notifier<MisuState> {
       ),
       now: now ?? ref.read(clockProvider)(),
       count: count,
+      seconds: seconds,
     );
   }
 

@@ -18,9 +18,12 @@ root commit:
 
 Third-party material
 
-The following file is not the work of the copyright holder above. It keeps
-its own license and is not relicensed under the Apache License.
+The following material is not the work of the copyright holder above. Each
+item keeps its own license and is not relicensed under the Apache License.
 
 - src/assets/sounds/quack.mp3: a sound effect whose source and license were
   not recorded when it was added. It is excluded from this license until its
   source is established.
+- blobatar 0.1.0: the package that draws Play together avatars, from
+  https://github.com/Alain00/blobatar. It is licensed under the MIT License,
+  Copyright (c) 2026 Alain.

@@ -31,68 +31,71 @@ class ArrowRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
     final layout = AppLayout.of(context);
-    return Pressable(
-      onPressed: onTap,
-      builder: (context, state) => Container(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: tokens.line)),
-        ),
-        child: AnimatedPadding(
-          duration: AppMotion.duration(context, AppMotion.rowHoverPad),
-          curve: AppMotion.rowHoverPadCurve,
-          padding: EdgeInsets.only(
-            left: state.hovered ? AppMotion.rowHoverPadOffset : 0,
-            top: verticalPadding,
-            bottom: verticalPadding,
+    return Opacity(
+      opacity: onTap == null ? PillButton.disabledOpacity : 1,
+      child: Pressable(
+        onPressed: onTap,
+        builder: (context, state) => Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: tokens.line)),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: AppType.display(
-                        layout.rowTitle,
-                        height: titleLineHeight,
-                        color: tokens.fg,
+          child: AnimatedPadding(
+            duration: AppMotion.duration(context, AppMotion.rowHoverPad),
+            curve: AppMotion.rowHoverPadCurve,
+            padding: EdgeInsets.only(
+              left: state.hovered ? AppMotion.rowHoverPadOffset : 0,
+              top: verticalPadding,
+              bottom: verticalPadding,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: AppType.display(
+                          layout.rowTitle,
+                          height: titleLineHeight,
+                          color: tokens.fg,
+                        ),
+                      ),
+                      const SizedBox(height: titleGap),
+                      Text(
+                        description,
+                        style: AppType.body.copyWith(color: tokens.mut),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: gap),
+                SizedBox.square(
+                  dimension: arrowSize,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: primary
+                          ? tokens.coral
+                          : tokens.coral.withValues(alpha: 0),
+                      border: Border.all(
+                        color: primary ? tokens.coral : tokens.line2,
                       ),
                     ),
-                    const SizedBox(height: titleGap),
-                    Text(
-                      description,
-                      style: AppType.body.copyWith(color: tokens.mut),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: gap),
-              SizedBox.square(
-                dimension: arrowSize,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: primary
-                        ? tokens.coral
-                        : tokens.coral.withValues(alpha: 0),
-                    border: Border.all(
-                      color: primary ? tokens.coral : tokens.line2,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      arrow,
-                      style: AppType.sized(
-                        arrowGlyphSize,
-                        24,
-                      ).copyWith(color: primary ? tokens.onCoral : tokens.fg),
+                    child: Center(
+                      child: Text(
+                        arrow,
+                        style: AppType.sized(
+                          arrowGlyphSize,
+                          24,
+                        ).copyWith(color: primary ? tokens.onCoral : tokens.fg),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
