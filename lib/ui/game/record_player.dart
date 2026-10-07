@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:swiftie_quiz/ui/kit/cover_picture.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
@@ -268,13 +269,7 @@ class SleeveBack extends StatelessWidget {
             ColoredBox(
               color: placeholder ?? (url == null ? tokens.sleeve : tokens.card),
             ),
-            if (url != null)
-              Image.network(
-                url,
-                fit: BoxFit.cover,
-                excludeFromSemantics: true,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
+            if (url != null) CoverPicture(url),
           ],
         ),
       ),
