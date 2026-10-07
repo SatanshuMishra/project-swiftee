@@ -5,13 +5,20 @@ import 'dart:math';
 
 import 'package:together_protocol/together_protocol.dart';
 
+import 'address_key.dart';
+import 'handshake.dart';
 import 'relay_limits.dart';
 import 'rooms.dart';
+import 'strikes.dart';
 
 const _welcome =
     'Project Swiftie relay. Copy the whole link into Project Swiftie → '
     'Settings → Play together.';
 const _cloudflareAddressHeader = 'cf-connecting-ip';
+const _webSocketVersionHeader = 'sec-websocket-version';
+const _webSocketKeyHeader = 'sec-websocket-key';
+const _webSocketAcceptHeader = 'sec-websocket-accept';
+const _webSocketVersion = '13';
 
 final class RelayServer {
   RelayServer._({
@@ -41,6 +48,7 @@ final class RelayServer {
       address ?? InternetAddress.anyIPv4,
       port,
     );
+    server.idleTimeout = limits.httpIdleTimeout;
     final relay = RelayServer._(
       server: server,
       key: key,
@@ -50,7 +58,7 @@ final class RelayServer {
       log: log ?? (_) {},
     );
     server.listen(
-      (request) => unawaited(relay._serve(request)),
+      relay._take,
       onError: (Object _) => relay._report('listener error'),
     );
     relay._report('relay started');
@@ -62,12 +70,15 @@ final class RelayServer {
   final RelayLimits _limits;
   final bool _trustCloudflareAddress;
   final void Function(String line) _log;
-  final _clock = Stopwatch()..start();
   late final Rooms _rooms;
+  late final _failures = Strikes(
+    threshold: _limits.authFailures,
+    window: _limits.authWindow,
+    capacity: _limits.maxTrackedAddresses,
+  );
 
   var _sockets = 0;
   var _socketsByAddress = const <String, int>{};
-  var _failures = const <String, List<Duration>>{};
   var _sessions = const <Future<void>>{};
   var _stopping = false;
   Future<void>? _stopped;
@@ -84,7 +95,21 @@ final class RelayServer {
     _report('relay stopped');
   }
 
+  void _take(HttpRequest request) =>
+      _serve(request).onError((Object _, StackTrace _) {
+        _report('request failed');
+        _answer(request, HttpStatus.internalServerError);
+      }).ignore();
+
   Future<void> _serve(HttpRequest request) async {
+    try {
+      await _route(request);
+    } on HttpException {
+      _refuse(request, HttpStatus.badRequest);
+    }
+  }
+
+  Future<void> _route(HttpRequest request) async {
     if (request.method != 'GET') {
       _answer(
         request,
@@ -107,15 +132,8 @@ final class RelayServer {
 
   Future<void> _gate(HttpRequest request) async {
     final address = _addressOf(request);
-    if (_recentFailures(address).length >= _limits.authFailures) {
-      _refuse(request, statusTooMany);
-    } else if (!_holdsKey(request)) {
-      _recordFailure(address);
-      _refuse(
-        request,
-        statusBadKey,
-        headers: const {'www-authenticate': 'Bearer'},
-      );
+    if (!_holdsKey(request)) {
+      _turnAway(request, address);
     } else if (_single(request.headers, relayProtocolHeader) !=
         '$relayProtocolVersion') {
       _refuse(request, statusNeedsUpdate);
@@ -124,47 +142,63 @@ final class RelayServer {
     } else if (_sockets >= _limits.maxSockets ||
         (_socketsByAddress[address] ?? 0) >= _limits.maxSocketsPerAddress) {
       _refuse(request, statusBusy);
-    } else if (!WebSocketTransformer.isUpgradeRequest(request)) {
-      _answer(request, HttpStatus.badRequest);
+    } else if (_upgradeKey(request) case final key?) {
+      await _connect(request, address, key);
     } else {
-      await _connect(request, address);
+      _refuse(request, HttpStatus.badRequest);
     }
   }
 
-  Future<void> _connect(HttpRequest request, String address) async {
-    _hold(address, 1);
-    final WebSocket socket;
-    try {
-      socket = await WebSocketTransformer.upgrade(
+  void _turnAway(HttpRequest request, String address) {
+    if (_failures.reached(address)) {
+      _refuse(request, statusTooMany);
+    } else {
+      _failures.record(address);
+      _refuse(
         request,
-        compression: CompressionOptions.compressionOff,
+        statusBadKey,
+        headers: const {'www-authenticate': 'Bearer'},
       );
-    } on Exception {
-      _hold(address, -1);
-      return;
     }
+  }
+
+  Future<void> _connect(HttpRequest request, String address, String key) async {
+    _hold(address, 1);
+    final bool attended;
+    try {
+      attended = await _attend(
+        await _switchProtocols(request.response, key),
+        address,
+      );
+    } finally {
+      _hold(address, -1);
+    }
+    if (attended) _report('socket closed');
+  }
+
+  Future<bool> _attend(Socket upgraded, String address) async {
     if (_stopping) {
-      socket.close(WebSocketStatus.goingAway).ignore();
-      _hold(address, -1);
-      return;
+      upgraded.destroy();
+      return false;
     }
-    socket.pingInterval = _limits.pingInterval;
     _report('socket opened');
-    final session = _rooms.accept(socket);
+    final session = _rooms.accept(upgraded, address);
     _sessions = Set.unmodifiable({..._sessions, session});
     await session;
     _sessions = Set.unmodifiable(_sessions.where((other) => other != session));
-    _hold(address, -1);
-    _report('socket closed');
+    return true;
   }
 
   String _addressOf(HttpRequest request) {
     final forwarded = _trustCloudflareAddress
-        ? _single(request.headers, _cloudflareAddressHeader)?.trim()
+        ? _single(request.headers, _cloudflareAddressHeader)
         : null;
-    return forwarded != null && forwarded.isNotEmpty
-        ? forwarded
-        : request.connectionInfo?.remoteAddress.address ?? '';
+    final address =
+        (forwarded == null
+            ? null
+            : InternetAddress.tryParse(forwarded.trim())) ??
+        request.connectionInfo?.remoteAddress;
+    return address == null ? '' : addressKey(address);
   }
 
   bool _holdsKey(HttpRequest request) {
@@ -176,24 +210,6 @@ final class RelayServer {
       difference |= _authorization[i] ^ (i < given.length ? given[i] : 0);
     }
     return difference == 0;
-  }
-
-  List<Duration> _recentFailures(String address) {
-    final now = _clock.elapsed;
-    return [
-      for (final at in _failures[address] ?? const <Duration>[])
-        if (now - at < _limits.authWindow) at,
-    ];
-  }
-
-  void _recordFailure(String address) {
-    final now = _clock.elapsed;
-    _failures = Map.unmodifiable({
-      for (final MapEntry(key: other, :value) in _failures.entries)
-        if (other != address && now - value.last < _limits.authWindow)
-          other: value,
-      address: List<Duration>.unmodifiable([..._recentFailures(address), now]),
-    });
   }
 
   void _hold(String address, int change) {
@@ -217,6 +233,31 @@ final class RelayServer {
 
   void _report(String event) =>
       _log('$event rooms=${_rooms.count} sockets=$_sockets');
+}
+
+String? _upgradeKey(HttpRequest request) {
+  if (!_asksToUpgrade(request)) return null;
+  final headers = request.headers;
+  return switch ((
+    _single(headers, HttpHeaders.upgradeHeader)?.toLowerCase(),
+    _single(headers, _webSocketVersionHeader),
+    _single(headers, _webSocketKeyHeader),
+  )) {
+    ('websocket', _webSocketVersion, final String key)
+        when isWebSocketKey(key) =>
+      key,
+    _ => null,
+  };
+}
+
+Future<Socket> _switchProtocols(HttpResponse response, String key) {
+  response.statusCode = HttpStatus.switchingProtocols;
+  response.headers
+    ..set(HttpHeaders.connectionHeader, 'Upgrade')
+    ..set(HttpHeaders.upgradeHeader, 'websocket')
+    ..set(_webSocketAcceptHeader, webSocketAccept(key))
+    ..contentLength = 0;
+  return response.detachSocket();
 }
 
 String? _single(HttpHeaders headers, String name) => switch (headers[name]) {

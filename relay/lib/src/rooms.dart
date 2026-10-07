@@ -4,7 +4,10 @@ import 'dart:math';
 
 import 'package:together_protocol/together_protocol.dart';
 
+import 'connection.dart';
+import 'metered_socket.dart';
 import 'relay_limits.dart';
+import 'strikes.dart';
 
 const _idAlphabet =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -19,37 +22,53 @@ final class Rooms {
   final Random _random;
   final void Function(String event) _report;
   final _clock = Stopwatch()..start();
+  late final _refusals = Strikes(
+    threshold: _limits.joinRefusalsPerAddress + 1,
+    window: _limits.joinRefusalWindow,
+    capacity: _limits.maxTrackedAddresses,
+  );
 
   var _rooms = const <String, _Room>{};
-  var _seats = const <WebSocket, String>{};
-  var _live = const <WebSocket>{};
+  var _seats = const <Connection, String>{};
+  var _live = const <Connection>{};
+  var _refused = const <Connection, int>{};
+  Timer? _idleSweep;
 
   int get count => _rooms.length;
 
-  Future<void> accept(WebSocket socket) {
+  Future<void> accept(Socket upgraded, String address) {
+    final connection = Connection.serve(
+      upgraded,
+      address: address,
+      limits: _limits,
+      breached: _breached,
+    );
     final ended = Completer<void>();
     var recent = const <Duration>[];
     final handshake = Timer(_limits.handshakeTimeout, () {
-      if (!_seats.containsKey(socket)) _shut(socket, closePolicy, 'handshake');
+      if (!_seats.containsKey(connection)) {
+        _shut(connection, closePolicy, 'handshake');
+      }
     });
-    _live = Set.unmodifiable({..._live, socket});
-    socket.done.ignore();
-    socket.listen(
+    _live = Set.unmodifiable({..._live, connection});
+    connection.socket.done.ignore();
+    connection.socket.listen(
       (Object? frame) {
-        if (!_live.contains(socket)) return;
+        if (!_live.contains(connection)) return;
         final now = _clock.elapsed;
         recent = List.unmodifiable([
           for (final at in recent)
             if (now - at < _limits.messageWindow) at,
           now,
         ]);
-        _receive(socket, frame, recent.length);
+        _receive(connection, frame, recent.length);
       },
       onError: (Object _) => _report('socket error'),
       onDone: () {
         handshake.cancel();
-        _live = Set.unmodifiable(_live.where((other) => other != socket));
-        _leave(socket);
+        _live = Set.unmodifiable(_live.where((other) => other != connection));
+        _leave(connection);
+        connection.ended();
         ended.complete();
       },
     );
@@ -57,90 +76,101 @@ final class Rooms {
   }
 
   void closeAll() {
-    for (final socket in _live) {
-      _shut(socket, WebSocketStatus.goingAway);
+    _idleSweep?.cancel();
+    for (final connection in _live) {
+      _shut(connection, WebSocketStatus.goingAway);
     }
   }
 
-  void _receive(WebSocket socket, Object? frame, int inWindow) {
-    if (_tooBig(frame)) {
-      _shut(socket, closeTooBig, 'too-big');
-    } else if (inWindow > _limits.burstMessages) {
-      _shut(socket, closePolicy, 'flood');
+  void _receive(Connection connection, Object? frame, int inWindow) {
+    if (inWindow > _limits.burstMessages) {
+      _shut(connection, closePolicy, 'flood');
     } else {
-      _handle(socket, _decode(frame));
+      _handle(connection, _decode(frame));
     }
   }
 
-  bool _tooBig(Object? frame) => switch (frame) {
-    final String text =>
-      text.length > _limits.maxMessageBytes ||
-          _utf8Length(text) > _limits.maxMessageBytes,
-    final List<int> bytes => bytes.length > _limits.maxMessageBytes,
-    _ => false,
-  };
+  void _breached(Connection connection, Breach breach) {
+    if (breach.destroys) {
+      _live = Set.unmodifiable(_live.where((other) => other != connection));
+      _report('socket dropped reason=${breach.reason}');
+    } else {
+      _shut(connection, closeTooBig, breach.reason);
+    }
+  }
 
-  void _handle(WebSocket socket, ClientMessage? message) {
+  void _handle(Connection connection, ClientMessage? message) {
     switch (message) {
       case null:
-        _send(socket, const RelayError(RelayErrorReason.badRequest));
+        _send(connection, const RelayError(RelayErrorReason.badRequest));
         _report('bad request');
       case OpenRoom(:final name, :final game):
-        _open(socket, name, game);
+        _open(connection, name, game);
       case JoinRoom(:final code, :final name, :final game):
-        _join(socket, code, name, game);
+        _join(connection, code, name, game);
       case SendBody(:final body, :final to):
-        _forward(socket, body, to);
+        _forward(connection, body, to);
       case LockRoom():
-        _lock(socket, locked: true);
+        _lock(connection, locked: true);
       case UnlockRoom():
-        _lock(socket, locked: false);
+        _lock(connection, locked: false);
     }
   }
 
-  void _open(WebSocket socket, String name, int game) {
-    if (_seats.containsKey(socket)) {
-      _send(socket, const RelayError(RelayErrorReason.alreadyInRoom));
+  void _open(Connection connection, String name, int game) {
+    if (_seats.containsKey(connection)) {
+      _send(connection, const RelayError(RelayErrorReason.alreadyInRoom));
     } else if (_rooms.length >= _limits.maxRooms) {
-      _shut(socket, closePolicy, 'room-limit');
+      _shut(connection, closePolicy, 'room-limit');
+    } else if (_hostedFrom(connection.address) >= _limits.maxRoomsPerAddress) {
+      _shut(connection, closePolicy, 'address-room-limit');
     } else {
       final code = _fresh(roomCodeAlphabet, roomCodeLength, _rooms.containsKey);
-      final host = _Member(_newPlayer(name, const []), socket);
+      final host = _Member(_newPlayer(name, const []), connection);
       _rooms = _with(
         _rooms,
         code,
-        _Room(code: code, game: game, members: [host]),
+        _Room(code: code, game: game, members: [host], active: _clock.elapsed),
       );
-      _seats = _with(_seats, socket, code);
-      _send(socket, RoomOpened(code: code, you: host.player));
+      _seats = _with(_seats, connection, code);
+      _send(connection, RoomOpened(code: code, you: host.player));
       _report('room opened');
+      _armIdleSweep();
     }
   }
 
-  void _join(WebSocket socket, String code, String name, int game) {
-    switch (_rooms[code]) {
-      case _ when _seats.containsKey(socket):
-        _send(socket, const RelayError(RelayErrorReason.alreadyInRoom));
-      case null:
-        _refuse(socket, RelayErrorReason.notFound);
-      case _Room(locked: true):
-        _refuse(socket, RelayErrorReason.inGame);
-      case _Room(:final members) when members.length >= maxPlayers:
-        _refuse(socket, RelayErrorReason.full);
-      case final _Room room when room.game != game:
-        _refuse(socket, RelayErrorReason.gameMismatch);
-      case final _Room room:
-        _admit(socket, room, name);
+  int _hostedFrom(String address) => _rooms.values
+      .where((room) => room.host.connection.address == address)
+      .length;
+
+  void _join(Connection connection, String code, String name, int game) {
+    if (_seats.containsKey(connection)) {
+      _send(connection, const RelayError(RelayErrorReason.alreadyInRoom));
+    } else if (_refusals.reached(connection.address)) {
+      _turnAway(connection, RelayErrorReason.notFound, 'throttled');
+    } else {
+      switch (_rooms[code]) {
+        case null:
+          _refuse(connection, RelayErrorReason.notFound);
+        case _Room(locked: true):
+          _refuse(connection, RelayErrorReason.inGame);
+        case _Room(:final members) when members.length >= maxPlayers:
+          _refuse(connection, RelayErrorReason.full);
+        case final _Room room when room.game != game:
+          _refuse(connection, RelayErrorReason.gameMismatch);
+        case final _Room room:
+          _admit(connection, room, name);
+      }
     }
   }
 
-  void _admit(WebSocket socket, _Room room, String name) {
-    final guest = _Member(_newPlayer(name, room.members), socket);
+  void _admit(Connection connection, _Room room, String name) {
+    final guest = _Member(_newPlayer(name, room.members), connection);
     final joined = room.copyWith(members: [...room.members, guest]);
     _rooms = _with(_rooms, room.code, joined);
-    _seats = _with(_seats, socket, room.code);
+    _seats = _with(_seats, connection, room.code);
     _send(
-      socket,
+      connection,
       RoomJoined(
         code: room.code,
         you: guest.player,
@@ -152,49 +182,74 @@ final class Rooms {
     _report('player joined');
   }
 
-  void _refuse(WebSocket socket, RelayErrorReason reason) {
-    _send(socket, RelayError(reason));
-    _report('join refused reason=${reason.wireName}');
+  void _refuse(Connection connection, RelayErrorReason reason) {
+    _refusals.record(connection.address);
+    _turnAway(connection, reason, reason.wireName);
   }
 
-  void _forward(WebSocket socket, Map<String, Object?> body, String? to) {
-    final room = _roomOf(socket);
+  void _turnAway(
+    Connection connection,
+    RelayErrorReason reason,
+    String logged,
+  ) {
+    _send(connection, RelayError(reason));
+    _report('join refused reason=$logged');
+    final refused = (_refused[connection] ?? 0) + 1;
+    _refused = _with(_refused, connection, refused);
+    if (refused >= _limits.joinRefusalsPerSocket) {
+      _shut(connection, closePolicy, 'join-refusals');
+    }
+  }
+
+  void _forward(Connection connection, Map<String, Object?> body, String? to) {
+    final room = _roomOf(connection);
     if (room == null) {
-      _send(socket, const RelayError(RelayErrorReason.notFound));
+      _send(connection, const RelayError(RelayErrorReason.notFound));
       return;
     }
     final text = Relayed(
-      from: room.memberAt(socket).player.id,
+      from: room.memberAt(connection).player.id,
       body: body,
     ).encode();
-    final recipients = room.isHost(socket)
+    final bytes = _utf8Length(text);
+    if (bytes > _limits.maxMessageBytes) {
+      _send(connection, const RelayError(RelayErrorReason.badRequest));
+      _report('bad request reason=too-big');
+      return;
+    }
+    final fromHost = room.isHost(connection);
+    if (fromHost) {
+      _rooms = _with(_rooms, room.code, room.copyWith(active: _clock.elapsed));
+    }
+    final recipients = fromHost
         ? room.guests.where((guest) => to == null || guest.player.id == to)
         : [room.host];
     for (final member in recipients) {
-      _sendText(member.socket, text);
+      _sendText(member.connection, text, bytes);
     }
   }
 
-  void _lock(WebSocket socket, {required bool locked}) {
-    switch (_roomOf(socket)) {
+  void _lock(Connection connection, {required bool locked}) {
+    switch (_roomOf(connection)) {
       case null:
-        _send(socket, const RelayError(RelayErrorReason.notFound));
-      case final _Room room when !room.isHost(socket):
-        _send(socket, const RelayError(RelayErrorReason.notHost));
+        _send(connection, const RelayError(RelayErrorReason.notFound));
+      case final _Room room when !room.isHost(connection):
+        _send(connection, const RelayError(RelayErrorReason.notHost));
       case final _Room room:
         _rooms = _with(_rooms, room.code, room.copyWith(locked: locked));
         _report(locked ? 'room locked' : 'room unlocked');
     }
   }
 
-  void _leave(WebSocket socket) {
-    final room = _roomOf(socket);
-    _seats = _without(_seats, socket);
+  void _leave(Connection connection) {
+    final room = _roomOf(connection);
+    _seats = _without(_seats, connection);
+    _refused = _without(_refused, connection);
     if (room == null) return;
-    if (room.isHost(socket)) {
-      _close(room);
+    if (room.isHost(connection)) {
+      _close(room, room.guests);
     } else {
-      final leaver = room.memberAt(socket);
+      final leaver = room.memberAt(connection);
       final rest = room.copyWith(
         members: [
           for (final member in room.members)
@@ -207,39 +262,65 @@ final class Rooms {
     }
   }
 
-  void _close(_Room room) {
+  void _close(_Room room, Iterable<_Member> members, [String? reason]) {
     _rooms = _without(_rooms, room.code);
-    for (final guest in room.guests) {
-      _seats = _without(_seats, guest.socket);
-      _send(guest.socket, const RoomClosed());
-      _shut(guest.socket, WebSocketStatus.normalClosure);
+    for (final member in members) {
+      _seats = _without(_seats, member.connection);
+      _send(member.connection, const RoomClosed());
+      _shut(member.connection, WebSocketStatus.normalClosure);
     }
-    _report('room closed');
+    _report(reason == null ? 'room closed' : 'room closed reason=$reason');
   }
 
-  _Room? _roomOf(WebSocket socket) => switch (_seats[socket]) {
+  void _armIdleSweep() {
+    if (_rooms.isEmpty || (_idleSweep?.isActive ?? false)) return;
+    final quietest = _rooms.values
+        .map((room) => room.active)
+        .reduce((a, b) => a < b ? a : b);
+    _idleSweep = Timer(
+      quietest + _limits.roomIdleTimeout - _clock.elapsed,
+      _closeIdleRooms,
+    );
+  }
+
+  void _closeIdleRooms() {
+    final now = _clock.elapsed;
+    for (final room in _rooms.values) {
+      if (now - room.active >= _limits.roomIdleTimeout) {
+        _close(room, room.members, 'idle');
+      }
+    }
+    _armIdleSweep();
+  }
+
+  _Room? _roomOf(Connection connection) => switch (_seats[connection]) {
     final String code => _rooms[code],
     null => null,
   };
 
-  void _send(WebSocket socket, RelayMessage message) =>
-      _sendText(socket, message.encode());
+  void _send(Connection connection, RelayMessage message) {
+    final text = message.encode();
+    _sendText(connection, text, _utf8Length(text));
+  }
 
   void _broadcast(Iterable<_Member> members, RelayMessage message) {
     final text = message.encode();
+    final bytes = _utf8Length(text);
     for (final member in members) {
-      _sendText(member.socket, text);
+      _sendText(member.connection, text, bytes);
     }
   }
 
-  void _sendText(WebSocket socket, String text) {
-    if (_live.contains(socket)) socket.add(text);
+  void _sendText(Connection connection, String text, int bytes) {
+    if (_live.contains(connection) && !connection.send(text, bytes)) {
+      _shut(connection, closePolicy, 'backlog');
+    }
   }
 
-  void _shut(WebSocket socket, int code, [String? reason]) {
-    if (!_live.contains(socket)) return;
-    _live = Set.unmodifiable(_live.where((other) => other != socket));
-    socket.close(code).ignore();
+  void _shut(Connection connection, int code, [String? reason]) {
+    if (!_live.contains(connection)) return;
+    _live = Set.unmodifiable(_live.where((other) => other != connection));
+    connection.close(code);
     if (reason != null) _report('socket shut reason=$reason');
   }
 
@@ -269,12 +350,14 @@ final class _Room {
     required this.code,
     required this.game,
     required List<_Member> members,
+    required this.active,
     this.locked = false,
   }) : members = List.unmodifiable(members);
 
   final String code;
   final int game;
   final List<_Member> members;
+  final Duration active;
   final bool locked;
 
   _Member get host => members.first;
@@ -283,24 +366,26 @@ final class _Room {
 
   List<Player> get players => [for (final member in members) member.player];
 
-  bool isHost(WebSocket socket) => host.socket == socket;
+  bool isHost(Connection connection) => host.connection == connection;
 
-  _Member memberAt(WebSocket socket) =>
-      members.firstWhere((member) => member.socket == socket);
+  _Member memberAt(Connection connection) =>
+      members.firstWhere((member) => member.connection == connection);
 
-  _Room copyWith({List<_Member>? members, bool? locked}) => _Room(
-    code: code,
-    game: game,
-    members: members ?? this.members,
-    locked: locked ?? this.locked,
-  );
+  _Room copyWith({List<_Member>? members, Duration? active, bool? locked}) =>
+      _Room(
+        code: code,
+        game: game,
+        members: members ?? this.members,
+        active: active ?? this.active,
+        locked: locked ?? this.locked,
+      );
 }
 
 final class _Member {
-  const _Member(this.player, this.socket);
+  const _Member(this.player, this.connection);
 
   final Player player;
-  final WebSocket socket;
+  final Connection connection;
 }
 
 ClientMessage? _decode(Object? frame) {
