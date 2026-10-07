@@ -9,6 +9,7 @@ final class RelayLimits {
     this.roomIdleTimeout = const Duration(hours: 2),
     this.maxMessageBytes = protocol.maxMessageBytes,
     this.inboundBytesPerSecond = 4 * protocol.maxMessageBytes,
+    this.pingsPerSecond = 4,
     this.maxQueuedBytes = 256 * 1024,
     this.burstMessages = 60,
     this.messageWindow = const Duration(seconds: 1),
@@ -31,6 +32,7 @@ final class RelayLimits {
   final Duration roomIdleTimeout;
   final int maxMessageBytes;
   final int inboundBytesPerSecond;
+  final int pingsPerSecond;
   final int maxQueuedBytes;
   final int burstMessages;
   final Duration messageWindow;
