@@ -70,11 +70,16 @@ final class SoLoudAudioEngine implements AudioEngine {
       _ => throw ArgumentError.value(clip, 'clip', 'not loaded by SoLoud'),
     };
     final handle = _soloud.play(source, volume: volume, paused: true);
-    _soloud
-      ..seek(handle, _duration(offsetSeconds))
-      ..setVolume(handle, volume)
-      ..scheduleStop(handle, _duration(durationSeconds))
-      ..setPause(handle, false);
+    try {
+      _soloud
+        ..seek(handle, _duration(offsetSeconds))
+        ..setVolume(handle, volume)
+        ..scheduleStop(handle, _duration(durationSeconds))
+        ..setPause(handle, false);
+    } on Object {
+      _soloud.stop(handle).ignore();
+      rethrow;
+    }
     return AudioVoice(handle.id);
   }
 

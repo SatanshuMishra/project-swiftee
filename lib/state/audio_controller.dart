@@ -296,9 +296,20 @@ class AudioController extends Notifier<AudioState> {
       return;
     }
     final stage = ref.read(gameControllerProvider).relistenCount + 1;
-    ref.read(gameControllerProvider.notifier).incrementRelisten();
     final slice = getRelistenSlice(stage, _clipStart, clip.durationSeconds);
-    _playSlice(clip, slice.offset, slice.duration);
+    try {
+      _playSlice(clip, slice.offset, slice.duration);
+    } on Object catch (error, stackTrace) {
+      state = state.copyWith(playing: false, paused: false);
+      developer.log(
+        'A relisten could not play',
+        name: 'swiftie_quiz.audio',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return;
+    }
+    ref.read(gameControllerProvider.notifier).incrementRelisten();
   }
 
   void pause() {
@@ -503,13 +514,16 @@ class AudioController extends Notifier<AudioState> {
       max(0.0, durationSeconds - sliceDurationSeconds);
 
   void _playSlice(LoadedClip clip, double offset, double duration) {
-    _sliceOffset = offset;
-    _sliceDuration = duration;
-    state = state.copyWith(clipDuration: duration);
     _haltVoice();
     final voice = _engine.playSlice(clip, offset, duration, _volume);
     _voice = voice;
-    state = state.copyWith(playing: true, paused: false);
+    _sliceOffset = offset;
+    _sliceDuration = duration;
+    state = state.copyWith(
+      clipDuration: duration,
+      playing: true,
+      paused: false,
+    );
     _pollProgress(voice);
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +28,43 @@ final class _FakeSoLoud implements SoLoud {
     return name == 'init'
         ? _starting.then((_) => initialized = true)
         : Future<void>.sync(() => initialized = false);
+  }
+}
+
+final class _FakeSource implements AudioSource {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnsupportedError('${invocation.memberName} was not expected');
+}
+
+final class _PlayingSoLoud implements SoLoud {
+  _PlayingSoLoud({required this.failAt});
+
+  final Symbol failAt;
+  List<Symbol> calls = const [];
+  List<SoundHandle> stopped = const [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final name = invocation.memberName;
+    calls = [...calls, name];
+    if (name == failAt) {
+      throw StateError('$name failed');
+    }
+    return switch (name) {
+      #isInitialized => true,
+      #loadMem => Future<AudioSource>.value(_FakeSource()),
+      #getLength => const Duration(seconds: 30),
+      #play => const SoundHandle(7),
+      #stop => Future<void>.sync(
+        () => stopped = [
+          ...stopped,
+          invocation.positionalArguments.single as SoundHandle,
+        ],
+      ),
+      #seek || #setVolume || #scheduleStop || #setPause => null,
+      final other => throw UnsupportedError('$other was not expected'),
+    };
   }
 }
 
@@ -81,6 +119,38 @@ void main() {
 
       await expectLater(engine.init(), throwsStateError);
       expect(soloud.calls, isEmpty);
+    });
+  });
+
+  group('a clip that cannot start playing', () {
+    for (final step in const [
+      'seek',
+      'setVolume',
+      'scheduleStop',
+      'setPause',
+    ]) {
+      test('stops its voice when $step fails', () async {
+        final soloud = _PlayingSoLoud(failAt: Symbol(step));
+        final engine = SoLoudAudioEngine(soloud: soloud);
+        final clip = await engine.loadClip(Uint8List(4));
+
+        expect(() => engine.playSlice(clip, 10, 10, 0.8), throwsStateError);
+        await pumpEventQueue();
+
+        expect(soloud.stopped, [const SoundHandle(7)]);
+      });
+    }
+
+    test('a clip that starts keeps its voice', () async {
+      final soloud = _PlayingSoLoud(failAt: #none);
+      final engine = SoLoudAudioEngine(soloud: soloud);
+      final clip = await engine.loadClip(Uint8List(4));
+
+      final voice = engine.playSlice(clip, 10, 10, 0.8);
+      await pumpEventQueue();
+
+      expect(voice.id, 7);
+      expect(soloud.stopped, isEmpty);
     });
   });
 }
