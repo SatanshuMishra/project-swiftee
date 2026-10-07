@@ -32,6 +32,7 @@ const List<String> _rootsTheAppReaches = [
   'ISRG Root X2',
   'DigiCert Global Root G2',
   'USERTrust ECC Certification Authority',
+  'Starfield Root Certificate Authority - G2',
 ];
 
 Iterable<String> _bundledRootNames(String pem) => RegExp(
@@ -246,7 +247,8 @@ void main() {
       );
     });
 
-    test('holds the roots behind LRCLIB, Deezer, GitHub and the relay, and '
+    test('holds the roots behind LRCLIB, Deezer, its covers, GitHub and the '
+        'relay, and '
         'loads into a security context', () {
       final pem = File(bundledRootsAsset).readAsStringSync();
 

@@ -8,7 +8,7 @@ Lyrics games on Windows failed with "Not enough songs with lyrics available" whi
 
 Dart on Windows does not ask Windows whether a certificate is trusted. When the first TLS connection opens, it copies the certificates already in the Windows root store into its own TLS library and checks every connection against that copy, once per process. Windows ships with a small root store and adds other roots only when its own networking first needs them, through Automatic Root Certificates Update. Dart never triggers that.
 
-A fresh Windows 11 install holds 19 roots. Deezer (DigiCert Global Root G2) and GitHub (USERTrust ECC, ISRG Root X1) chain to roots it holds. LRCLIB chains to GTS Root R4, which it does not hold, and neither does the GlobalSign Root CA that cross-signs it. A VMLab run on 2026-10-07 confirmed it with the shipped v0.4.1: the lyrics game failed; after Windows' own networking fetched LRCLIB once and added GlobalSign Root CA to the store, the same app worked after a restart. The running app kept failing until it restarted, because Dart reads the store once per process.
+A fresh Windows 11 install holds 19 roots. Deezer's API and clip CDN (DigiCert Global Root G2) and GitHub (USERTrust ECC, ISRG Root X1) chain to roots it holds. LRCLIB chains to GTS Root R4, which it does not hold, and neither does the GlobalSign Root CA that cross-signs it. Deezer's cover CDN chains to Starfield Root Certificate Authority - G2, which it does not hold either, so album covers fell back to their placeholders. A VMLab run on 2026-10-07 confirmed it with the shipped v0.4.1: the lyrics game failed; after Windows' own networking fetched LRCLIB once and added GlobalSign Root CA to the store, the same app worked after a restart. The running app kept failing until it restarted, because Dart reads the store once per process.
 
 The relay a player adds in Settings depends on the same luck: whether a host works depends on which root its certificate provider uses that month.
 
@@ -20,7 +20,7 @@ macOS is unchanged: Dart verifies there through the system's own trust evaluatio
 
 If the bundle cannot be read or parsed, the app logs it and keeps Windows' own store, so it still starts and still verifies every certificate.
 
-Tests pin the bundle's SHA-256 and that it holds the roots behind LRCLIB, Deezer, GitHub and the relay. Against local HTTPS servers they check that a client trusts a bundled root only through the override, still refuses a root outside the bundle and a certificate for another host name, and that a client given its own security context keeps it. CI runs these tests on the Windows runner too, where Dart's Windows trust code is the one under test.
+Tests pin the bundle's SHA-256 and that it holds the roots behind LRCLIB, Deezer, its covers, GitHub and the relay. Against local HTTPS servers they check that a client trusts a bundled root only through the override, still refuses a root outside the bundle and a certificate for another host name, and that a client given its own security context keeps it. CI runs these tests on the Windows runner too, where Dart's Windows trust code is the one under test.
 
 ## Refreshing the bundle
 
