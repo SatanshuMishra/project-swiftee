@@ -24,6 +24,7 @@ import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/text_link.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/overlays/birthday_card.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
@@ -275,7 +276,7 @@ class _MenuIntro extends StatelessWidget {
             children: [
               Semantics(
                 header: true,
-                child: Text.rich(
+                child: WholeWordText.rich(
                   TextSpan(
                     children: [
                       TextSpan(text: greeting.opening),

@@ -19,6 +19,7 @@ import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -40,6 +41,13 @@ class RecordShelfScreen extends ConsumerStatefulWidget {
   static const String nameless = 'you';
   static const String hoverNote = 'hover a record to hear it';
   static const String separator = ' · ';
+
+  static int columnsFor(AppLayout layout, TextScaler scaler) =>
+      (layout.shelfColumns *
+              ShelfRecord.nameSize /
+              scaler.scale(ShelfRecord.nameSize))
+          .round()
+          .clamp(1, layout.shelfColumns);
 
   static const List<String> months = [
     'Jan',
@@ -227,7 +235,7 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
               spacing: RecordShelfScreen.titleGap,
               runSpacing: RecordShelfScreen.titleRunGap,
               children: [
-                Text(
+                WholeWordText(
                   RecordShelfScreen.title(displayName(edition, nickname)),
                   style: AppType.display(
                     layout.h1,
@@ -243,7 +251,10 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
             ),
             const SizedBox(height: RecordShelfScreen.sectionGap),
             _ShelfGrid(
-              columns: layout.shelfColumns,
+              columns: RecordShelfScreen.columnsFor(
+                layout,
+                MediaQuery.textScalerOf(context),
+              ),
               children: [
                 for (final definition in achievementDefs)
                   _recordFor(
@@ -468,7 +479,10 @@ class _ShelfRecordState extends State<ShelfRecord> {
             ),
           ),
           const SizedBox(height: ShelfRecord.textGap),
-          Text(widget.definition.name, style: _nameStyle(tokens.faint)),
+          WholeWordText(
+            widget.definition.name,
+            style: _nameStyle(tokens.faint),
+          ),
           const SizedBox(height: ShelfRecord.lineGap),
           Text(
             widget.hint,
@@ -555,7 +569,7 @@ class _ShelfRecordState extends State<ShelfRecord> {
                         ),
                       ),
                       const SizedBox(height: ShelfRecord.textGap),
-                      Text(
+                      WholeWordText(
                         widget.definition.name,
                         style: _nameStyle(tokens.fg),
                       ),

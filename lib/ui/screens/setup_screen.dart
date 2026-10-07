@@ -21,6 +21,7 @@ import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -360,7 +361,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 spacing: sourceGap,
                 children: [
                   const SectionLabel(SetupScreen.playingLabel),
-                  Text(
+                  WholeWordText(
                     SetupScreen.sourceTitle(eras, releases),
                     style: AppType.display(
                       layout.h1,

@@ -324,7 +324,7 @@ void main() {
       size: const Size(1280, 900),
       achievements: {
         ..._twoRecords,
-        'album_completionist': earnedOn('Mine', '5'),
+        'album_completionist': earnedOn('You Belong With Me', '5'),
         'all_ears': earnedOn('Fifteen', '10'),
       },
     );
@@ -348,7 +348,7 @@ void main() {
     final detail = tester.getRect(
       find.descendant(
         of: _record('album_completionist'),
-        matching: find.text('on Mine · Sep 20'),
+        matching: find.text('on You Belong With Me · Sep 20'),
       ),
     );
     final underNextDisc = detail.bottomLeft + const Offset(2, -4);

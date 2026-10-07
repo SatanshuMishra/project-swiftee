@@ -12,6 +12,7 @@ import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
+import 'package:swiftie_quiz/ui/kit/serif_input.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -99,6 +100,44 @@ AppTokens tokensOf(WidgetTester tester) =>
     AppTokens.of(tester.element(find.byType(SettingsScreen)));
 
 void main() {
+  for (final window in const [
+    Size(1024, 800),
+    Size(1440, 900),
+    Size(686, 571),
+  ]) {
+    testWidgets('the server link spans the settings column at $window', (
+      tester,
+    ) async {
+      await pumpSettings(tester);
+      tester.view.physicalSize = window;
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(serverLinkField());
+      await tester.pumpAndSettle();
+
+      final input = tester.getRect(
+        find.ancestor(of: serverLinkField(), matching: find.byType(SerifInput)),
+      );
+      final row = tester.getRect(
+        find
+            .ancestor(
+              of: find.text('Server link'),
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Container &&
+                    widget.decoration is BoxDecoration &&
+                    (widget.decoration! as BoxDecoration).border != null,
+              ),
+            )
+            .first,
+      );
+      final title = tester.getRect(find.text('Server link'));
+
+      expect(input.left, title.left);
+      expect(input.width, row.width);
+      expect(input.top, greaterThan(title.bottom));
+    });
+  }
+
   testWidgets('a pasted link is saved and an invalid one is not', (
     tester,
   ) async {

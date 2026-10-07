@@ -12,6 +12,7 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/text_link.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/screens/record_shelf_screen.dart'
     show DashedOutlinePainter;
 import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
@@ -212,7 +213,7 @@ class _LobbyIntro extends ConsumerWidget {
                 SectionLabel(LobbyScreen.roomLabel(code)),
                 Semantics(
                   header: true,
-                  child: Text(
+                  child: WholeWordText(
                     LobbyScreen.hostsRoom(room.hostName ?? ''),
                     style: AppType.display(
                       layout.h1,

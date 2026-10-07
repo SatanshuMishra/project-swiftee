@@ -396,6 +396,26 @@ Finder get _praise => find.byWidgetPredicate(
   (widget) => widget is Text && positiveMessages.contains(widget.data),
 );
 
+Future<void> openSoundGame(
+  WidgetTester tester, {
+  required Difficulty difficulty,
+  bool answer = false,
+}) async {
+  final harness = _Harness(tester);
+  await harness.open(difficulty: difficulty);
+  await harness.settle();
+  if (!answer) {
+    return;
+  }
+  if (difficulty == Difficulty.hard) {
+    await tester.enterText(find.byType(TextField), 'Enchented');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+  } else {
+    await harness.pressAnswer(harness.rightIndex == 0 ? 1 : 0);
+  }
+  await harness.settle();
+}
+
 void main() {
   group('sound rounds', () {
     testWidgets(

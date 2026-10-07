@@ -256,6 +256,20 @@ Finder get _lyricsPraise => find.byWidgetPredicate(
   (widget) => widget is Text && lyricsPositiveMessages.contains(widget.data),
 );
 
+Future<void> openLyricsGame(
+  WidgetTester tester, {
+  required LyricsMode mode,
+  required Difficulty difficulty,
+  bool answer = false,
+}) async {
+  final harness = _Harness(tester);
+  await harness.open(mode: mode, difficulty: difficulty);
+  await harness.startFirstRound();
+  if (answer) {
+    await harness.pressAnswer(harness.rightIndex == 0 ? 1 : 0);
+  }
+}
+
 void main() {
   group('lyrics rounds', () {
     testWidgets('lyrics or lie reveals where a fake line came from', (

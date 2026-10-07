@@ -12,6 +12,7 @@ import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -97,7 +98,7 @@ class FinalStandingsScreen extends ConsumerWidget {
                 if (winner != null) ...[
                   Semantics(
                     header: true,
-                    child: Text(
+                    child: WholeWordText(
                       winnerTitle(
                         viewerWon: winner.id == youId,
                         viewerName: viewerName,

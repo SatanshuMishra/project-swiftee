@@ -177,6 +177,17 @@ final class _Harness {
   }
 }
 
+Future<void> openLyricsLoading(WidgetTester tester, {bool lost = false}) async {
+  final harness = _Harness(tester);
+  if (lost) {
+    harness.songsWithLyrics = {1, 2, 3, 4};
+  } else {
+    harness.holdSource = true;
+  }
+  await harness.open(progress: (fetched: 3, total: 40));
+  await harness.settle();
+}
+
 void main() {
   group('lyrics loading screen', () {
     testWidgets('lyrics loading shows progress and the lost sheets error', (
