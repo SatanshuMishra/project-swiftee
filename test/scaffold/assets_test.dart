@@ -2,6 +2,11 @@ import 'dart:io';
 
 import 'package:cryptography/dart.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
+import 'package:swiftie_quiz/services/audio/soloud_audio_engine.dart';
+import 'package:swiftie_quiz/ui/cat/cat_icon.dart';
+import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
 import 'package:yaml/yaml.dart';
 
 const catIconV2Digest =
@@ -26,22 +31,48 @@ void main() {
       expect(sha256Hex('assets/sounds/quack.mp3'), quackDigest);
     });
 
-    test('pubspec declares every asset folder', () {
+    test('pubspec declares every asset folder that holds files, and only '
+        'those', () {
       final pubspec = loadYaml(
         File('pubspec.yaml').readAsStringSync(),
       ) as Map<Object?, Object?>;
       final flutterSection = pubspec['flutter'] as Map<Object?, Object?>;
       final declaredAssets = (flutterSection['assets'] as List<Object?>)
-          .cast<String>();
-
+          .cast<String>()
+          .toSet();
+      bool holdsFiles(Directory folder) => folder
+          .listSync(recursive: true)
+          .whereType<File>()
+          .any((file) => !p.basename(file.path).startsWith('.'));
       final folders = {
         for (final entity in Directory('assets').listSync())
-          if (entity is Directory && !entity.path.endsWith('fonts'))
-            '${entity.path.replaceAll(r'\', '/')}/',
+          if (entity is Directory &&
+              p.basename(entity.path) != 'fonts' &&
+              holdsFiles(entity))
+            'assets/${p.basename(entity.path)}/',
       };
 
-      expect(declaredAssets.toSet(), folders);
-      expect(folders, containsAll(<String>['assets/cat/', 'assets/sounds/']));
+      expect(declaredAssets, folders);
+    });
+
+    test('every asset the app loads by path is bundled', () {
+      final pubspec = loadYaml(
+        File('pubspec.yaml').readAsStringSync(),
+      ) as Map<Object?, Object?>;
+      final declaredAssets =
+          ((pubspec['flutter'] as Map<Object?, Object?>)['assets']
+                  as List<Object?>)
+              .cast<String>();
+
+      for (final asset in [
+        CatIcon.asset,
+        SettingsScreen.appIcon,
+        bundledCataloguePath,
+        SoLoudAudioEngine.quackAsset,
+      ]) {
+        expect(File(asset).existsSync(), isTrue, reason: asset);
+        expect(declaredAssets, contains('${p.dirname(asset)}/'), reason: asset);
+      }
     });
   });
 }

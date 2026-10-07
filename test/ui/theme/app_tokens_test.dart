@@ -224,49 +224,42 @@ void main() {
       ('light', AppTheme.light, AppTokens.light, Brightness.light),
     ]) {
       final scheme = theme.colorScheme;
+      final roles = <String, (Color?, Color)>{
+        'primary': (scheme.primary, tokens.coral),
+        'onPrimary': (scheme.onPrimary, tokens.onCoral),
+        'secondary': (scheme.secondary, tokens.hover),
+        'onSecondary': (scheme.onSecondary, tokens.fg),
+        'error': (scheme.error, tokens.rose),
+        'onError': (scheme.onError, tokens.bg),
+        'surface': (scheme.surface, tokens.bg),
+        'onSurface': (scheme.onSurface, tokens.fg),
+        'onSurfaceVariant': (scheme.onSurfaceVariant, tokens.mut),
+        'surfaceContainerHighest': (
+          scheme.surfaceContainerHighest,
+          tokens.hover,
+        ),
+        'outline': (scheme.outline, tokens.line2),
+        'outlineVariant': (scheme.outlineVariant, tokens.line),
+        'scaffoldBackgroundColor': (theme.scaffoldBackgroundColor, tokens.bg),
+        'canvasColor': (theme.canvasColor, tokens.bg),
+        'cardColor': (theme.cardColor, tokens.panel),
+        'dividerColor': (theme.dividerColor, tokens.line),
+        'bodyMedium': (theme.textTheme.bodyMedium?.color, tokens.fg),
+      };
+
       expect(theme.brightness, brightness, reason: name);
       expect(scheme.brightness, brightness, reason: name);
-      expect(
-        [
-          scheme.primary,
-          scheme.onPrimary,
-          scheme.secondary,
-          scheme.onSecondary,
-          scheme.error,
-          scheme.onError,
-          scheme.surface,
-          scheme.onSurface,
-          scheme.onSurfaceVariant,
-          scheme.surfaceContainerHighest,
-          scheme.outline,
-          scheme.outlineVariant,
-          theme.scaffoldBackgroundColor,
-          theme.canvasColor,
-          theme.cardColor,
-          theme.dividerColor,
-          theme.textTheme.bodyMedium?.color,
-        ],
-        [
-          tokens.coral,
-          tokens.onCoral,
-          tokens.hover,
-          tokens.fg,
-          tokens.rose,
-          tokens.bg,
-          tokens.bg,
-          tokens.fg,
-          tokens.mut,
-          tokens.hover,
-          tokens.line2,
-          tokens.line,
-          tokens.bg,
-          tokens.bg,
-          tokens.panel,
-          tokens.line,
-          tokens.fg,
-        ],
-        reason: name,
-      );
+      for (final MapEntry(key: role, value: (actual, expected))
+          in roles.entries) {
+        expect(actual, expected, reason: '$name $role');
+      }
+      for (final (role, color) in [
+        ('surface', scheme.surface),
+        ('canvasColor', theme.canvasColor),
+        ('cardColor', theme.cardColor),
+      ]) {
+        expect(color.a, 1, reason: '$name $role must be opaque');
+      }
     }
   });
 
