@@ -4,7 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:swiftie_quiz/domain/models/era.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
@@ -461,7 +461,7 @@ void main() {
         expect(sleeve.coverUrl, fearlessCover);
         expect(
           sleeve.placeholder,
-          Color(eraForAlbumId(fearlessId)!.placeholderArgb),
+          Color(Catalogue.empty.eraOf(fearlessId)!.placeholderArgb),
         );
         expect(tester.widget<VinylDisc>(find.byType(VinylDisc)).size, 40);
 
@@ -521,7 +521,7 @@ void main() {
       expect(sleeve.coverUrl, isNull);
       expect(
         sleeve.placeholder,
-        Color(eraForAlbumId(fearlessId)!.placeholderArgb),
+        Color(Catalogue.empty.eraOf(fearlessId)!.placeholderArgb),
       );
 
       await tester.pump(AppMotion.toastStay);
@@ -706,7 +706,7 @@ void main() {
               ),
             )
             .placeholder,
-        Color(eraForAlbumId(fearlessId)!.placeholderArgb),
+        Color(Catalogue.empty.eraOf(fearlessId)!.placeholderArgb),
       );
 
       await tester.pump(AppMotion.toastStay);

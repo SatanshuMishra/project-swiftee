@@ -235,28 +235,31 @@ void main() {
       expect(scope.read(catalogControllerProvider).catalogue.isEmpty, isFalse);
     });
 
-    test(
-      'a new release found on Deezer joins the catalogue once a session',
-      () async {
-        final scope = container();
-        final catalog = scope.read(catalogControllerProvider.notifier);
+    test('a new release found on Deezer joins the catalogue, and every later '
+        'check looks again', () async {
+      final scope = container();
+      final catalog = scope.read(catalogControllerProvider.notifier);
 
-        await catalog.checkForNewReleases();
-        await catalog.checkForNewReleases();
+      await catalog.checkForNewReleases();
+      await catalog.checkForNewReleases();
 
-        final catalogue = scope.read(catalogControllerProvider).catalogue;
-        expect(
-          catalogue.tracksFor(['showgirl']).map((track) => track.title),
-          contains('Afterglow Encore'),
-        );
-        expect(catalogue.eraOf(2001)?.key, 'showgirl');
-        expect(requested, ['/artist/12246/albums', '/album/2001/tracks']);
-        expect(
-          File('${folder.path}/$catalogueUpdatesFileName').existsSync(),
-          isTrue,
-        );
-      },
-    );
+      final catalogue = scope.read(catalogControllerProvider).catalogue;
+      expect(
+        catalogue.tracksFor(['showgirl']).map((track) => track.title),
+        contains('Afterglow Encore'),
+      );
+      expect(catalogue.eraOf(2001)?.key, 'showgirl');
+      expect(requested, [
+        '/artist/12246/albums',
+        '/album/2001/tracks',
+        '/artist/12246/albums',
+        '/album/2001/tracks',
+      ]);
+      expect(
+        File('${folder.path}/$catalogueUpdatesFileName').existsSync(),
+        isTrue,
+      );
+    });
 
     test('a release check that failed is tried again', () async {
       final scope = container();
@@ -276,7 +279,21 @@ void main() {
         '/artist/12246/albums',
         '/artist/12246/albums',
         '/album/2001/tracks',
+        '/artist/12246/albums',
+        '/album/2001/tracks',
       ]);
+    });
+
+    test('checks asked for while one is running share it', () async {
+      final scope = container();
+      final catalog = scope.read(catalogControllerProvider.notifier);
+
+      await Future.wait([
+        catalog.checkForNewReleases(),
+        catalog.checkForNewReleases(),
+      ]);
+
+      expect(requested, ['/artist/12246/albums', '/album/2001/tracks']);
     });
 
     test('a pool follows the picks made while it loaded', () async {

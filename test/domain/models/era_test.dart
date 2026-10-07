@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 
 void main() {
@@ -33,7 +34,7 @@ void main() {
   });
 
   test('an album id finds its era and an unknown id finds none', () {
-    expect(eraForAlbumId(52612062)?.eraName, 'reputation');
-    expect(eraForAlbumId(1), isNull);
+    expect(Catalogue.empty.eraOf(52612062)?.eraName, 'reputation');
+    expect(Catalogue.empty.eraOf(1), isNull);
   });
 }

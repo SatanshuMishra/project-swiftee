@@ -64,7 +64,7 @@ void main() {
       final kept = keepVersions(all, TrackVersions.noLive);
 
       expect(all.length - kept.length, 53);
-      expect(kept.where((track) => isLiveTake(track.title)), isEmpty);
+      expect(kept.where((track) => takeOf(track.title) == Take.live), isEmpty);
       expect(
         kept.map((track) => track.title),
         containsAll(['Long Live', "Long Live (Taylor's Version)"]),

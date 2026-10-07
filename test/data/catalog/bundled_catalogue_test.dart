@@ -7,6 +7,7 @@ import 'package:swiftie_quiz/domain/engine/answer_matcher.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 void main() {
   late List<RawRelease> releases;
@@ -81,5 +82,25 @@ void main() {
       ),
       isNotEmpty,
     );
+  });
+
+  test('every version label in the bundled catalogue is one the rules know, '
+      'so each new label gets a decision when the catalogue is refreshed', () {
+    final unknown = {
+      for (final track in catalogue.allTracks)
+        for (final label in unknownTitleLabels(track.title)) label: track.title,
+    };
+
+    expect(unknown, isEmpty);
+  });
+
+  test('the bundled catalogue sorts its takes into studio, live and '
+      'alternate', () {
+    final takes = <Take, int>{};
+    for (final track in catalogue.allTracks) {
+      takes[takeOf(track.title)] = (takes[takeOf(track.title)] ?? 0) + 1;
+    }
+
+    expect(takes, {Take.studio: 339, Take.live: 53, Take.alternate: 28});
   });
 }

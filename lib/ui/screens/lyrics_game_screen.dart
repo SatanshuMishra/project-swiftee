@@ -5,11 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/lyric_processor.dart';
 import 'package:swiftie_quiz/domain/engine/option_generator.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/achievements_controller.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
+import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
@@ -390,6 +392,9 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
         ),
       ),
     );
+    final catalogue = ref.watch(
+      catalogControllerProvider.select((catalog) => catalog.catalogue),
+    );
     final result = _result;
     final answered = result != null;
     final track = round.entry.track;
@@ -413,18 +418,18 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
               answered: answered,
               spinning: false,
               coverUrl: track.album.coverMedium,
-              placeholder: eraPlaceholderOf(track),
+              placeholder: eraPlaceholderOf(catalogue, track),
               previousCoverUrl: _lastTrack?.album.coverMedium,
-              previousPlaceholder: eraPlaceholderOf(_lastTrack),
+              previousPlaceholder: eraPlaceholderOf(catalogue, _lastTrack),
             ),
           )
         else
           LyricPaper(
             lines: round.snippetLines,
             song: songTitle(track),
-            era: eraNameOf(track),
+            era: eraNameOf(catalogue, track),
             coverUrl: track.album.coverMedium,
-            placeholder: eraPlaceholderOf(track),
+            placeholder: eraPlaceholderOf(catalogue, track),
             revealed: answered,
             showHint: game.difficulty == Difficulty.easy,
           ),
@@ -433,7 +438,7 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
         if (lie)
           ..._lieColumn(round, track, result)
         else
-          ..._songColumn(context, track, game.difficulty, result),
+          ..._songColumn(context, catalogue, track, game.difficulty, result),
         if (answered)
           NextPrompt(
             onNext: _handleNext,
@@ -449,6 +454,7 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
 
   List<Widget> _songColumn(
     BuildContext context,
+    Catalogue catalogue,
     Track track,
     Difficulty difficulty,
     RoundAnswer? result,
@@ -461,6 +467,7 @@ class _LyricsGameScreenState extends ConsumerState<LyricsGameScreen>
     return [
       SongRoundHeading(
         question: LyricsGameScreen.lyricsQuestion,
+        catalogue: catalogue,
         track: track,
         answer: result,
         time: roundTime,

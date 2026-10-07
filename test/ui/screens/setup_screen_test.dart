@@ -387,7 +387,7 @@ void main() {
         };
 
     test('names releases, eras or both as the source', () {
-      final red = eraByKey('red')!;
+      final red = Catalogue.empty.eraByKey('red')!;
       final folklore = release('folklore');
       final lover = release('Lover');
 

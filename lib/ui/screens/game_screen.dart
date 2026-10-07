@@ -10,6 +10,7 @@ import 'package:swiftie_quiz/domain/engine/answer_matcher.dart';
 import 'package:swiftie_quiz/domain/engine/game_engine.dart';
 import 'package:swiftie_quiz/domain/engine/option_generator.dart';
 import 'package:swiftie_quiz/domain/engine/relisten_schedule.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -57,21 +58,21 @@ String difficultyLabel(Difficulty difficulty) => switch (difficulty) {
   Difficulty.hard => 'Hard',
 };
 
-String eraNameOf(Track track) =>
-    eraOfTrack(track)?.eraName ?? track.album.title;
+String eraNameOf(Catalogue catalogue, Track track) =>
+    catalogue.eraOfTrack(track)?.eraName ?? track.album.title;
 
-Color? eraPlaceholderOf(Track? track) =>
-    switch (track == null ? null : eraOfTrack(track)) {
+Color? eraPlaceholderOf(Catalogue catalogue, Track? track) =>
+    switch (track == null ? null : catalogue.eraOfTrack(track)) {
       final era? => Color(era.placeholderArgb),
       null => null,
     };
 
-String trackCaption(Track track) {
+String trackCaption(Catalogue catalogue, Track track) {
   final position = track.trackPosition;
   return [
-    eraNameOf(track),
+    eraNameOf(catalogue, track),
     ?versionLabel(track.title, shown: songTitle(track)),
-    if (position != null && eraOfTrack(track)?.key != singlesEra.key)
+    if (position != null && catalogue.eraOfTrack(track)?.key != singlesEra.key)
       'track $position',
   ].join(' · ');
 }
@@ -151,9 +152,13 @@ String playingSubline(RoundTime time, {required bool coverHint}) {
   return coverHint ? GameScreen.coverHintLine : GameScreen.takeYourTimeLine;
 }
 
-String songAnsweredSubline(Track track, RoundAnswer answer) {
+String songAnsweredSubline(
+  Catalogue catalogue,
+  Track track,
+  RoundAnswer answer,
+) {
   if (!answer.correct) {
-    return trackCaption(track);
+    return trackCaption(catalogue, track);
   }
   return answer.close
       ? GameScreen.closeEnough(songTitle(track))
@@ -723,6 +728,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final spinning = ref.watch(
       audioControllerProvider.select((audio) => audio.playing),
     );
+    final catalogue = ref.watch(
+      catalogControllerProvider.select((catalog) => catalog.catalogue),
+    );
     final track = game.track;
     if (track == null) {
       return GameFirstLoad(onBack: _exit);
@@ -755,21 +763,22 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 answered: answered,
                 spinning: spinning,
                 coverUrl: track.album.coverMedium,
-                placeholder: eraPlaceholderOf(track),
+                placeholder: eraPlaceholderOf(catalogue, track),
                 previousCoverUrl: _lastTrack?.album.coverMedium,
-                previousPlaceholder: eraPlaceholderOf(_lastTrack),
+                previousPlaceholder: eraPlaceholderOf(catalogue, _lastTrack),
               ),
             ),
             if (!answered) _SoundTransport(onToggle: _togglePlay),
             if (answered || easy)
               Text(
-                trackCaption(track),
+                trackCaption(catalogue, track),
                 textAlign: TextAlign.center,
                 style: AppType.small.copyWith(color: tokens.mut),
               ),
           ],
           right: [
             SongRoundHeading(
+              catalogue: catalogue,
               question: GameScreen.soundQuestion,
               track: track,
               answer: result,
@@ -951,6 +960,7 @@ class SongRoundHeading extends StatelessWidget {
   const SongRoundHeading({
     super.key,
     required this.question,
+    required this.catalogue,
     required this.track,
     required this.answer,
     required this.time,
@@ -958,6 +968,7 @@ class SongRoundHeading extends StatelessWidget {
   });
 
   final String question;
+  final Catalogue catalogue;
   final Track track;
   final RoundAnswer? answer;
   final ValueListenable<RoundTime> time;
@@ -980,7 +991,7 @@ class SongRoundHeading extends StatelessWidget {
       pre: answer.timedOut ? GameScreen.timeUpItWas : GameScreen.itWas,
       song: songTitle(track),
       post: GameScreen.songEnd,
-      subline: songAnsweredSubline(track, answer),
+      subline: songAnsweredSubline(catalogue, track, answer),
     );
   }
 }

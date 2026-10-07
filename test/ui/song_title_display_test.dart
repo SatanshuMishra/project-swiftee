@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
@@ -55,12 +56,19 @@ void main() {
           eraKey: era,
         );
     expect(
-      trackCaption(recording("Red (Taylor's Version)", 'red', 2)),
+      trackCaption(
+        Catalogue.empty,
+        recording("Red (Taylor's Version)", 'red', 2),
+      ),
       "Red · Taylor's Version · track 2",
     );
-    expect(trackCaption(recording('Red', 'red', 3)), 'Red · track 3');
+    expect(
+      trackCaption(Catalogue.empty, recording('Red', 'red', 3)),
+      'Red · track 3',
+    );
     expect(
       trackCaption(
+        Catalogue.empty,
         recording(
           "All Too Well (10 Minute Version) (Taylor's Version) (From The Vault)",
           'red',
@@ -71,6 +79,7 @@ void main() {
     );
     expect(
       trackCaption(
+        Catalogue.empty,
         recording(
           'Cruel Summer (Live from The Eras Tour)',
           'lover',
@@ -82,6 +91,7 @@ void main() {
     );
     expect(
       trackCaption(
+        Catalogue.empty,
         recording(
           'Ruin The Friendship (My Advice Version)',
           'showgirl',
@@ -93,6 +103,7 @@ void main() {
     );
     expect(
       trackCaption(
+        Catalogue.empty,
         recording(
           "State Of Grace (Acoustic Version) (Taylor's Version)",
           'red',
@@ -103,6 +114,7 @@ void main() {
     );
     expect(
       trackCaption(
+        Catalogue.empty,
         recording('I Knew It, I Knew You (From "Toy Story 5")', 'singles', 1),
       ),
       'Singles & soundtracks',

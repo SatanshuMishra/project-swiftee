@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
-import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
@@ -70,7 +69,7 @@ int erasPlayed(Iterable<String> albumIds, Catalogue catalogue) => {
 Map<int, int> eraAlbumTotals(Catalogue catalogue) {
   final totals = catalogue.homeTotals;
   return Map.unmodifiable({
-    for (final era in curatedEras)
+    for (final era in catalogue.albumEras)
       era.deezerAlbumId: ?totals[era.deezerAlbumId],
   });
 }

@@ -200,9 +200,11 @@ final class Catalogue {
     required List<RawRelease> sources,
     required Map<int, String> releaseEras,
     required List<CatalogueRecording> recordings,
+    List<Era> derivedEras = const [],
   }) : sources = List.unmodifiable(sources),
        _releaseEras = Map.unmodifiable(releaseEras),
-       recordings = List.unmodifiable(recordings);
+       recordings = List.unmodifiable(recordings),
+       derivedEras = List.unmodifiable(derivedEras);
 
   static final Catalogue empty = Catalogue(
     sources: const [],
@@ -213,6 +215,21 @@ final class Catalogue {
   final List<RawRelease> sources;
   final Map<int, String> _releaseEras;
   final List<CatalogueRecording> recordings;
+  final List<Era> derivedEras;
+
+  late final List<Era> albumEras = List.unmodifiable([
+    ...curatedEras,
+    ...derivedEras,
+  ]);
+
+  late final List<Era> eras = List.unmodifiable([...albumEras, singlesEra]);
+
+  Era? eraByKey(String key) => eras.firstWhereOrNull((era) => era.key == key);
+
+  Era? eraOfTrack(Track track) => switch (track.eraKey) {
+    final key? => eraByKey(key),
+    null => eraOf(track.album.id),
+  };
 
   late final List<Album> albums = List.unmodifiable([
     for (final release in sources) release.album,
@@ -292,7 +309,7 @@ final class Catalogue {
 
   Era? eraOf(int releaseId) => switch (_releaseEras[releaseId]) {
     final key? => eraByKey(key),
-    null => eraForAlbumId(releaseId),
+    null => albumEras.firstWhereOrNull((era) => era.deezerAlbumId == releaseId),
   };
 
   String? coverFor(String eraKey) {
@@ -325,13 +342,15 @@ final class Catalogue {
       const ListEquality<CatalogueRecording>().equals(
         other.recordings,
         recordings,
-      );
+      ) &&
+      const ListEquality<Era>().equals(other.derivedEras, derivedEras);
 
   @override
   int get hashCode => Object.hash(
     const ListEquality<RawRelease>().hash(sources),
     const MapEquality<int, String>().hash(_releaseEras),
     const ListEquality<CatalogueRecording>().hash(recordings),
+    const ListEquality<Era>().hash(derivedEras),
   );
 
   @override
