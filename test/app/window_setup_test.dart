@@ -139,7 +139,7 @@ void main() {
       expect(options.title, 'Project Swiftie');
       expect(options.size, const Size(1024, 800));
       expect(options.minimumSize, const Size(686, 571));
-      expect(options.center, isTrue);
+      expect(options.center, isNull);
       expect(options.titleBarStyle, TitleBarStyle.hidden);
       expect(options.windowButtonVisibility, isNull);
       expect(options.maximumSize, isNull);
@@ -315,34 +315,88 @@ void main() {
       });
     }
 
-    test('the window opens on the screen under the cursor, or on the primary '
-        'screen when the cursor is on none', () {
+    group('the window opens on the screen under the cursor', () {
       const primary = Display(
         id: '1',
         size: Size(1920, 1080),
         visiblePosition: Offset.zero,
         visibleSize: Size(1920, 1032),
+        scaleFactor: 1,
       );
       const left = Display(
         id: '2',
         size: Size(1280, 720),
         visiblePosition: Offset(-1280, 0),
         visibleSize: Size(1280, 672),
+        scaleFactor: 1,
       );
-      const displays = [primary, left];
+      const leftAtOneAndAHalf = Display(
+        id: '3',
+        size: Size(1280, 720),
+        visiblePosition: Offset(-1280, 0),
+        visibleSize: Size(1280, 672),
+        scaleFactor: 1.5,
+      );
+      const primaryArea = Rect.fromLTWH(0, 0, 1920, 1032);
+      const leftArea = Rect.fromLTWH(-1280, 0, 1280, 672);
 
-      expect(
-        launchWorkArea(displays, const Offset(-600, 300), primary),
-        const Rect.fromLTWH(-1280, 0, 1280, 672),
-      );
-      expect(
-        launchWorkArea(displays, const Offset(900, 500), primary),
-        const Rect.fromLTWH(0, 0, 1920, 1032),
-      );
-      expect(
-        launchWorkArea(displays, const Offset(900, 1060), primary),
-        const Rect.fromLTWH(0, 0, 1920, 1032),
-      );
+      for (final (name, displays, cursor, perDisplay, area) in [
+        (
+          'a second screen holding the cursor',
+          const [primary, left],
+          const Offset(-600, 300),
+          true,
+          leftArea,
+        ),
+        (
+          'the cursor on the second screen\'s taskbar',
+          const [primary, left],
+          const Offset(-600, 700),
+          true,
+          leftArea,
+        ),
+        (
+          'the cursor on the primary screen',
+          const [primary, left],
+          const Offset(900, 500),
+          true,
+          primaryArea,
+        ),
+        (
+          'the cursor on no screen',
+          const [primary, left],
+          const Offset(5000, 5000),
+          true,
+          primaryArea,
+        ),
+        (
+          'a Windows screen scaled unlike the primary falls back to the '
+              'primary',
+          const [primary, leftAtOneAndAHalf],
+          const Offset(-600, 300),
+          true,
+          primaryArea,
+        ),
+        (
+          'a Mac screen of any scale, since macOS works in points',
+          const [primary, leftAtOneAndAHalf],
+          const Offset(-600, 300),
+          false,
+          leftArea,
+        ),
+      ]) {
+        test(name, () {
+          expect(
+            launchWorkArea(
+              displays,
+              cursor,
+              primary,
+              scaledPerDisplay: perDisplay,
+            ),
+            area,
+          );
+        });
+      }
     });
 
     test('a screen that reports no usable area falls back to its full '

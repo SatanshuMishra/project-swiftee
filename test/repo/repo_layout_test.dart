@@ -37,13 +37,34 @@ const List<String> retiredCommands = [
 
 const List<String> flutterCommandDocs = ['CLAUDE.md', 'README.md'];
 
-List<String> trackedAutomationFiles(String root) {
-  final result = Process.runSync('git', [
-    'ls-files',
-    '-z',
-    '--',
-    ...scannedDirectories,
-  ], workingDirectory: root);
+Map<String, String> gitEnvironment({bool isolated = false}) => {
+  for (final MapEntry(:key, :value) in Platform.environment.entries)
+    if (!key.startsWith('GIT_')) key: value,
+  if (isolated) ...{
+    'GIT_CONFIG_NOSYSTEM': '1',
+    'GIT_CONFIG_GLOBAL': p.join(
+      Directory.systemTemp.path,
+      'swiftie-layout-no-git-config',
+    ),
+  },
+};
+
+List<String> automationFiles(String root, {Map<String, String>? environment}) {
+  final result = Process.runSync(
+    'git',
+    [
+      'ls-files',
+      '-z',
+      '--cached',
+      '--others',
+      '--exclude-standard',
+      '--',
+      ...scannedDirectories,
+    ],
+    workingDirectory: root,
+    environment: environment ?? gitEnvironment(),
+    includeParentEnvironment: false,
+  );
   if (result.exitCode != 0) {
     throw ProcessException(
       'git',
@@ -60,6 +81,9 @@ List<String> trackedAutomationFiles(String root) {
 }
 
 String? textOf(File file) {
+  if (!file.existsSync()) {
+    return null;
+  }
   final bytes = file.readAsBytesSync();
   return bytes.contains(0) ? null : utf8.decode(bytes, allowMalformed: true);
 }
@@ -95,16 +119,18 @@ void main() {
 
     test('no doc or automation file names an npm, cargo or Tauri CLI '
         'build or test command', () {
-      final files = trackedAutomationFiles(root);
+      final files = automationFiles(root);
 
       expect(files, containsAll(scannedFiles));
       expect(files, contains(p.join('.claude', 'settings.json')));
       expect(retiredCommandOffences(root, files), isEmpty);
     });
 
-    test('the scan reads only files git tracks and skips binary ones', () {
+    test('the scan reads the files git tracks or would add, and skips '
+        'ignored, deleted and binary ones', () {
       final fixture = Directory.systemTemp.createTempSync('swiftie_layout_');
       addTearDown(() => fixture.deleteSync(recursive: true));
+      final environment = gitEnvironment(isolated: true);
       void write(String path, List<int> bytes) => (File(
         p.join(fixture.path, path),
       )..createSync(recursive: true)).writeAsBytesSync(bytes);
@@ -113,16 +139,19 @@ void main() {
           'git',
           arguments,
           workingDirectory: fixture.path,
+          environment: environment,
+          includeParentEnvironment: false,
         );
         expect(result.exitCode, 0, reason: '${result.stderr}');
       }
 
-      write('.gitignore', utf8.encode('.DS_Store\n'));
+      write('.gitignore', utf8.encode('.DS_Store\n.claude/ignored.md\n'));
       write('.claude/design/.DS_Store', [0x00, 0x00, 0x00, 0x01, 0xff, 0xfe]);
-      write('.claude/icon.png', [0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]);
+      write('.claude/ignored.md', utf8.encode('npm run build\n'));
+      write('.claude/icon.png', [0x00, ...utf8.encode('npm run build')]);
       write('.claude/notes.md', utf8.encode('Run cargo test first.\n'));
+      write('.claude/gone.md', utf8.encode('flutter test\n'));
       write('.github/workflows/ci.yml', utf8.encode('run: flutter test\n'));
-      write('.claude/untracked.md', utf8.encode('npm run build\n'));
       for (final path in scannedFiles) {
         write(path, utf8.encode('flutter test\n'));
       }
@@ -132,18 +161,32 @@ void main() {
         '.gitignore',
         '.claude/icon.png',
         '.claude/notes.md',
+        '.claude/gone.md',
         '.github',
         ...scannedFiles,
       ]);
+      File(p.join(fixture.path, '.claude', 'gone.md')).deleteSync();
+      write('.claude/new.md', utf8.encode('tauri dev\n'));
 
-      final files = trackedAutomationFiles(fixture.path);
+      final files = automationFiles(fixture.path, environment: environment);
 
       expect(files, isNot(contains(p.join('.claude', 'design', '.DS_Store'))));
-      expect(files, isNot(contains(p.join('.claude', 'untracked.md'))));
-      expect(files, contains(p.join('.claude', 'icon.png')));
-      expect(retiredCommandOffences(fixture.path, files), [
-        '${p.join('.claude', 'notes.md')}: "cargo "',
-      ]);
+      expect(files, isNot(contains(p.join('.claude', 'ignored.md'))));
+      expect(
+        files,
+        containsAll([
+          p.join('.claude', 'icon.png'),
+          p.join('.claude', 'gone.md'),
+          p.join('.claude', 'new.md'),
+        ]),
+      );
+      expect(
+        retiredCommandOffences(fixture.path, files),
+        unorderedEquals([
+          '${p.join('.claude', 'notes.md')}: "cargo "',
+          '${p.join('.claude', 'new.md')}: "tauri dev"',
+        ]),
+      );
     });
 
     test('CLAUDE.md and README.md give the flutter test command', () {

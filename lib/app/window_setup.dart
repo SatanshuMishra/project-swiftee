@@ -20,7 +20,6 @@ const Size minimumWindowSize = Size(686, 571);
 const WindowOptions windowOptions = WindowOptions(
   size: preferredWindowSize,
   minimumSize: minimumWindowSize,
-  center: true,
   title: 'Project Swiftie',
   titleBarStyle: TitleBarStyle.hidden,
 );
@@ -70,11 +69,27 @@ Rect workAreaOf(Display display) => Rect.fromLTWH(
   display.visibleSize?.height ?? display.size.height,
 );
 
-Rect launchWorkArea(List<Display> displays, Offset cursor, Display primary) =>
-    displays
-        .map(workAreaOf)
-        .firstWhereOrNull((area) => area.contains(cursor)) ??
-    workAreaOf(primary);
+Rect displayAreaOf(Display display) => Rect.fromLTWH(
+  display.visiblePosition?.dx ?? 0,
+  display.visiblePosition?.dy ?? 0,
+  display.size.width,
+  display.size.height,
+);
+
+Rect launchWorkArea(
+  List<Display> displays,
+  Offset cursor,
+  Display primary, {
+  required bool scaledPerDisplay,
+}) {
+  final underCursor = displays.firstWhereOrNull(
+    (display) => displayAreaOf(display).contains(cursor),
+  );
+  final usable =
+      underCursor != null &&
+      (!scaledPerDisplay || underCursor.scaleFactor == primary.scaleFactor);
+  return workAreaOf(usable ? underCursor : primary);
+}
 
 Rect launchWindowBounds(Rect workArea) {
   final size = Size(
@@ -100,6 +115,7 @@ Future<void> fitWindowToWorkArea() async {
     await screenRetriever.getAllDisplays(),
     await screenRetriever.getCursorScreenPoint(),
     await screenRetriever.getPrimaryDisplay(),
+    scaledPerDisplay: defaultTargetPlatform == TargetPlatform.windows,
   );
   await windowManager.setBounds(launchWindowBounds(workArea));
 }
