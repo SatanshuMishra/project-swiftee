@@ -18,7 +18,10 @@ final RegExp _featuring = RegExp(
   r'^(feat\.?|ft\.?|featuring|with)\s',
   caseSensitive: false,
 );
-final RegExp _soundtrack = RegExp(r'^from\s', caseSensitive: false);
+final RegExp _soundtrack = RegExp(
+  r'^from\s.*(soundtrack|motion picture|film|series|"|“)',
+  caseSensitive: false,
+);
 
 List<String> _titleParts(String title) => [
   for (final match in _titlePart.allMatches(title))
@@ -50,15 +53,20 @@ enum Take { studio, live, alternate }
 
 enum _Label { studio, live, alternate, unknown }
 
-final RegExp _liveLabel = RegExp(r'\blive\b|long pond', caseSensitive: false);
+final RegExp _liveLabel = RegExp(
+  r'\blive\b|long pond|eras tour',
+  caseSensitive: false,
+);
 final RegExp _alternateLabel = RegExp(
   r'\b(acoustic|piano|demo|stripped|rehearsal|remix|mix|short film|'
-  r'video edition)\b|\bversion$',
+  r'video edition|sped up|slowed|a ?c+ap+el+a|unplugged|alternate)\b|'
+  r'\bversion$',
   caseSensitive: false,
 );
 final RegExp _studioLabel = RegExp(
   r'^(\d+ minute version|bonus track|featured in .+|oh my my my|'
-  r'no really i can)$',
+  r'no really i can|radio edit|single edit|edit|album version|'
+  r'single version|clean|clean version|explicit|explicit version)$',
   caseSensitive: false,
 );
 

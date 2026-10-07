@@ -17,6 +17,7 @@ final class CatalogueStore {
   });
 
   static const Duration recentWindow = Duration(days: 90);
+  static const int releasesPerCheck = 25;
 
   final Future<String> Function() _loadBundled;
   final File updatesFile;
@@ -58,11 +59,14 @@ final class CatalogueStore {
     Map<int, RawRelease> known,
   ) async {
     final since = _now().subtract(recentWindow);
+    final summaries = await client.fetchReleaseSummaries();
     final due = [
-      for (final summary in await client.fetchReleaseSummaries())
-        if (!known.containsKey(summary.id) || _releasedSince(summary, since))
+      for (final summary in summaries)
+        if (!known.containsKey(summary.id)) summary,
+      for (final summary in summaries)
+        if (known.containsKey(summary.id) && _releasedSince(summary, since))
           summary,
-    ];
+    ].take(releasesPerCheck);
     final fetched = <CatalogueEntry>[];
     for (final summary in due) {
       final List<RawTrack> tracks;
@@ -98,7 +102,10 @@ final class CatalogueStore {
       return const [];
     }
     try {
-      return decodeCatalogueEntries(await updatesFile.readAsString());
+      return decodeCatalogueEntries(
+        await updatesFile.readAsString(),
+        unstamped: DateTime.utc(1970),
+      );
     } on Object {
       return const [];
     }

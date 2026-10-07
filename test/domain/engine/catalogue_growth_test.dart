@@ -95,6 +95,42 @@ void main() {
       expect(bundled.eras, eraGroups);
     });
 
+    for (final curated in curatedEras) {
+      test('with no title rule, the ${curated.key} era would still form from '
+          'its own albums and hold the same recordings', () {
+        final bundled = decodeCatalogue(
+          File(bundledCataloguePath).readAsStringSync(),
+        );
+        final hidden = [
+          for (final release in bundled)
+            eraKeyForTitle(release.title) == curated.key
+                ? RawRelease(
+                    id: release.id,
+                    title: 'Hidden ${curated.key} ${release.title.length}',
+                    kind: release.kind,
+                    releaseDate: release.releaseDate,
+                    coverMedium: release.coverMedium,
+                    tracks: release.tracks,
+                  )
+                : release,
+        ];
+        final original = buildCatalogue(bundled);
+        final rebuilt = buildCatalogue(hidden);
+        final isrcs = {
+          for (final recording in original.recordings)
+            if (recording.eraKey == curated.key) recording.isrc,
+        };
+
+        final derived = rebuilt.derivedEras;
+        expect(derived, hasLength(1));
+        expect({
+          for (final recording in rebuilt.recordings)
+            if (derived.any((era) => era.key == recording.eraKey))
+              recording.isrc,
+        }, isrcs);
+      });
+    }
+
     test('a new studio album of new songs starts its own era, named and '
         'dated from the album', () {
       final era = catalogue.derivedEras.single;
@@ -160,6 +196,71 @@ void main() {
       expect(rep, contains('Delicate'));
       expect(rep, contains("Never Told (Taylor's Version) (From The Vault)"));
       expect(isTaylorsVersion("Delicate (Taylor's Version)"), isTrue);
+    });
+  });
+
+  group('naming and joining eras', () {
+    test('an expanded edition with mostly new songs joins its album era '
+        'instead of starting a second one', () {
+      final anthology = rawRelease(
+        990000009,
+        'Album Thirteen: The Anthology',
+        '2027-03-02',
+        [
+          for (final (index, song) in newSongs.indexed)
+            rawTrack(
+              9500 + index,
+              song,
+              isrc: 'NEW${index.toString().padLeft(2, '0')}',
+            ),
+          for (var index = 0; index < 15; index++)
+            rawTrack(9600 + index, 'Anthology Song $index', isrc: 'ANT$index'),
+        ],
+      );
+      final renamed = rawRelease(
+        990000010,
+        'Thirteen Revisited',
+        '2027-04-01',
+        [
+          for (final (index, song) in newSongs.take(6).indexed)
+            rawTrack(
+              9700 + index,
+              song,
+              isrc: 'NEW${index.toString().padLeft(2, '0')}',
+            ),
+          for (var index = 0; index < 8; index++)
+            rawTrack(9800 + index, 'Revisited Song $index', isrc: 'REV$index'),
+        ],
+      );
+
+      final grown = buildCatalogue([...grownReleases(), anthology, renamed]);
+
+      expect(grown.derivedEras, hasLength(1));
+      expect(grown.eraOf(anthology.id)?.key, 'album-$albumId');
+      expect(grown.eraOf(renamed.id)?.key, 'album-$albumId');
+    });
+
+    test('the curated title rules catch re-recordings and stop at word '
+        'boundaries', () {
+      expect(eraKeyForTitle("Taylor Swift (Taylor's Version)"), 'ts');
+      expect(eraKeyForTitle('Taylor Swift'), 'ts');
+      expect(eraKeyForTitle('Fearless (Platinum Edition)'), 'fearless');
+      expect(eraKeyForTitle('Fearlessly'), isNull);
+      expect(eraKeyForTitle('Lover (Live From Paris)'), 'lover');
+      expect(eraKeyForTitle('Loverboy'), isNull);
+    });
+
+    test('an era is named after its album without edition suffixes', () {
+      expect(
+        eraNameFromTitle('Album Thirteen (Deluxe) [Explicit]'),
+        'Album Thirteen',
+      );
+      expect(
+        eraNameFromTitle('THE TORTURED POETS DEPARTMENT: THE ANTHOLOGY'),
+        'THE TORTURED POETS DEPARTMENT',
+      );
+      expect(eraNameFromTitle('1989 (Deluxe Edition)'), '1989');
+      expect(eraNameFromTitle('(Untitled)'), '(Untitled)');
     });
   });
 }

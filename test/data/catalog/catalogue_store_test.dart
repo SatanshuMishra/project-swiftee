@@ -259,4 +259,82 @@ void main() {
       );
     });
   });
+
+  test('a check fetches at most 25 releases, unknown ones before recent '
+      'ones it has seen', () async {
+    final requested = <String>[];
+    final summaries = [
+      for (var id = 1; id <= 30; id++)
+        {
+          'id': 7000 + id,
+          'title': 'New $id',
+          'record_type': 'single',
+          'release_date': '2020-01-01',
+          'cover_medium': null,
+        },
+      {
+        'id': 1103662682,
+        'title': 'The Encore',
+        'record_type': 'album',
+        'release_date': '2026-09-25',
+        'cover_medium': null,
+      },
+    ];
+    final client = DeezerClient(
+      client: MockClient((request) async {
+        requested.add(request.url.path);
+        final id = RegExp(r'^/album/(\d+)/tracks$')
+            .firstMatch(request.url.path)?[1];
+        return http.Response(
+          jsonEncode(
+            request.url.path == '/artist/12246/albums'
+                ? {'data': summaries}
+                : {
+                    'data': [deezerTrack(int.parse(id!), 'Song $id')],
+                  },
+          ),
+          200,
+        );
+      }),
+      userAgent: 'test',
+    );
+    final store = CatalogueStore(
+      loadBundled: () async =>
+          encodeCatalogue(bundled, fetchedAt: '2026-10-06T00:00:00Z'),
+      updatesFile: File('${folder.path}/$catalogueUpdatesFileName'),
+      now: () => DateTime.utc(2026, 10, 6),
+    );
+
+    final changed = await store.refreshReleases(client, {
+      for (final release in bundled) release.id: release,
+      1103662682: rawRelease(1103662682, 'The Encore', '2026-09-25', const []),
+    });
+
+    expect(changed, hasLength(CatalogueStore.releasesPerCheck));
+    expect(changed.map((release) => release.id), [
+      for (var id = 1; id <= 25; id++) 7000 + id,
+    ]);
+    expect(requested, isNot(contains('/album/1103662682/tracks')));
+  });
+
+  test(
+    'a v0.4 updates file never overrides a release the app now bundles',
+    () async {
+      final updates = File('${folder.path}/$catalogueUpdatesFileName');
+      final stale = fixtureReleases.first.copyWith(
+        tracks: [rawTrack(1, 'State Of Grace', isrc: 'RED01', preview: false)],
+      );
+      updates.writeAsStringSync(
+        encodeCatalogue([stale], fetchedAt: '2026-10-10T00:00:00Z'),
+      );
+      final store = CatalogueStore(
+        loadBundled: () async =>
+            encodeCatalogue(bundled, fetchedAt: '2026-10-07T00:00:00Z'),
+        updatesFile: updates,
+        now: () => DateTime.utc(2026, 10, 11),
+      );
+
+      expect(await store.load(), bundled);
+    },
+  );
 }

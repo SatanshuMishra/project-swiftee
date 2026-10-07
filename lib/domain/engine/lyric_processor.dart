@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
 import 'package:swiftie_quiz/domain/engine/answer_matcher.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
@@ -350,6 +351,10 @@ List<String> _pickContiguousBlock(
   return allLines.take(lineCount).toList();
 }
 
+String _eraGroupOf(String albumTitle) =>
+    _findEraGroup(albumTitle) ??
+    'album:${eraNameFromTitle(albumTitle).toLowerCase()}';
+
 String? _findEraGroup(String albumTitle) {
   for (final MapEntry(key: era, value: albums) in eraGroups.entries) {
     if (albums.any(
@@ -422,16 +427,12 @@ DecoyResult selectDecoyOrReal(
     ];
     if (sameAlbum.isNotEmpty) candidates = sameAlbum;
   } else if (difficulty == Difficulty.easy) {
-    final currentEra = _findEraGroup(currentTrackAlbum ?? '');
-    if (currentEra != null) {
-      final differentEra = [
-        for (final lyrics in candidates)
-          if (_findEraGroup(lyrics.sourceAlbum) case final decoyEra?
-              when decoyEra != currentEra)
-            lyrics,
-      ];
-      if (differentEra.isNotEmpty) candidates = differentEra;
-    }
+    final currentEra = _eraGroupOf(currentTrackAlbum ?? '');
+    final differentEra = [
+      for (final lyrics in candidates)
+        if (_eraGroupOf(lyrics.sourceAlbum) != currentEra) lyrics,
+    ];
+    if (differentEra.isNotEmpty) candidates = differentEra;
   }
 
   final decoyLyrics = candidates[generator.nextInt(candidates.length)];

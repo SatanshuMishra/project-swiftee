@@ -6,7 +6,6 @@ import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
-import 'package:swiftie_quiz/domain/models/era.dart';
 
 const String _api = 'https://api.deezer.com';
 const Duration _spacing = Duration(milliseconds: 250);
@@ -42,7 +41,7 @@ Future<void> main(List<String> arguments) async {
       'wrote ${out.path}: ${releases.length} releases, '
       '${catalogue.recordings.length} playable recordings',
     );
-    for (final era in eraGroups) {
+    for (final era in catalogue.eras) {
       stdout.writeln('  ${era.eraName}: ${catalogue.trackCount(era.key)}');
     }
   } finally {
