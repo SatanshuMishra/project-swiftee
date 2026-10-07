@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/domain/engine/release_notes.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
@@ -261,11 +262,15 @@ class _PanelBody extends StatelessWidget {
 class _Notes extends StatelessWidget {
   const _Notes(this.notes);
 
+  static const double sectionGap = 12;
+  static const double itemGap = 4;
+
   final String notes;
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
+    final blocks = parseReleaseNotes(notes);
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -275,9 +280,69 @@ class _Notes extends StatelessWidget {
       ),
       child: SingleChildScrollView(
         padding: UpdateModal.notesPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (index, block) in blocks.indexed)
+              Padding(
+                padding: EdgeInsets.only(
+                  top: index == 0
+                      ? 0
+                      : block.kind == NotesBlockKind.item ||
+                            blocks[index - 1].kind == NotesBlockKind.heading
+                      ? itemGap
+                      : sectionGap,
+                ),
+                child: _NotesBlock(block),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotesBlock extends StatelessWidget {
+  const _NotesBlock(this.block);
+
+  static const double bulletWidth = 14;
+  static const double numberWidth = 24;
+
+  final NotesBlock block;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    final body = AppType.sized(14, 22).copyWith(color: tokens.mut);
+    return switch (block.kind) {
+      NotesBlockKind.heading => Semantics(
+        header: true,
         child: Text(
-          notes,
-          style: AppType.sized(14, 22).copyWith(color: tokens.mut),
+          block.text,
+          style: AppType.sectionLabel.copyWith(color: tokens.fg),
+        ),
+      ),
+      NotesBlockKind.item => _item(context, body),
+      NotesBlockKind.paragraph => Text(block.text, style: body),
+    };
+  }
+
+  Widget _item(BuildContext context, TextStyle body) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final bullet = block.marker == bulletMarker;
+    final marker = Text(block.marker, style: body);
+    return Padding(
+      padding: EdgeInsets.only(left: scaler.scale(bulletWidth) * block.depth),
+      child: MergeSemantics(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: scaler.scale(bullet ? bulletWidth : numberWidth),
+              child: bullet ? ExcludeSemantics(child: marker) : marker,
+            ),
+            Expanded(child: Text(block.text, style: body)),
+          ],
         ),
       ),
     );

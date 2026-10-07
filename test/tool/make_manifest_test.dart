@@ -301,6 +301,7 @@ void main() {
         expect(code, 0, reason: errors.toString());
         expect(jsonDecode(File(out).readAsStringSync()), {
           ...expectedManifest,
+          'notes': "Changed\n• Rewritten in Flutter. Same game, same save.",
           'platforms': {
             'darwin-aarch64': expectedEntry('Project.Swiftie.app.tar.gz'),
             'darwin-aarch64-app': expectedEntry('Project.Swiftie.app.tar.gz'),
