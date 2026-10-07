@@ -4,6 +4,33 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-10-06
+
+### Updating from v0.3.0
+- Swiftie Quiz is now Project Swiftie. The updater installs it in place like any other update, and your progress, records and settings carry over.
+- On a Mac, the app becomes the Open edition. If you never set a nickname, it asks for one once. On Windows, the app stays the edition it is.
+
+### Added
+- **A new look.** Every screen is redesigned, with a title bar that blends into the app on macOS and Windows, a vinyl game screen, a round summary and new app icons.
+- **Two editions.** The Ana edition is made for Ana. The Open edition is for everyone else and asks for your nickname on first launch.
+- **The record shelf.** Unlocked achievements sit on a shelf of records, in place of the cat gallery.
+- **Misu.** A cat who drops by now and then.
+- **Quick rounds.** Tonight's era plays as a round of ten that ends in a round summary.
+- **Every Taylor-led recording.** Shuffle and the era tiles draw from every Taylor-led recording, re-recordings, live and acoustic versions included. The song list ships with the app, so it loads at once.
+- **Pick your releases.** Beside the era tiles, pick any album, EP or single, filter by kind, and search by release or song title.
+- **Choose which versions play.** Sound games can play every version, Taylor's Versions only, or no live takes.
+
+### Changed
+- **Songs and lyrics repeat less.** A song does not come back within ten rounds, even across games, and every version of a song gets its turn. Lyrics games show every song before repeating one, and avoid lines you have already seen.
+
+### Fixed
+- **Lyrics games no longer replay their first song** when more lyrics load mid-game.
+- Songs without a preview are skipped, and the next song's link is fetched early.
+- A retried round keeps its round number.
+- Song names drop the Taylor's Version and vault labels, and a reveal names any other version.
+- Lyrics or Lie never takes a fake line from the song being asked.
+- Windows icons refresh after every install and update.
+
 ## [0.3.0] - 2026-10-05
 
 ### Updating from v0.2.x
