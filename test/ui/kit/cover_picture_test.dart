@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:path/path.dart' as p;
 import 'package:swiftie_quiz/data/covers/cover_store.dart';
 import 'package:swiftie_quiz/state/covers.dart';
+import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/kit/cover_picture.dart';
 
 final String _url = deezerCoverUrl('290abe93bdda84bb8b170f30a4998c4c', 250);
@@ -61,5 +63,42 @@ void main() {
     await show(CoverPicture(_url));
     expect(requests, 2);
     expect(drawn()?.image, isNotNull);
+  });
+
+  testWidgets('a cover that ships with the app draws without the network', (
+    tester,
+  ) async {
+    final bundled = p.basenameWithoutExtension(
+      Directory(bundledCoversFolder).listSync().whereType<File>().first.path,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          httpClientProvider.overrideWithValue(
+            MockClient((request) async => throw StateError('no network')),
+          ),
+        ],
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox.square(
+              dimension: 40,
+              child: CoverPicture(deezerCoverUrl(bundled, 250)),
+            ),
+          ),
+        ),
+      ),
+    );
+    for (var step = 0; step < 10; step++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+
+    expect(
+      tester.widgetList<RawImage>(find.byType(RawImage)).single.image,
+      isNotNull,
+    );
   });
 }
