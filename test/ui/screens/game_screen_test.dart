@@ -320,6 +320,8 @@ final class _Harness {
         ..setPhase(GamePhase.playing);
     }
     await tester.pumpWidget(_app(const GameScreen()));
+    await settle();
+    await tester.pump(GameScreen.roundLoaderMinimum);
   }
 
   Future<void> settle() async {
@@ -690,7 +692,8 @@ void main() {
     });
 
     testWidgets(
-      'the first load shows the cat loader, then easy shows the cover and its caption',
+      'the first load keeps the cat loader until the first clip is ready, '
+      'then easy shows the cover and its caption',
       (tester) async {
         final tracks = Completer<CatalogTracks>();
         final decode = Completer<void>();
@@ -711,11 +714,25 @@ void main() {
 
         tracks.complete((allTracks: _songs, pool: _songs));
         await harness.settle();
+        await tester.pump(GameScreen.roundLoaderMinimum);
+
+        expect(find.text('Loading tracks...'), findsOneWidget);
+        expect(find.text('← Back to menu'), findsOneWidget);
+        expect(find.byType(AnswerList), findsNothing);
+        expect(find.byType(BetweenSongsCover), findsNothing);
+
+        decode.complete();
+        await harness.settle();
 
         expect(find.text('Loading tracks...'), findsNothing);
-        expect(harness.transport, TransportStatus.loading);
+        expect(harness.transport, TransportStatus.playing);
+        expect(harness.engine.voices, hasLength(1));
         expect(
           tester.widget<RecordPlayer>(find.byType(RecordPlayer)).revealed,
+          isTrue,
+        );
+        expect(
+          tester.widget<RecordPlayer>(find.byType(RecordPlayer)).spinning,
           isTrue,
         );
         expect(find.text('Fearless · track 3'), findsOneWidget);
@@ -726,16 +743,6 @@ void main() {
         expect(
           tester.widget<GameTopBar>(find.byType(GameTopBar)).timeFraction,
           isNull,
-        );
-
-        decode.complete();
-        await harness.settle();
-
-        expect(harness.transport, TransportStatus.playing);
-        expect(harness.engine.voices, hasLength(1));
-        expect(
-          tester.widget<RecordPlayer>(find.byType(RecordPlayer)).spinning,
-          isTrue,
         );
       },
     );
@@ -749,17 +756,18 @@ void main() {
         await harness.open(difficulty: Difficulty.medium, mediumTimer: 10);
         await harness.settle();
 
+        expect(find.text('Loading tracks...'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 5));
+        expect(find.text('Loading tracks...'), findsOneWidget);
+
+        decode.complete();
+        await harness.settle();
         expect(
           tester.widget<RecordPlayer>(find.byType(RecordPlayer)).revealed,
           isFalse,
         );
         expect(find.text('Fearless · track 3'), findsNothing);
         expect(_heading('10 seconds left.'), findsOneWidget);
-        await tester.pump(const Duration(seconds: 5));
-        expect(_heading('10 seconds left.'), findsOneWidget);
-
-        decode.complete();
-        await harness.settle();
         await tester.pump(const Duration(milliseconds: 7100));
         expect(_heading('3 seconds left.'), findsOneWidget);
         final urgent = tester.widget<RoundHeading>(find.byType(RoundHeading));
@@ -782,6 +790,23 @@ void main() {
         ]);
       },
     );
+
+    testWidgets('the first round also stops waiting for its clip after 8 s', (
+      tester,
+    ) async {
+      final harness = _Harness(tester);
+      harness.engine.decodeGates = [Completer<void>()];
+      await harness.open();
+      await harness.settle();
+      expect(find.text('Loading tracks...'), findsOneWidget);
+
+      await tester.pump(GameScreen.roundLoaderTimeout);
+      await harness.settle();
+
+      expect(find.text('Loading tracks...'), findsNothing);
+      expect(_heading("What's playing?"), findsOneWidget);
+      expect(harness.transport, TransportStatus.loading);
+    });
 
     testWidgets('the between-songs cover gives up after 8 s', (tester) async {
       final harness = _Harness(tester);
@@ -949,6 +974,7 @@ void main() {
       harness.load = () async => (allTracks: _songs, pool: _songs);
       await tester.tap(find.text('Try again'));
       await harness.settle();
+      await tester.pump(GameScreen.roundLoaderMinimum);
 
       expect(find.text("The needle won't drop."), findsNothing);
       expect(_heading("What's playing?"), findsOneWidget);

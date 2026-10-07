@@ -302,6 +302,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
   final FocusNode _typedFocus = FocusNode(debugLabel: 'GameScreen answer');
   final TextEditingController _typed = TextEditingController();
   bool _tracksReady = false;
+  bool _roundShown = false;
   bool _failed = false;
   bool _redraw = false;
   Track? _unheard;
@@ -364,7 +365,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
         _allTracks = tracks.allTracks;
         _tracksReady = true;
       });
-      _beginRound(tracks.pool, immediate: true);
+      _beginRound(tracks.pool);
     } on Object catch (error) {
       if (mounted && request == _loadRequest) {
         _fail(error is RateLimited ? error.message : null);
@@ -379,7 +380,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     _loaderMinimum = null;
   }
 
-  void _beginRound(List<Track> pool, {required bool immediate}) {
+  void _beginRound(List<Track> pool) {
     final random = ref.read(randomProvider);
     final draw = drawNextTrack(
       pool,
@@ -405,18 +406,13 @@ class _GameScreenState extends ConsumerState<GameScreen>
     );
     _typed.clear();
     _clockStarted = false;
-    if (!immediate) {
-      _loaderShownAt = _now();
-      _loaderTimeout = Timer(GameScreen.roundLoaderTimeout, _revealRound);
-    }
+    _loaderShownAt = _now();
+    _loaderTimeout = Timer(GameScreen.roundLoaderTimeout, _revealRound);
     setState(() {
       _result = null;
-      _stage = immediate ? SoundStage.playing : SoundStage.loading;
+      _stage = SoundStage.loading;
     });
     unawaited(_play(draw.track));
-    if (immediate) {
-      _focusInput();
-    }
   }
 
   Future<void> _play(Track track) async {
@@ -477,7 +473,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (!mounted || _failed || _stage != SoundStage.loading) {
       return;
     }
-    setState(() => _stage = SoundStage.playing);
+    setState(() {
+      _stage = SoundStage.playing;
+      _roundShown = true;
+    });
     _startClock();
     _focusInput();
   }
@@ -582,7 +581,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       ref.read(gameControllerProvider.notifier).finishQuickRound();
       return;
     }
-    _beginRound(game.trackPool, immediate: false);
+    _beginRound(game.trackPool);
   }
 
   bool _handleKey(LogicalKeyboardKey key) {
@@ -657,7 +656,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
         if (track.id != current.id) track,
     ]);
     _redraw = true;
-    _beginRound(ref.read(gameControllerProvider).trackPool, immediate: false);
+    _beginRound(ref.read(gameControllerProvider).trackPool);
   }
 
   void _retry() {
@@ -667,6 +666,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _failed = false;
       _failure = null;
       _tracksReady = false;
+      _roundShown = false;
       _result = null;
     });
     unawaited(_loadTracks());
@@ -695,7 +695,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final Widget body;
     if (_failed) {
       body = NeedleWontDrop(message: _failure, onRetry: _retry, onBack: _exit);
-    } else if (!_tracksReady) {
+    } else if (!_tracksReady || !_roundShown) {
       body = GameFirstLoad(onBack: _exit);
     } else {
       body = _round(context);
