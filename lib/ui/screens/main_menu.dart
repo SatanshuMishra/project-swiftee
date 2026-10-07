@@ -9,6 +9,7 @@ import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/domain/together/server_link.dart';
 import 'package:swiftie_quiz/domain/util/birthday.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
@@ -24,6 +25,7 @@ import 'package:swiftie_quiz/ui/kit/text_link.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/overlays/birthday_card.dart';
+import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -89,6 +91,10 @@ class MainMenu extends ConsumerStatefulWidget {
   static const String shuffleDescription = 'Every song, every era.';
   static const String erasTitle = 'Pick your eras';
   static const String erasDescription = 'Stick to the albums you love most.';
+  static const String togetherTitle = 'Play together';
+  static const String togetherDescription = 'Host a room or join one.';
+  static const String togetherNeedsLink =
+      'Add a server link in Settings first.';
   static const String settingsLabel = 'Settings';
   static const String tonightLabel = "Tonight's era";
   static const String quickRoundLabel = 'A quick round of $quickRoundLength →';
@@ -179,6 +185,12 @@ class _MainMenuState extends ConsumerState<MainMenu> {
         (game) => _unlockedRecords(game.progress.achievements),
       ),
     );
+    final canPlayTogether = ref.watch(
+      gameControllerProvider.select(
+        (game) =>
+            ServerLink.parse(game.progress.settings.togetherLink ?? '') != null,
+      ),
+    );
     final game = ref.read(gameControllerProvider.notifier);
     final ana = edition == Edition.ana;
     return Stack(
@@ -208,6 +220,14 @@ class _MainMenuState extends ConsumerState<MainMenu> {
                     ..setMode(GameMode.album)
                     ..setPhase(GamePhase.albumSelect);
                 },
+                onTogether: canPlayTogether
+                    ? () {
+                        ref
+                            .read(togetherNavProvider.notifier)
+                            .show(TogetherScreen.hub);
+                        game.setPhase(GamePhase.together);
+                      }
+                    : null,
                 onShelf: () => game.setPhase(GamePhase.recordShelf),
                 onSettings: () => game.setPhase(GamePhase.settings),
               ),
@@ -542,6 +562,7 @@ class _MenuActions extends StatelessWidget {
     required this.unlocked,
     required this.onShuffle,
     required this.onEras,
+    required this.onTogether,
     required this.onShelf,
     required this.onSettings,
   });
@@ -549,6 +570,7 @@ class _MenuActions extends StatelessWidget {
   final int unlocked;
   final VoidCallback onShuffle;
   final VoidCallback onEras;
+  final VoidCallback? onTogether;
   final VoidCallback onShelf;
   final VoidCallback onSettings;
 
@@ -576,6 +598,13 @@ class _MenuActions extends StatelessWidget {
             title: MainMenu.erasTitle,
             description: MainMenu.erasDescription,
             onTap: onEras,
+          ),
+          ArrowRow(
+            title: MainMenu.togetherTitle,
+            description: onTogether == null
+                ? MainMenu.togetherNeedsLink
+                : MainMenu.togetherDescription,
+            onTap: onTogether,
           ),
           Padding(
             padding: const EdgeInsets.only(top: MainMenu.linksTop),

@@ -7,7 +7,7 @@ import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 
 const Map<String, Object?> defaultProgressJson = {
-  'version': 4,
+  'version': 5,
   'achievements': <String, Object?>{},
   'stats': {
     'totalCorrect': 0,
@@ -24,6 +24,7 @@ const Map<String, Object?> defaultProgressJson = {
     'hardTimer': 20,
     'misuVisits': 'sometimes',
     'nickname': null,
+    'togetherLink': null,
   },
   'updater': {
     'autoCheckEnabled': true,
@@ -35,7 +36,7 @@ const Map<String, Object?> defaultProgressJson = {
 
 const String defaultSaveJson = '''
 {
-  "version": 4,
+  "version": 5,
   "achievements": {},
   "stats": {
     "totalCorrect": 0,
@@ -51,7 +52,8 @@ const String defaultSaveJson = '''
     "mediumTimer": 30,
     "hardTimer": 20,
     "misuVisits": "sometimes",
-    "nickname": null
+    "nickname": null,
+    "togetherLink": null
   },
   "updater": {
     "autoCheckEnabled": true,
@@ -63,7 +65,7 @@ const String defaultSaveJson = '''
 
 const String populatedSaveJson = '''
 {
-  "version": 4,
+  "version": 5,
   "achievements": {
     "first_meow": {
       "unlocked": true,
@@ -94,7 +96,8 @@ const String populatedSaveJson = '''
     "mediumTimer": 30,
     "hardTimer": 20,
     "misuVisits": "sometimes",
-    "nickname": null
+    "nickname": null,
+    "togetherLink": null
   },
   "updater": {
     "autoCheckEnabled": true,
@@ -265,7 +268,7 @@ void main() {
       expect(defaultProgress.toJson(), defaultProgressJson);
     });
 
-    test('pretty-printed defaultProgress keeps the Tauri layout at v4', () {
+    test('pretty-printed defaultProgress keeps the Tauri layout at v5', () {
       expect(prettyEncoder.convert(defaultProgress.toJson()), defaultSaveJson);
     });
 
@@ -432,8 +435,9 @@ void main() {
         'hardTimer': 10,
         'misuVisits': 'off',
         'nickname': 'Sam',
+        'togetherLink': null,
       });
-      expect(defaultProgress.version, 4);
+      expect(defaultProgress.version, 5);
       expect(defaultProgress.settings.misuVisits, MisuVisits.sometimes);
       expect(defaultProgress.settings.nickname, isNull);
     });
@@ -495,6 +499,7 @@ void main() {
         'hardTimer',
         'misuVisits',
         'nickname',
+        'togetherLink',
       ]);
       expect(objectAt(output, 'updater').keys, [
         'autoCheckEnabled',
@@ -646,7 +651,7 @@ void main() {
     test('progress.rs test_default_progress', () {
       const progress = defaultProgress;
 
-      expect(progress.version, 4);
+      expect(progress.version, 5);
       expect(progress.stats.totalCorrect, 0);
       expect(progress.stats.totalLyricsCorrect, 0);
       expect(progress.stats.nameThaSongCorrect, 0);
@@ -791,6 +796,7 @@ void main() {
         'round-summary',
         'record-shelf',
         'settings',
+        'together',
       ]);
       expect(GameMode.values.map((value) => value.wireName), [
         'random',

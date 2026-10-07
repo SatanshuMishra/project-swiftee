@@ -28,6 +28,7 @@ import 'package:swiftie_quiz/ui/screens/record_shelf_screen.dart';
 import 'package:swiftie_quiz/ui/screens/round_summary_screen.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart';
 import 'package:swiftie_quiz/ui/screens/setup_screen.dart';
+import 'package:swiftie_quiz/ui/screens/together/together_shell.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -256,6 +257,7 @@ class _GameShellState extends ConsumerState<_GameShell> {
         GamePhase.roundSummary => const RoundSummaryScreen(),
         GamePhase.recordShelf => const RecordShelfScreen(),
         GamePhase.settings => const SettingsScreen(),
+        GamePhase.together => const TogetherShell(),
       };
 
   @override

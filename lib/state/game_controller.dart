@@ -6,6 +6,7 @@ import 'package:swiftie_quiz/domain/models/lyrics.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
+import 'package:swiftie_quiz/domain/together/server_link.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/play_history_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
@@ -213,6 +214,10 @@ class GameController extends Notifier<GameState> {
     }
     _updateSettings((settings) => settings.copyWith(nickname: nickname));
   }
+
+  void setTogetherLink(String text) => _updateSettings(
+    (settings) => settings.copyWith(togetherLink: ServerLink.parse(text)?.text),
+  );
 
   void addToast(String achievementId) => state = state.copyWith(
     pendingToasts: [...state.pendingToasts, achievementId],

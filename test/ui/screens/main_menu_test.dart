@@ -367,8 +367,8 @@ void main() {
     await tester.tap(find.text('Settings'));
     expect(phaseOf(container), GamePhase.settings);
 
-    expect(find.byType(ArrowRow), findsNWidgets(2));
-    expect(find.textContaining('Play together'), findsNothing);
+    expect(find.byType(ArrowRow), findsNWidgets(3));
+    expect(find.text('Play together'), findsOneWidget);
     expect(find.textContaining('Host a room'), findsNothing);
   });
 

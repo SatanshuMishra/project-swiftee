@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
+import 'package:swiftie_quiz/data/together/relay_connection.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
+import 'package:swiftie_quiz/domain/together/server_link.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
@@ -44,6 +46,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
   static const String lookAndSoundLabel = 'Look and sound';
   static const String timersLabel = 'Timers';
+  static const String togetherLabel = 'Play together';
   static const String updatesLabel = 'Updates';
   static const String backupsLabel = 'Backups';
   static const String progressLabel = 'Progress';
@@ -58,6 +61,15 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const String mediumTitle = 'Medium';
   static const String hardTitle = 'Hard';
   static const String timerNote = 'Seconds to answer each round.';
+  static const String serverLinkTitle = 'Server link';
+  static const String serverLinkNote =
+      'Paste the link from whoever runs your server.';
+  static const String notTogetherLink = "That isn't a Play together link.";
+  static const String linkRefused = "The server didn't accept that link.";
+  static const String serverNeedsUpdate =
+      'That server needs a newer Project Swiftie.';
+  static const String serverBusy = 'The server is busy. Try again in a minute.';
+  static const String serverUnreachable = "Couldn't reach the server.";
   static const String appName = 'Project Swiftie';
   static const String lastCheckedPrefix = 'Last checked ';
   static const String checkNow = 'Check now';
@@ -103,12 +115,15 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const double volumeWidth = 180;
   static const double timerWidth = 150;
   static const double nicknameWidth = 180;
+  static const double serverLinkWidth = 260;
   static const double sectionsTop = 12;
   static const double sectionsBottom = 48;
 
   static String resetMessage(String name) =>
       'This clears ${name == 'you' ? 'your' : "$name's"} record shelf and '
       'stats. Backups stay available.';
+
+  static String connectedTo(String host) => 'Connected to $host.';
 
   static String aboutLine(Edition edition) => switch (edition) {
     Edition.ana => madeForAna,
@@ -242,6 +257,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _LookAndSound(showNickname: edition == Edition.open),
                   const _SectionHeading(SettingsScreen.timersLabel),
                   const _Timers(),
+                  const _SectionHeading(SettingsScreen.togetherLabel),
+                  const _SettingRow(
+                    label: _RowLabel(
+                      title: SettingsScreen.serverLinkTitle,
+                      note: SettingsScreen.serverLinkNote,
+                    ),
+                    control: _ServerLinkField(),
+                  ),
                   const _SectionHeading(SettingsScreen.updatesLabel),
                   _Updates(
                     checkRequested: _checkRequested,
@@ -515,6 +538,167 @@ class _NicknameFieldState extends ConsumerState<_NicknameField> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+typedef _LinkCheck = ({ServerLink link, bool done, RelayFailure? failure});
+
+class _ServerLinkField extends ConsumerStatefulWidget {
+  const _ServerLinkField();
+
+  @override
+  ConsumerState<_ServerLinkField> createState() => _ServerLinkFieldState();
+}
+
+class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: _stored,
+  );
+  final FocusNode _focus = FocusNode(debugLabel: 'Server link');
+  _LinkCheck? _check;
+  int _checks = 0;
+
+  String get _stored =>
+      ref.read(gameControllerProvider).progress.settings.togetherLink ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_showStoredOnBlur);
+    if (ServerLink.parse(_stored) case final link?) {
+      _check = _startCheck(link);
+    }
+  }
+
+  @override
+  void dispose() {
+    _focus
+      ..removeListener(_showStoredOnBlur)
+      ..dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _showStoredOnBlur() {
+    if (!_focus.hasFocus && _controller.text != _stored) {
+      _controller.text = _stored;
+    }
+  }
+
+  _LinkCheck _startCheck(ServerLink link) {
+    final check = ++_checks;
+    unawaited(_finishCheck(check, link));
+    return (link: link, done: false, failure: null);
+  }
+
+  Future<void> _finishCheck(int check, ServerLink link) async {
+    RelayFailure? failure;
+    try {
+      await ref.read(relayConnectorProvider).check(link);
+    } on RelayRefused catch (refused) {
+      failure = refused.failure;
+    } on Object {
+      failure = RelayFailure.unreachable;
+    }
+    if (mounted && check == _checks) {
+      setState(() => _check = (link: link, done: true, failure: failure));
+    }
+  }
+
+  void _saved(String? next) {
+    if (next != ServerLink.parse(_controller.text)?.text) {
+      _controller.text = next ?? '';
+    }
+    if (ServerLink.parse(next ?? '') case final link?) {
+      setState(() => _check = _startCheck(link));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(
+      gameControllerProvider.select(
+        (state) => state.progress.settings.togetherLink,
+      ),
+      (_, next) => _saved(next),
+    );
+    return SizedBox(
+      width: SettingsScreen.serverLinkWidth,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: _NicknameField.top),
+            child: MergeSemantics(
+              child: Semantics(
+                label: SettingsScreen.serverLinkTitle,
+                child: SerifInput(
+                  controller: _controller,
+                  focusNode: _focus,
+                  fontSize: _NicknameField.fontSize,
+                  lineHeight: _NicknameField.lineHeight,
+                  onChanged: ref
+                      .read(gameControllerProvider.notifier)
+                      .setTogetherLink,
+                ),
+              ),
+            ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) =>
+                _LinkStatus(text: value.text, check: _check),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LinkStatus extends StatelessWidget {
+  const _LinkStatus({required this.text, required this.check});
+
+  static const double top = 6;
+
+  final String text;
+  final _LinkCheck? check;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    final link = ServerLink.parse(text);
+    final check = this.check;
+    final (String, Color)? line = switch (link) {
+      _ when text.trim().isEmpty => null,
+      null => (SettingsScreen.notTogetherLink, tokens.rose),
+      _ when check == null || check.link != link => null,
+      _ when !check.done => (SettingsScreen.checking, tokens.mut),
+      _ => switch (check.failure) {
+        null => (SettingsScreen.connectedTo(link.host), tokens.mut),
+        RelayFailure.badLink => (SettingsScreen.linkRefused, tokens.rose),
+        RelayFailure.needsUpdate => (
+          SettingsScreen.serverNeedsUpdate,
+          tokens.rose,
+        ),
+        RelayFailure.busy => (SettingsScreen.serverBusy, tokens.rose),
+        RelayFailure.unreachable => (
+          SettingsScreen.serverUnreachable,
+          tokens.rose,
+        ),
+      },
+    };
+    if (line == null) {
+      return const SizedBox.shrink();
+    }
+    final (message, color) = line;
+    return Padding(
+      padding: const EdgeInsets.only(top: top),
+      child: _RiseIn(
+        key: ValueKey(message),
+        child: Text(message, style: AppType.small.copyWith(color: color)),
       ),
     );
   }
@@ -851,7 +1035,7 @@ class _Updates extends ConsumerWidget {
           ),
           control: _LinePill(
             label: checking ? SettingsScreen.checking : SettingsScreen.checkNow,
-            leading: checking ? const _Spinner() : null,
+            leading: checking ? const Spinner() : null,
             padding: _LinePill.wide,
             onPressed: onCheck,
           ),
@@ -886,22 +1070,24 @@ class _RiseIn extends StatelessWidget {
   );
 }
 
-class _Spinner extends StatefulWidget {
-  const _Spinner();
+class Spinner extends StatefulWidget {
+  const Spinner({super.key, this.track, this.arc});
 
   static const double size = 12;
   static const double stroke = 2;
   static const Duration period = Duration(milliseconds: 800);
 
+  final Color? track;
+  final Color? arc;
+
   @override
-  State<_Spinner> createState() => _SpinnerState();
+  State<Spinner> createState() => _SpinnerState();
 }
 
-class _SpinnerState extends State<_Spinner>
-    with SingleTickerProviderStateMixin {
+class _SpinnerState extends State<Spinner> with SingleTickerProviderStateMixin {
   late final AnimationController _turns = AnimationController(
     vsync: this,
-    duration: _Spinner.period,
+    duration: Spinner.period,
   );
 
   @override
@@ -926,8 +1112,11 @@ class _SpinnerState extends State<_Spinner>
     return RotationTransition(
       turns: _turns,
       child: CustomPaint(
-        size: const Size.square(_Spinner.size),
-        painter: _SpinnerPainter(track: tokens.line2, arc: tokens.coral),
+        size: const Size.square(Spinner.size),
+        painter: _SpinnerPainter(
+          track: widget.track ?? tokens.line2,
+          arc: widget.arc ?? tokens.coral,
+        ),
       ),
     );
   }
@@ -941,10 +1130,10 @@ class _SpinnerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = (Offset.zero & size).deflate(_Spinner.stroke / 2);
+    final rect = (Offset.zero & size).deflate(Spinner.stroke / 2);
     Paint stroke(Color color) => Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = _Spinner.stroke
+      ..strokeWidth = Spinner.stroke
       ..color = color;
     canvas
       ..drawOval(rect, stroke(track))

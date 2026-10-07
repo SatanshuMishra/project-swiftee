@@ -7,7 +7,7 @@ const int _defaultMediumTimer = 30;
 const int _defaultHardTimer = 20;
 
 const GameProgress defaultProgress = GameProgress(
-  version: 4,
+  version: 5,
   achievements: {},
   stats: GameStats(
     totalCorrect: 0,
@@ -24,6 +24,7 @@ const GameProgress defaultProgress = GameProgress(
     hardTimer: _defaultHardTimer,
     misuVisits: MisuVisits.sometimes,
     nickname: null,
+    togetherLink: null,
   ),
   updater: UpdaterState(
     autoCheckEnabled: true,
@@ -217,6 +218,7 @@ final class GameSettings {
     required this.hardTimer,
     this.misuVisits = MisuVisits.sometimes,
     this.nickname,
+    this.togetherLink,
   });
 
   factory GameSettings.fromJson(Map<String, Object?> json) => GameSettings(
@@ -232,6 +234,7 @@ final class GameSettings {
       null => MisuVisits.sometimes,
     },
     nickname: _readOptionalString(json, 'nickname'),
+    togetherLink: _readOptionalString(json, 'togetherLink'),
   );
 
   final ThemeSetting theme;
@@ -240,6 +243,7 @@ final class GameSettings {
   final int hardTimer;
   final MisuVisits misuVisits;
   final String? nickname;
+  final String? togetherLink;
 
   Map<String, Object?> toJson() => {
     'theme': theme.wireName,
@@ -248,6 +252,7 @@ final class GameSettings {
     'hardTimer': hardTimer,
     'misuVisits': misuVisits.wireName,
     'nickname': nickname,
+    'togetherLink': togetherLink,
   };
 
   GameSettings copyWith({
@@ -257,6 +262,7 @@ final class GameSettings {
     int? hardTimer,
     MisuVisits? misuVisits,
     Object? nickname = _unchanged,
+    Object? togetherLink = _unchanged,
   }) => GameSettings(
     theme: theme ?? this.theme,
     volume: volume ?? this.volume,
@@ -266,6 +272,9 @@ final class GameSettings {
     nickname: identical(nickname, _unchanged)
         ? this.nickname
         : nickname as String?,
+    togetherLink: identical(togetherLink, _unchanged)
+        ? this.togetherLink
+        : togetherLink as String?,
   );
 
   @override
@@ -276,17 +285,26 @@ final class GameSettings {
       other.mediumTimer == mediumTimer &&
       other.hardTimer == hardTimer &&
       other.misuVisits == misuVisits &&
-      other.nickname == nickname;
+      other.nickname == nickname &&
+      other.togetherLink == togetherLink;
 
   @override
-  int get hashCode =>
-      Object.hash(theme, volume, mediumTimer, hardTimer, misuVisits, nickname);
+  int get hashCode => Object.hash(
+    theme,
+    volume,
+    mediumTimer,
+    hardTimer,
+    misuVisits,
+    nickname,
+    togetherLink,
+  );
 
   @override
   String toString() =>
       'GameSettings(theme: $theme, volume: $volume, '
       'mediumTimer: $mediumTimer, hardTimer: $hardTimer, '
-      'misuVisits: $misuVisits, nickname: $nickname)';
+      'misuVisits: $misuVisits, nickname: $nickname, '
+      'togetherLink: $togetherLink)';
 }
 
 final class UpdaterState {

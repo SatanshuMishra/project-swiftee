@@ -56,7 +56,7 @@ typedef _Tile = ({
 typedef _Section = ({String label, List<_Tile> tiles});
 
 class AlbumGrid extends ConsumerStatefulWidget {
-  const AlbumGrid({super.key});
+  const AlbumGrid({super.key, this.onBack, this.onContinue});
 
   static const String loadingLabel = 'Loading albums...';
   static const String erasTitle = 'Pick your eras';
@@ -76,6 +76,7 @@ class AlbumGrid extends ConsumerStatefulWidget {
       'Check your connection and try again.';
   static const String retryLabel = 'Try again';
   static const String backToMenuLabel = 'Back to menu';
+  static const String backLabel = 'Back';
   static const String clearLabel = 'Clear';
   static const String continueLabel = 'Continue →';
   static const String emptySelectionLabel = 'Pick at least one era or release';
@@ -112,6 +113,9 @@ class AlbumGrid extends ConsumerStatefulWidget {
 
   static String _count(int count, String noun) =>
       '$count $noun${count == 1 ? '' : 's'}';
+
+  final VoidCallback? onBack;
+  final VoidCallback? onContinue;
 
   @override
   ConsumerState<AlbumGrid> createState() => _AlbumGridState();
@@ -153,11 +157,16 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
   void _reload() =>
       unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
 
-  void _toMenu() =>
-      ref.read(gameControllerProvider.notifier).setPhase(GamePhase.menu);
+  void _toMenu() => switch (widget.onBack) {
+    final onBack? => onBack(),
+    null => ref.read(gameControllerProvider.notifier).setPhase(GamePhase.menu),
+  };
 
-  void _continue() =>
-      ref.read(gameControllerProvider.notifier).beginSetup(GameMode.album);
+  void _continue() => switch (widget.onContinue) {
+    final onContinue? => onContinue(),
+    null =>
+      ref.read(gameControllerProvider.notifier).beginSetup(GameMode.album),
+  };
 
   void _clearQuery() => setState(_query.clear);
 
@@ -322,6 +331,9 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
                       child: _RecordStoreClosed(
                         onRetry: _reload,
                         onBack: _toMenu,
+                        backLabel: widget.onBack == null
+                            ? AlbumGrid.backToMenuLabel
+                            : AlbumGrid.backLabel,
                       ),
                     ),
                     _ErasView.ready when !onReleases => SliverPadding(
@@ -627,7 +639,11 @@ class _ErasLoading extends StatelessWidget {
 }
 
 class _RecordStoreClosed extends StatelessWidget {
-  const _RecordStoreClosed({required this.onRetry, required this.onBack});
+  const _RecordStoreClosed({
+    required this.onRetry,
+    required this.onBack,
+    required this.backLabel,
+  });
 
   static const double padBottom = 80;
   static const double gap = 12;
@@ -637,6 +653,7 @@ class _RecordStoreClosed extends StatelessWidget {
 
   final VoidCallback onRetry;
   final VoidCallback onBack;
+  final String backLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -675,7 +692,7 @@ class _RecordStoreClosed extends StatelessWidget {
                     size: PillSize.large,
                   ),
                   PillButton(
-                    label: AlbumGrid.backToMenuLabel,
+                    label: backLabel,
                     onPressed: onBack,
                     kind: PillKind.outline,
                     size: PillSize.large,
