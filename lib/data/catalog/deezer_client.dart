@@ -9,21 +9,30 @@ import 'package:swiftie_quiz/data/catalog/rate_limiter.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 
+final class _Transient implements Exception {
+  const _Transient(this.error);
+
+  final NetworkError error;
+}
+
 final class DeezerClient {
   DeezerClient({
     required this._client,
     required this._userAgent,
     DateTime Function() now = DateTime.now,
+    this._delay = Future<void>.delayed,
   }) : _rateLimiter = RateLimiter(now: now);
 
   static const String baseUrl = 'https://api.deezer.com';
   static const String _apiHost = 'api.deezer.com';
   static const int artistId = 12246;
   static const Duration requestTimeout = Duration(seconds: 10);
+  static const Duration retryDelay = Duration(milliseconds: 500);
 
   final http.Client _client;
   final String _userAgent;
   final RateLimiter _rateLimiter;
+  final Future<void> Function(Duration) _delay;
 
   Future<List<RawRelease>> fetchReleaseSummaries() async => List.unmodifiable(
     await _pagesFrom(
@@ -75,30 +84,53 @@ final class DeezerClient {
     return body;
   }
 
-  Future<http.Response> _get(Uri url) async {
+  Future<http.Response> _get(Uri url) {
     final abort = Completer<void>();
+    return _attempts(url, abort.future).timeout(
+      requestTimeout,
+      onTimeout: () {
+        abort.complete();
+        throw const NetworkError('request timed out');
+      },
+    );
+  }
+
+  Future<http.Response> _attempts(Uri url, Future<void> abortTrigger) async {
+    if (await _firstAttempt(url, abortTrigger) case final answered?) {
+      return answered;
+    }
+    await _delay(retryDelay);
+    try {
+      return await _send(url, abortTrigger);
+    } on _Transient catch (transient) {
+      throw transient.error;
+    }
+  }
+
+  Future<http.Response?> _firstAttempt(
+    Uri url,
+    Future<void> abortTrigger,
+  ) async {
+    try {
+      final response = await _send(url, abortTrigger);
+      return response.statusCode >= 500 ? null : response;
+    } on _Transient {
+      return null;
+    }
+  }
+
+  Future<http.Response> _send(Uri url, Future<void> abortTrigger) async {
     final request = http.AbortableRequest(
       'GET',
       url,
-      abortTrigger: abort.future,
+      abortTrigger: abortTrigger,
     )..headers['User-Agent'] = _userAgent;
     try {
-      return await _client
-          .send(request)
-          .then(http.Response.fromStream)
-          .timeout(
-            requestTimeout,
-            onTimeout: () {
-              abort.complete();
-              throw const NetworkError('request timed out');
-            },
-          );
-    } on CatalogError {
-      rethrow;
+      return await _client.send(request).then(http.Response.fromStream);
     } on http.ClientException catch (error) {
-      throw NetworkError(error.message);
+      throw _Transient(NetworkError(error.message));
     } on Exception catch (error) {
-      throw NetworkError('$error');
+      throw _Transient(NetworkError('$error'));
     }
   }
 

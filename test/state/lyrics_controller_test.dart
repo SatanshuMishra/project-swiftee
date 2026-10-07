@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
+import 'package:swiftie_quiz/data/lyrics/lrclib_client.dart';
+import 'package:swiftie_quiz/data/lyrics/lyrics_error.dart';
 import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
@@ -77,6 +79,7 @@ void main() {
     late List<String> catalogRequests;
     late Map<String, http.Response> catalogResponses;
     late bool lrclibDown;
+    late Set<int> failingSongs;
     late Future<void> heldReplies;
     late Set<String> heldCatalogPaths;
     late Set<int> heldSongs;
@@ -94,6 +97,9 @@ void main() {
         return http.Response('', 503);
       }
       final id = _songId(request.url.queryParameters['track_name']);
+      if (failingSongs.contains(id)) {
+        return http.Response('', 502);
+      }
       if (heldSongs.contains(id)) {
         await heldReplies;
       }
@@ -112,6 +118,7 @@ void main() {
       catalogRequests = [];
       catalogResponses = {};
       lrclibDown = false;
+      failingSongs = {};
       heldReplies = Future<void>.value();
       heldCatalogPaths = {};
       heldSongs = {};
@@ -131,6 +138,13 @@ void main() {
           ),
 
           appVersionProvider.overrideWithValue(const AsyncData('0.3.0')),
+          lrclibClientProvider.overrideWith(
+            (ref) async => LrclibClient(
+              client: ref.watch(httpClientProvider),
+              userAgent: 'SwiftieQuiz/0.3.0',
+              delay: (_) async {},
+            ),
+          ),
           clockProvider.overrideWithValue(() => _now),
           randomProvider.overrideWithValue(Random(3)),
           httpClientProvider.overrideWithValue(
@@ -189,6 +203,125 @@ void main() {
 
       expect(reported, [(fetched: 0, total: 6), (fetched: 6, total: 6), null]);
       expect(callbacks, [(6, 6)]);
+    });
+
+    test('keeps looking past the first eight tracks until five songs have '
+        'lyrics', () async {
+      songsWithLyrics = {2, 5, 10, 12, 15, 20};
+      var reported = <LyricsFetchProgress?>[];
+      container.listen(
+        gameControllerProvider.select((state) => state.lyricsFetchProgress),
+        (_, next) => reported = [...reported, next],
+      );
+
+      final pool = await lyrics().preFetchInitial(
+        _tracks([for (var id = 1; id <= 30; id++) id]),
+      );
+
+      expect(
+        lyricsLookups,
+        unorderedEquals([for (var id = 1; id <= 16; id++) id]),
+      );
+      expect(
+        pool,
+        unorderedEquals([
+          for (final id in [2, 5, 10, 12, 15]) _entry(id),
+        ]),
+      );
+      expect(read().lyricsPool, pool);
+      expect(reported, [
+        (fetched: 0, total: 8),
+        (fetched: 8, total: 16),
+        (fetched: 16, total: 16),
+        null,
+      ]);
+    });
+
+    test('stops looking after twenty-four tracks', () async {
+      songsWithLyrics = {1, 30};
+
+      final pool = await lyrics().preFetchInitial(
+        _tracks([for (var id = 1; id <= 30; id++) id]),
+      );
+
+      expect(lyricsLookups, hasLength(24));
+      expect(pool, [_entry(1)]);
+      expect(read().lyricsPool, isEmpty);
+    });
+
+    test('a lyrics service it cannot reach fails as unavailable, not as '
+        'missing lyrics', () async {
+      lrclibDown = true;
+
+      await expectLater(
+        lyrics().preFetchInitial(
+          _tracks([for (var id = 1; id <= 30; id++) id]),
+        ),
+        throwsA(isA<LyricsUnavailable>()),
+      );
+      expect(read().lyricsPool, isEmpty);
+      expect(read().lyricsFetchProgress, isNull);
+    });
+
+    test('too few songs because some could not be checked fails as '
+        'unavailable', () async {
+      songsWithLyrics = {1, 2, 3};
+      failingSongs = {4, 5, 6, 7, 8};
+
+      await expectLater(
+        lyrics().preFetchInitial(_tracks([1, 2, 3, 4, 5, 6, 7, 8])),
+        throwsA(isA<LyricsUnavailable>()),
+      );
+      expect(read().lyricsPool, isEmpty);
+    });
+
+    test('too few songs to reach five even with the unchecked ones is not '
+        'enough songs', () async {
+      songsWithLyrics = {1, 2};
+      failingSongs = {3};
+
+      final pool = await lyrics().preFetchInitial(_tracks([1, 2, 3]));
+
+      expect(pool, [_entry(1), _entry(2)]);
+      expect(read().lyricsPool, isEmpty);
+    });
+
+    test(
+      'a song it could not check is tried again when the pool grows',
+      () async {
+        songsWithLyrics = {1, 2, 3, 4, 5, 6, 7, 8};
+        failingSongs = {2};
+        game().setLyricsAvailableTracks(_tracks([1, 2, 3, 4, 5, 6, 7, 8]));
+
+        await lyrics().preFetchInitial(_tracks([1, 2, 3, 4, 5, 6, 7, 8]));
+        failingSongs = {};
+        lyricsLookups = [];
+        await lyrics().extendPool();
+
+        expect(lyricsLookups, [2]);
+        expect(read().lyricsPool.map((entry) => entry.track.id), contains(2));
+      },
+    );
+
+    test('leaving the loader stops it looking further', () async {
+      songsWithLyrics = {1};
+      final release = Completer<void>();
+      heldReplies = release.future;
+      heldSongs = {1};
+
+      final loading = lyrics().preFetchInitial(
+        _tracks([for (var id = 1; id <= 30; id++) id]),
+      );
+      await Future<void>.delayed(Duration.zero);
+      lyrics().cancelInitial();
+      release.complete();
+      await loading;
+
+      expect(
+        lyricsLookups,
+        unorderedEquals([for (var id = 1; id <= 8; id++) id]),
+      );
+      expect(read().lyricsPool, isEmpty);
     });
 
     test('keeps a pool of fewer than five songs out of state', () async {

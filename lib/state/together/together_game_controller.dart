@@ -661,9 +661,15 @@ class TogetherGameController extends Notifier<TogetherGameState> {
           ..setQuizType(QuizType.lyrics)
           ..setLyricsMode(LyricsMode.lyricsOrLie);
         final lyrics = ref.read(lyricsControllerProvider);
-        final pool = await lyrics.preFetchInitial(
-          await lyrics.loadSourceTracks(),
-        );
+        final pool = await lyrics
+            .preFetchInitial(await lyrics.loadSourceTracks())
+            .timeout(
+              lyricsLoadLimit,
+              onTimeout: () {
+                lyrics.cancelInitial();
+                return const [];
+              },
+            );
         return pool.length >= minLyricsPoolSize;
       }
       final tracks = await ref

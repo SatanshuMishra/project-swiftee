@@ -366,24 +366,58 @@ void main() {
         },
       );
 
-      test('a server error on /get is unavailable without searching', () async {
+      test('a server error on /get is retried once, then unavailable without '
+          'searching', () async {
+        final delays = <Duration>[];
         final server = _lrclibServer(
           get: (_) => http.Response('', 503),
           search: (_) => _json([_record()]),
         );
 
         await expectLater(
-          _lrclib(server.client).fetchLyrics(_track()),
+          _lrclib(server.client, delays: delays).fetchLyrics(_track()),
           _throwsLyricsError<LyricsUnavailable>(_unavailableMessage),
         );
         expect(server.requests.map((request) => request.url.path), [
           '/api/get',
+          '/api/get',
         ]);
+        expect(delays, [const Duration(seconds: 1)]);
       });
+
+      test(
+        'a server error on search is retried once, then unavailable',
+        () async {
+          final server = _lrclibServer(search: (_) => http.Response('', 500));
+
+          await expectLater(
+            _lrclib(server.client).fetchLyrics(_track()),
+            _throwsLyricsError<LyricsUnavailable>(_unavailableMessage),
+          );
+          expect(server.requests.map((request) => request.url.path), [
+            '/api/get',
+            '/api/search',
+            '/api/search',
+          ]);
+        },
+      );
+
+      test(
+        'a server error that clears on the retry returns the lyrics',
+        () async {
+          var attempts = 0;
+          final server = _lrclibServer(
+            get: (_) =>
+                ++attempts == 1 ? http.Response('', 502) : _json(_record()),
+          );
+
+          expect(await _lrclib(server.client).fetchLyrics(_track()), _lyrics());
+          expect(server.requests, hasLength(2));
+        },
+      );
 
       test('a failed search is not found', () async {
         for (final response in [
-          http.Response('', 500),
           http.Response('', 404),
           http.Response('[{', 200),
           _json(<Object?>[]),
@@ -401,16 +435,37 @@ void main() {
         }
       });
 
-      test('a transport failure is unavailable', () async {
-        final client = MockClient(
-          (request) async => throw http.ClientException('offline', request.url),
-        );
+      test('a transport failure is retried once, then unavailable', () async {
+        var attempts = 0;
+        final delays = <Duration>[];
+        final client = MockClient((request) async {
+          attempts++;
+          throw http.ClientException('offline', request.url);
+        });
 
         await expectLater(
-          _lrclib(client).fetchLyrics(_track()),
+          _lrclib(client, delays: delays).fetchLyrics(_track()),
           _throwsLyricsError<LyricsUnavailable>(_unavailableMessage),
         );
+        expect(attempts, 2);
+        expect(delays, [const Duration(seconds: 1)]);
       });
+
+      test(
+        'a transport failure that clears on the retry returns the lyrics',
+        () async {
+          var attempts = 0;
+          final client = MockClient((request) async {
+            if (++attempts == 1) {
+              throw const HandshakeException('CERTIFICATE_VERIFY_FAILED');
+            }
+            return _json(_record());
+          });
+
+          expect(await _lrclib(client).fetchLyrics(_track()), _lyrics());
+          expect(attempts, 2);
+        },
+      );
 
       test('gives up after 10 s and aborts the request', () {
         fakeAsync((async) {
@@ -496,7 +551,7 @@ void main() {
         available = true;
 
         expect(await lrclib.fetchLyrics(_track()), _lyrics());
-        expect(server.requests, hasLength(2));
+        expect(server.requests, hasLength(3));
       });
     });
 
@@ -534,7 +589,8 @@ void main() {
         );
       });
 
-      test('maps each track id to its lyrics or null', () async {
+      test('maps each checked track id to its lyrics or null and leaves out '
+          'tracks it could not check', () async {
         final server = _lrclibServer(
           get: (request) => switch (request.url.queryParameters['track_name']) {
             'Found' => _json(_record(trackName: 'Found')),
@@ -549,7 +605,7 @@ void main() {
           _track(id: 3, title: 'Broken'),
         ]);
 
-        expect(results, {1: _lyrics(sourceTrack: 'Found'), 2: null, 3: null});
+        expect(results, {1: _lyrics(sourceTrack: 'Found'), 2: null});
         expect(() => results[4] = null, throwsUnsupportedError);
       });
 
@@ -575,12 +631,12 @@ void main() {
           final firstPass = server.requests.length;
           final again = await lrclib.fetchLyricsBatch(tracks);
 
-          expect(again, {1: _lyrics(sourceTrack: 'Found'), 2: null, 3: null});
+          expect(again, {1: _lyrics(sourceTrack: 'Found'), 2: null});
           expect(
             server.requests
                 .skip(firstPass)
                 .map((request) => request.url.queryParameters['track_name']),
-            ['Broken'],
+            ['Broken', 'Broken'],
           );
           await expectLater(
             lrclib.fetchLyrics(tracks[1]),
@@ -762,14 +818,15 @@ void main() {
       expect(lyrics.lrclibId, 6);
     });
 
-    test('a batch reports a second 429 as null and retries it later', () async {
+    test('a batch leaves out a track still limited after the retry and '
+        'checks it again later', () async {
       var limited = true;
       final server = _lrclibServer(
         get: (_) => limited ? _tooManyRequests() : _json(_record()),
       );
       final lrclib = _lrclib(server.client);
 
-      expect(await lrclib.fetchLyricsBatch([_track()]), {1: null});
+      expect(await lrclib.fetchLyricsBatch([_track()]), isEmpty);
       limited = false;
 
       expect(await lrclib.fetchLyricsBatch([_track()]), {1: _lyrics()});

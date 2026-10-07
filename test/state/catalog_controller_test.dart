@@ -281,6 +281,7 @@ void main() {
       expect(requested, [
         '/artist/12246/albums',
         '/artist/12246/albums',
+        '/artist/12246/albums',
         '/album/2001/tracks',
         '/artist/12246/albums',
         '/album/2001/tracks',
