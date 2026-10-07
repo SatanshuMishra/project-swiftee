@@ -136,43 +136,62 @@ LangString deleteAppData ${LANG_ENGLISH} "Delete the application data"
   ${EndIf}
 !macroend
 
-Function MoveAsideIfLocked
+Function MoveAside
   ClearErrors
   ${WordFind} "$R7" "${REPLACEDMARK}" "E+1" $0
   ${If} ${Errors}
     ClearErrors
-    Delete "$R9"
+    Rename "$R9" "$R9${REPLACEDMARK}$ReplacedStamp"
     ${If} ${Errors}
-      ClearErrors
-      Rename "$R9" "$R9${REPLACEDMARK}$ReplacedStamp"
-      ${If} ${Errors}
-        StrCpy $LockedFile "$R9"
-        Push "StopLocate"
-        Return
-      ${EndIf}
+      StrCpy $LockedFile "$R9"
+      Push "StopLocate"
+      Return
     ${EndIf}
-  ${Else}
-    Delete "$R9"
   ${EndIf}
   ClearErrors
   Push ""
 FunctionEnd
 
+Function PutBack
+  StrLen $0 "${REPLACEDMARK}$ReplacedStamp"
+  IntOp $0 0 - $0
+  StrCpy $1 "$R9" $0
+  Rename "$R9" "$1"
+  ClearErrors
+  Push ""
+FunctionEnd
+
+Function DeleteReplaced
+  Delete "$R9"
+  ClearErrors
+  Push ""
+FunctionEnd
+
 Function ClearAppFiles
+  ${IfNot} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
+    Return
+  ${EndIf}
   System::Call 'kernel32::GetTickCount() i .r0'
   StrCpy $ReplacedStamp $0
   StrCpy $LockedFile ""
-  ${Locate} "$INSTDIR" "/L=F /M=*${REPLACEDMARK}* /G=0" MoveAsideIfLocked
-  ${Locate} "$INSTDIR" "/L=F /M=${MAINBINARYNAME}.exe /G=0" MoveAsideIfLocked
+  ${Locate} "$INSTDIR" "/L=F /M=${MAINBINARYNAME}.exe /G=0" MoveAside
   ${If} $LockedFile == ""
-    ${Locate} "$INSTDIR" "/L=F /M=*.dll /G=0" MoveAsideIfLocked
+    ${Locate} "$INSTDIR" "/L=F /M=*.dll /G=0" MoveAside
   ${EndIf}
   ${If} $LockedFile == ""
   ${AndIf} ${FileExists} "$INSTDIR\data\*.*"
-    ${Locate} "$INSTDIR\data" "/L=F /M=*.* /G=1" MoveAsideIfLocked
+    ${Locate} "$INSTDIR\data" "/L=F /M=*.* /G=1" MoveAside
   ${EndIf}
   ${If} $LockedFile != ""
+    ${Locate} "$INSTDIR" "/L=F /M=*${REPLACEDMARK}$ReplacedStamp /G=0" PutBack
+    ${If} ${FileExists} "$INSTDIR\data\*.*"
+      ${Locate} "$INSTDIR\data" "/L=F /M=*${REPLACEDMARK}$ReplacedStamp /G=1" PutBack
+    ${EndIf}
     Abort "$(failedToKillApp)"
+  ${EndIf}
+  ${Locate} "$INSTDIR" "/L=F /M=*${REPLACEDMARK}* /G=0" DeleteReplaced
+  ${If} ${FileExists} "$INSTDIR\data\*.*"
+    ${Locate} "$INSTDIR\data" "/L=F /M=*${REPLACEDMARK}* /G=1" DeleteReplaced
   ${EndIf}
 FunctionEnd
 

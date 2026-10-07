@@ -433,11 +433,10 @@ void main() {
       );
     });
 
-    test('before copying, deletes the app\'s own files and renames any a '
-        'stuck app still holds', () {
+    test('before copying over an existing install, moves every app file '
+        'aside, or puts them all back and stops if one will not move', () {
       final install = sectionBody(lines, 'Install');
       final clear = functionBody(lines, 'ClearAppFiles');
-      final move = functionBody(lines, 'MoveAsideIfLocked');
       final locates = [
         for (final line in clear)
           if (line.startsWith(r'${Locate}')) line,
@@ -451,27 +450,45 @@ void main() {
         install.indexOf(r'File /r "${SOURCE_DIR}\*.*"'),
         greaterThan(install.indexOf('Call ClearAppFiles')),
       );
-      expect(locates, [
-        r'${Locate} "$INSTDIR" "/L=F /M=*.replaced-* /G=0" MoveAsideIfLocked',
-        r'${Locate} "$INSTDIR" "/L=F /M=swiftie-quiz.exe /G=0" '
-            'MoveAsideIfLocked',
-        r'${Locate} "$INSTDIR" "/L=F /M=*.dll /G=0" MoveAsideIfLocked',
-        r'${Locate} "$INSTDIR\data" "/L=F /M=*.* /G=1" MoveAsideIfLocked',
-      ]);
-      expect(clear.sublist(clear.length - 3), [
-        r'${If} $LockedFile != ""',
-        r'Abort "$(failedToKillApp)"',
+      expect(clear.sublist(0, 3), [
+        r'${IfNot} ${FileExists} "$INSTDIR\swiftie-quiz.exe"',
+        'Return',
         r'${EndIf}',
       ]);
+      expect(locates, [
+        r'${Locate} "$INSTDIR" "/L=F /M=swiftie-quiz.exe /G=0" MoveAside',
+        r'${Locate} "$INSTDIR" "/L=F /M=*.dll /G=0" MoveAside',
+        r'${Locate} "$INSTDIR\data" "/L=F /M=*.* /G=1" MoveAside',
+        r'${Locate} "$INSTDIR" "/L=F /M=*.replaced-$ReplacedStamp /G=0" '
+            'PutBack',
+        r'${Locate} "$INSTDIR\data" "/L=F /M=*.replaced-$ReplacedStamp /G=1" '
+            'PutBack',
+        r'${Locate} "$INSTDIR" "/L=F /M=*.replaced-* /G=0" DeleteReplaced',
+        r'${Locate} "$INSTDIR\data" "/L=F /M=*.replaced-* /G=1" '
+            'DeleteReplaced',
+      ]);
+      final putBack = indexContaining(clear, 'PutBack');
+      final stop = clear.indexOf(r'Abort "$(failedToKillApp)"');
+      final delete = indexContaining(clear, 'DeleteReplaced');
+      expect(clear.sublist(0, putBack).last, r'${If} $LockedFile != ""');
+      expect(stop, greaterThan(putBack));
+      expect(delete, greaterThan(stop));
+    });
 
-      final delete = move.indexOf(r'Delete "$R9"');
+    test('moves a file aside under a marked name, and puts it back under its '
+        'own', () {
+      final move = functionBody(lines, 'MoveAside');
+      final putBack = functionBody(lines, 'PutBack');
       final rename = move.indexOf(
         r'Rename "$R9" "$R9.replaced-$ReplacedStamp"',
       );
-      expect(move.first, 'ClearErrors');
-      expect(move[1], r'${WordFind} "$R7" ".replaced-" "E+1" $0');
-      expect(delete, isNonNegative);
-      expect(rename, greaterThan(delete));
+
+      expect(move.sublist(0, 3), [
+        'ClearErrors',
+        r'${WordFind} "$R7" ".replaced-" "E+1" $0',
+        r'${If} ${Errors}',
+      ]);
+      expect(rename, isNonNegative);
       expect(move.sublist(rename + 1, rename + 5), [
         r'${If} ${Errors}',
         r'StrCpy $LockedFile "$R9"',
@@ -479,6 +496,19 @@ void main() {
         'Return',
       ]);
       expect(move.sublist(move.length - 2), ['ClearErrors', 'Push ""']);
+      expect(putBack, [
+        r'StrLen $0 ".replaced-$ReplacedStamp"',
+        r'IntOp $0 0 - $0',
+        r'StrCpy $1 "$R9" $0',
+        r'Rename "$R9" "$1"',
+        'ClearErrors',
+        'Push ""',
+      ]);
+      expect(functionBody(lines, 'DeleteReplaced'), [
+        r'Delete "$R9"',
+        'ClearErrors',
+        'Push ""',
+      ]);
     });
 
     test('closes the app, then removes Tauri-era files, before copying the '
