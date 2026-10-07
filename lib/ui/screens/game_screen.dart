@@ -350,6 +350,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
 
   Future<void> _loadTracks() async {
     final request = ++_loadRequest;
+    _loaderShownAt = _now();
     try {
       final tracks = await ref
           .read(catalogControllerProvider.notifier)
@@ -406,8 +407,13 @@ class _GameScreenState extends ConsumerState<GameScreen>
     );
     _typed.clear();
     _clockStarted = false;
-    _loaderShownAt = _now();
+    if (_roundShown) {
+      _loaderShownAt = _now();
+    }
     _loaderTimeout = Timer(GameScreen.roundLoaderTimeout, _revealRound);
+    if (draw.track.album.coverMedium case final cover?) {
+      unawaited(precacheImage(NetworkImage(cover), context));
+    }
     setState(() {
       _result = null;
       _stage = SoundStage.loading;
@@ -477,7 +483,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _stage = SoundStage.playing;
       _roundShown = true;
     });
-    _startClock();
+    if (!ref.read(audioControllerProvider).loading) {
+      _startClock();
+    }
     _focusInput();
   }
 
