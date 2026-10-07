@@ -42,13 +42,6 @@ class RecordShelfScreen extends ConsumerStatefulWidget {
   static const String hoverNote = 'hover a record to hear it';
   static const String separator = ' · ';
 
-  static int columnsFor(AppLayout layout, TextScaler scaler) =>
-      (layout.shelfColumns *
-              ShelfRecord.nameSize /
-              scaler.scale(ShelfRecord.nameSize))
-          .round()
-          .clamp(1, layout.shelfColumns);
-
   static const List<String> months = [
     'Jan',
     'Feb',
@@ -251,9 +244,10 @@ class _RecordShelfScreenState extends ConsumerState<RecordShelfScreen> {
             ),
             const SizedBox(height: RecordShelfScreen.sectionGap),
             _ShelfGrid(
-              columns: RecordShelfScreen.columnsFor(
-                layout,
+              columns: AppLayout.columnsForText(
+                layout.shelfColumns,
                 MediaQuery.textScalerOf(context),
+                fontSize: ShelfRecord.nameSize,
               ),
               children: [
                 for (final definition in achievementDefs)

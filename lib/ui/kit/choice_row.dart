@@ -21,6 +21,14 @@ class ChoiceRow extends StatelessWidget {
   static const double radioTop = 3;
   static const double radioBorder = 1.5;
   static const double dotSize = 8;
+  static const double titleSize = 26;
+  static const double minTextWidth = 110;
+
+  static double minWidthFor(TextScaler scaler) =>
+      padding.horizontal +
+      radioSize +
+      gap +
+      minTextWidth * scaler.scale(titleSize) / titleSize;
 
   final String title;
   final String description;
@@ -88,8 +96,8 @@ class ChoiceRow extends StatelessWidget {
                   Text(
                     title,
                     style: AppType.display(
-                      26,
-                      height: 30 / 26,
+                      titleSize,
+                      height: 30 / titleSize,
                       color: tokens.fg,
                     ),
                   ),

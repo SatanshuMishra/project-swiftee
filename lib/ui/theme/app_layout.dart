@@ -85,6 +85,12 @@ final class AppLayout {
 
   bool get isNarrow => widthClass == WidthClass.narrow;
 
+  static int columnsForText(
+    int columns,
+    TextScaler scaler, {
+    required double fontSize,
+  }) => (columns * fontSize / scaler.scale(fontSize)).round().clamp(1, columns);
+
   @override
   bool operator ==(Object other) =>
       other is AppLayout &&

@@ -292,9 +292,12 @@ class _CodeTiles extends StatelessWidget {
                   borderRadius: radius,
                   border: Border.all(color: tokens.line2),
                 ),
-                child: Text(
-                  letter,
-                  style: AppType.display(48, height: 1, color: tokens.fg),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    letter,
+                    style: AppType.display(48, height: 1, color: tokens.fg),
+                  ),
                 ),
               ),
           ],

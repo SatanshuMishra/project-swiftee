@@ -400,8 +400,18 @@ Future<void> openSoundGame(
   WidgetTester tester, {
   required Difficulty difficulty,
   bool answer = false,
+  String? title,
 }) async {
-  final harness = _Harness(tester);
+  final harness = _Harness(
+    tester,
+    pool: [
+      if (title != null)
+        _songs.first.copyWith(title: title, titleShort: title)
+      else
+        _songs.first,
+      ..._songs.skip(1),
+    ],
+  );
   await harness.open(difficulty: difficulty);
   await harness.settle();
   if (!answer) {

@@ -154,6 +154,31 @@ List<String?> fanCovers(WidgetTester tester) => [
 double radians(double degrees) => degrees * math.pi / 180;
 
 void main() {
+  for (final window in const [
+    Size(686, 571),
+    Size(900, 700),
+    Size(1024, 768),
+    Size(1199, 800),
+    Size(1200, 800),
+  ]) {
+    testWidgets('the difficulties share one row at normal size in $window', (
+      tester,
+    ) async {
+      await pumpSetup(tester, size: window);
+
+      final tops = {
+        for (final label in const ['Easy', 'Medium', 'Hard'])
+          tester.getTopLeft(find.text(label)).dy,
+      };
+      expect(tops, hasLength(1));
+      expect(
+        tester.getTopLeft(find.text('Lyrics')).dy ==
+            tester.getTopLeft(find.text('Sound')).dy,
+        window.width >= 900,
+      );
+    });
+  }
+
   group('set up', () {
     testWidgets(
       'set up shows the feature list for the chosen mode and difficulty',

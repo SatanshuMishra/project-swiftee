@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
@@ -16,6 +17,11 @@ class OptionTile extends StatelessWidget {
   static const padding = EdgeInsets.symmetric(vertical: 14, horizontal: 16);
   static const radius = BorderRadius.all(Radius.circular(14));
   static const double textGap = 2;
+  static const double titleSize = 24;
+  static const double minTextWidth = 88;
+
+  static double minWidthFor(TextScaler scaler) =>
+      padding.horizontal + minTextWidth * scaler.scale(titleSize) / titleSize;
 
   final String title;
   final String description;
@@ -44,9 +50,13 @@ class OptionTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            WholeWordText(
               title,
-              style: AppType.display(24, height: 28 / 24, color: tokens.fg),
+              style: AppType.display(
+                titleSize,
+                height: 28 / titleSize,
+                color: tokens.fg,
+              ),
             ),
             const SizedBox(height: textGap),
             Text(description, style: AppType.small.copyWith(color: tokens.mut)),

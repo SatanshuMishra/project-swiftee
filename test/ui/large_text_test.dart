@@ -12,10 +12,13 @@ import 'package:swiftie_quiz/services/window/window_controls.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/ui/chrome/title_bar.dart';
+import 'package:swiftie_quiz/ui/screens/album_grid.dart';
+import 'package:swiftie_quiz/ui/screens/game_screen.dart' show songTitle;
 import 'package:swiftie_quiz/ui/misu/misu_host.dart';
 import 'package:swiftie_quiz/ui/overlays/achievement_toasts.dart';
 import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
+import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
@@ -50,6 +53,26 @@ const Player _christopher = Player(
   name: 'Christopher',
   avatar: 'seedChristopher',
 );
+
+String get _widestWordTitle =>
+    maxBy(albums.bundled.allTracks.map(songTitle), (title) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: title,
+          style: const TextStyle(
+            fontFamily: AppType.serifFamily,
+            fontStyle: FontStyle.italic,
+            fontSize: _revealSize,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final width = painter.minIntrinsicWidth;
+      painter.dispose();
+      return width;
+    })!;
+
+const double _revealSize = 56;
 
 PlayerScore _score(Player player, int score) => PlayerScore(
   id: player.id,
@@ -114,6 +137,7 @@ void main() {
         Future<void> Function()? then,
       }) => layoutFaults(tester, () async {
         await tester.pumpWidget(const SizedBox.shrink());
+        useLargeText(tester, window);
         await open();
         useLargeText(tester, window);
         await _settle(tester);
@@ -125,6 +149,7 @@ void main() {
         for (final (edition, name) in const [
           (Edition.ana, null),
           (Edition.open, 'Christopher'),
+          (Edition.open, 'Bartholomewsworthing'),
         ]) {
           for (final now in [
             DateTime(2026, 10, 6, 8),
@@ -230,6 +255,32 @@ void main() {
           }
         }
         expect(faults, isEmpty);
+      });
+
+      testWidgets('a reveal of the widest-worded song fits', (tester) async {
+        expect(
+          await faultsOf(
+            tester,
+            () => sound.openSoundGame(
+              tester,
+              difficulty: Difficulty.easy,
+              answer: true,
+              title: _widestWordTitle,
+            ),
+          ),
+          isEmpty,
+        );
+      });
+
+      testWidgets('the releases tab fits', (tester) async {
+        expect(
+          await faultsOf(
+            tester,
+            () => albums.pumpAlbumGrid(tester),
+            then: () => _choose(tester, AlbumGrid.releasesTab),
+          ),
+          isEmpty,
+        );
       });
 
       testWidgets('every lyrics game round and reveal fits', (tester) async {
