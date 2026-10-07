@@ -5,42 +5,80 @@ import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 typedef VersionMix = ({bool rerecorded, bool liveTakes, bool otherTakes});
 
-Set<String> _rerecordedSongs(Iterable<Track> tracks) {
-  final taylors = <String>{};
-  final originals = <String>{};
-  for (final track in tracks) {
-    (isTaylorsVersion(track.title) ? taylors : originals).add(songKey(track));
-  }
-  return taylors.intersection(originals);
-}
+typedef _Labelled = ({Track track, Take take, bool taylors, bool rerecorded});
 
-VersionMix versionMixOf(Iterable<Track> tracks) => (
-  rerecorded: _rerecordedSongs(tracks).isNotEmpty,
-  liveTakes: tracks.any((track) => takeOf(track.title) == Take.live),
-  otherTakes: tracks.any((track) => takeOf(track.title) == Take.alternate),
-);
+final class VersionIndex {
+  VersionIndex(List<Track> tracks) : _entries = _label(tracks);
 
-List<Track> keepVersions(List<Track> tracks, VersionChoice choice) {
-  final rerecorded = _rerecordedSongs(tracks);
-  return List.unmodifiable([
-    for (final track in tracks)
-      if (_keepsTake(choice, takeOf(track.title)) &&
-          (!rerecorded.contains(songKey(track)) ||
-              (isTaylorsVersion(track.title)
-                  ? choice.taylorsVersions
-                  : choice.originals)))
-        track,
+  final List<_Labelled> _entries;
+
+  late final VersionMix mix = (
+    rerecorded: _entries.any((entry) => entry.rerecorded),
+    liveTakes: _entries.any((entry) => entry.take == Take.live),
+    otherTakes: _entries.any((entry) => entry.take == Take.alternate),
+  );
+
+  bool offers(VersionOption option) => switch (option) {
+    VersionOption.taylorsVersions || VersionOption.originals => mix.rerecorded,
+    VersionOption.liveTakes => mix.liveTakes,
+    VersionOption.otherTakes => mix.otherTakes,
+  };
+
+  List<Track> keep(VersionChoice choice) => List.unmodifiable([
+    for (final entry in _entries)
+      if (_keeps(choice, entry)) entry.track,
   ]);
+
+  int count(VersionChoice choice) =>
+      _entries.where((entry) => _keeps(choice, entry)).length;
+
+  bool canToggle(VersionChoice choice, VersionOption option) {
+    final next = choice.toggled(option);
+    return (next.taylorsVersions || next.originals) &&
+        _entries.any((entry) => _keeps(next, entry));
+  }
+
+  static bool _keeps(VersionChoice choice, _Labelled entry) =>
+      switch (entry.take) {
+        Take.studio => true,
+        Take.live => choice.liveTakes,
+        Take.alternate => choice.otherTakes,
+      } &&
+      (!entry.rerecorded ||
+          (entry.taylors ? choice.taylorsVersions : choice.originals));
+
+  static List<_Labelled> _label(List<Track> tracks) {
+    final taylors = <String>{};
+    final originals = <String>{};
+    for (final track in tracks) {
+      if (!isFromTheVault(track.title)) {
+        (isTaylorsVersion(track.title) ? taylors : originals).add(
+          songKey(track),
+        );
+      }
+    }
+    final both = taylors.intersection(originals);
+    return List.unmodifiable([
+      for (final track in tracks)
+        (
+          track: track,
+          take: takeOf(track.title),
+          taylors: isTaylorsVersion(track.title),
+          rerecorded:
+              !isFromTheVault(track.title) && both.contains(songKey(track)),
+        ),
+    ]);
+  }
 }
 
-bool _keepsTake(VersionChoice choice, Take take) => switch (take) {
-  Take.studio => true,
-  Take.live => choice.liveTakes,
-  Take.alternate => choice.otherTakes,
-};
+List<Track> keepVersions(List<Track> tracks, VersionChoice choice) =>
+    VersionIndex(tracks).keep(choice);
 
-bool canToggle(List<Track> tracks, VersionChoice choice, VersionOption option) {
-  final next = choice.toggled(option);
-  return (next.taylorsVersions || next.originals) &&
-      keepVersions(tracks, next).isNotEmpty;
-}
+VersionMix versionMixOf(Iterable<Track> tracks) =>
+    VersionIndex(tracks.toList(growable: false)).mix;
+
+bool canToggle(
+  List<Track> tracks,
+  VersionChoice choice,
+  VersionOption option,
+) => VersionIndex(tracks).canToggle(choice, option);

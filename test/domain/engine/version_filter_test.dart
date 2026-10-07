@@ -68,6 +68,44 @@ void main() {
       );
     });
 
+    test('every vault song plays whichever recordings are selected, even '
+        'one that shares a title with a re-recorded song', () {
+      final red = catalogue.tracksFor(['red']);
+      final vault = [
+        for (final track in red)
+          if (isFromTheVault(track.title)) track.title,
+      ];
+      expect(
+        vault,
+        contains(
+          "All Too Well (10 Minute Version) (Taylor's Version) (From The Vault)",
+        ),
+      );
+      for (final choice in [
+        all.copyWith(taylorsVersions: false),
+        all.copyWith(originals: false),
+      ]) {
+        expect(titles(keepVersions(red, choice)), containsAll(vault));
+      }
+    });
+
+    test('a pick offers only the cards that change it', () {
+      final rep = VersionIndex(catalogue.tracksFor(['rep']));
+      final folklore = VersionIndex(catalogue.tracksFor(['folklore']));
+
+      expect(VersionOption.values.where(rep.offers), isEmpty);
+      expect(VersionOption.values.where(folklore.offers), [
+        VersionOption.liveTakes,
+        VersionOption.otherTakes,
+      ]);
+      expect(
+        VersionOption.values.where(
+          VersionIndex(catalogue.tracksFor(['red'])).offers,
+        ),
+        VersionOption.values,
+      );
+    });
+
     test('turning off live or other takes drops exactly those takes', () {
       final everything = catalogue.allTracks;
 

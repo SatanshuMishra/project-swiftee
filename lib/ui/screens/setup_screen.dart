@@ -9,17 +9,16 @@ import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
-import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
 import 'package:swiftie_quiz/ui/kit/option_tile.dart';
-import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
+import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
@@ -34,7 +33,7 @@ typedef VersionCardChoice = ({VersionOption value, String title});
 
 typedef _Cover = ({String? url, Color placeholder});
 
-typedef _Source = ({int songs, List<Track> tracks, VersionMix mix});
+typedef _Source = ({int songs, VersionIndex versions});
 
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
@@ -246,21 +245,20 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final tracks = tracksForGame(catalogue, game, ref.read(clockProvider)());
     final source = (
       songs: {for (final track in tracks) songKey(track)}.length,
-      tracks: tracks,
-      mix: versionMixOf(tracks),
+      versions: VersionIndex(tracks),
     );
     _source = (game: game, catalogue: catalogue, source: source);
     return source;
   }
 
   VersionChoice _versionsFor(_Source source, {required bool known}) =>
-      !known || keepVersions(source.tracks, _versions).isNotEmpty
+      !known || source.versions.count(_versions) > 0
       ? _versions
       : VersionChoice.all;
 
   void _toggleVersion(_Source source, VersionOption option) {
     final versions = _versionsFor(source, known: true);
-    if (canToggle(source.tracks, versions, option)) {
+    if (source.versions.canToggle(versions, option)) {
       setState(() => _versions = versions.toggled(option));
     }
   }
@@ -273,7 +271,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     key: ValueKey(choice.value),
     title: choice.title,
     checked: versions.includes(choice.value),
-    onTap: () => _toggleVersion(source, choice.value),
+    onTap: source.versions.canToggle(versions, choice.value)
+        ? () => _toggleVersion(source, choice.value)
+        : null,
   );
 
   void _loadSource() {
@@ -336,7 +336,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         ? null
         : _quizType == QuizType.lyrics
         ? source.songs
-        : keepVersions(source.tracks, versions).length;
+        : source.versions.count(versions);
     final subline = eras.isEmpty && releases.isEmpty
         ? SetupScreen.shuffleSubline(count, quiz: _quizType)
         : SetupScreen.erasSubline(count, quiz: _quizType);
@@ -452,7 +452,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     ],
                   ),
                 ),
-              if (_quizType == QuizType.sound && known && source.mix.rerecorded)
+              if (_quizType == QuizType.sound &&
+                  known &&
+                  source.versions.offers(VersionOption.originals))
                 _Rise(
                   key: const ValueKey(SetupScreen.recordingsLabel),
                   child: _Section(
@@ -470,7 +472,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 ),
               if (_quizType == QuizType.sound &&
                   known &&
-                  (source.mix.liveTakes || source.mix.otherTakes))
+                  (source.versions.offers(VersionOption.liveTakes) ||
+                      source.versions.offers(VersionOption.otherTakes)))
                 _Rise(
                   key: const ValueKey(SetupScreen.alsoPlayLabel),
                   child: _Section(
@@ -480,10 +483,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                         columns: choiceColumns,
                         children: [
                           for (final choice in SetupScreen.takeChoices)
-                            if (switch (choice.value) {
-                              VersionOption.liveTakes => source.mix.liveTakes,
-                              _ => source.mix.otherTakes,
-                            })
+                            if (source.versions.offers(choice.value))
                               _versionCard(choice, versions, source),
                         ],
                       ),

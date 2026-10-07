@@ -16,11 +16,11 @@ The picker offered the thirteen era tiles only. Fans also think in releases (one
 
 **Version types are chosen on Set up, for Sound only.** Revised on 2026-10-07: the first version offered Every version, Taylor's Version and No live takes as one single choice, which mixed two questions and could not combine them. Set up now asks two multi-select questions, with every card selected by default, and the track count updates as they change. It sits on Set up rather than the picker, so it covers Shuffle everything and tonight's era too. Lyrics games read one studio take per song, so the questions would change nothing there and are not shown.
 
-- **Recordings: Taylor's Version · Originals.** Shown only when the pick holds a song in both a re-recording and an original, which happens on Fearless, Speak Now, Red and 1989. A recording of such a song plays only when its kind is selected; songs never re-recorded and vault songs always play. Taylor's Version alone drops 98 of Shuffle everything's 420 recordings and keeps every song. One kind must stay selected.
+- **Recordings: Taylor's Version · Originals.** Shown only when the pick holds a song in both a re-recording and an original, which happens on Fearless, Speak Now, Red and 1989. A recording of such a song plays only when its kind is selected; songs never re-recorded and every vault track, including the ten-minute All Too Well, always play. A recording without a Taylor's Version label counts as an original, so a later take labelled only by its own name, such as the Sad Girl Autumn All Too Well, follows Originals. Taylor's Version alone drops 98 of Shuffle everything's 420 recordings and keeps every song. One kind must stay selected.
 - **Also play: Live takes · Acoustic & other takes.** Each card shows only when the pick holds that kind of take, as sorted by `takeOf` (see 2026-10-07-catalogue-growth.md): 53 live and 28 other takes of 420. Studio takes always play.
 - A recording plays when both of its labels are selected, so "State Of Grace (Acoustic Version) (Taylor's Version)" needs Taylor's Version and Acoustic & other takes, and "Haunted (Live/2011)" needs Originals and Live takes.
-- A card that would leave nothing to play, such as Live takes for an all-live release, cannot be turned off, and a remembered choice that leaves nothing for a new pick falls back to everything.
-- The cards are compact one-line toggles with a check, so Start stays in view on a 1024 by 768 screen.
+- A card that would leave nothing to play, such as Live takes for an all-live release or the last recording kind left, is dimmed and announced as disabled, and a remembered choice that leaves nothing for a new pick falls back to everything.
+- The cards are compact toggles with a check, announced as checkboxes, so Start stays in view in a 1024 by 800 window.
 
 Picks and the version choice last the session and are not written to `save.json`, so the save format does not change.
 

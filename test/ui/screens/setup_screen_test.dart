@@ -7,8 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
-import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/engine/play_order.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
@@ -515,6 +515,10 @@ void main() {
 
       expect(cardChecked(tester, 'Taylor’s Version'), isTrue);
       expect(cardChecked(tester, 'Originals'), isFalse);
+      expect(
+        tester.getSemantics(find.text('Taylor’s Version')),
+        isSemantics(hasEnabledState: true, isEnabled: false),
+      );
     });
 
     testWidgets('lyrics count songs, not recordings', (tester) async {

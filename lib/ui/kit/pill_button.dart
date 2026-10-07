@@ -117,7 +117,7 @@ class _PressableState extends State<Pressable> {
         onEnter: (_) => _setHovered(true),
         onExit: (_) => _setHovered(false),
         child: Semantics(
-          button: true,
+          button: widget.checked == null,
           enabled: enabled,
           selected: widget.selected,
           checked: widget.checked,

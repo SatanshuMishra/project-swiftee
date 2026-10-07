@@ -14,28 +14,30 @@ class SelectedCheck extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    return SizedBox.square(
-      dimension: size,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: checked ? tokens.coral : null,
-          border: checked
-              ? null
-              : Border.all(color: tokens.line2, width: ringWidth),
+    return ExcludeSemantics(
+      child: SizedBox.square(
+        dimension: size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: checked ? tokens.coral : null,
+            border: checked
+                ? null
+                : Border.all(color: tokens.line2, width: ringWidth),
+          ),
+          child: checked
+              ? Center(
+                  child: Text(
+                    glyph,
+                    style: AppType.sized(
+                      size * 13 / 24,
+                      size * 13 / 24,
+                      weight: FontWeight.w700,
+                    ).copyWith(color: tokens.onCoral),
+                  ),
+                )
+              : null,
         ),
-        child: checked
-            ? Center(
-                child: Text(
-                  glyph,
-                  style: AppType.sized(
-                    size * 13 / 24,
-                    size * 13 / 24,
-                    weight: FontWeight.w700,
-                  ).copyWith(color: tokens.onCoral),
-                ),
-              )
-            : null,
       ),
     );
   }

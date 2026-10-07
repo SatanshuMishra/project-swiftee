@@ -940,8 +940,8 @@ class _PickTile extends StatelessWidget {
                             scale: selected ? 1 : 0,
                             duration: AppMotion.duration(context, checkPop),
                             curve: checkPopCurve,
-                            child: const ExcludeSemantics(
-                              child: SelectedCheck(size: _PickTile.checkSize),
+                            child: const SelectedCheck(
+                              size: _PickTile.checkSize,
                             ),
                           ),
                         ),
