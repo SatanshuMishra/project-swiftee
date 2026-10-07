@@ -188,6 +188,21 @@ void main() {
     },
   );
 
+  test('a message over the size limit ends the connection', () async {
+    final relay = await _startRelay();
+    final connection = await _connect(relay.link);
+    final received = connection.messages.toList();
+    final relaySide = await relay.sockets.first;
+
+    relaySide.socket.add(
+      '{"t":"msg","from":"p1","body":{"k":"${'x' * maxMessageBytes}"}}',
+    );
+
+    expect(await received, isEmpty);
+    await relaySide.frames;
+    expect(relaySide.socket.closeCode, closeTooBig);
+  });
+
   test('messages the app sends reach the relay as protocol JSON', () async {
     final relay = await _startRelay();
     final connection = await _connect(relay.link);
