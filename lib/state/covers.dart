@@ -28,30 +28,27 @@ final coverStoreProvider = Provider<CoverStore>(
       return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     },
     folder: ref.watch(coversFolderProvider),
-    save: () => ref.read(gameControllerProvider).progress.settings.saveCovers,
+    save: () =>
+        ref.mounted &&
+        ref.read(gameControllerProvider).progress.settings.saveCovers,
   ),
 );
 
-final coverCleanupProvider = Provider<void>((ref) {
-  bool saving() =>
-      ref.read(gameControllerProvider).progress.settings.saveCovers;
-  void forget() => unawaited(ref.read(coverStoreProvider).forget());
-  ref
-    ..listen(
+final _keepCoversProvider = Provider<bool?>(
+  (ref) => switch (ref.watch(persistenceControllerProvider)) {
+    PersistenceStatus.loaded => ref.watch(
       gameControllerProvider.select(
         (game) => game.progress.settings.saveCovers,
       ),
-      (previous, next) {
-        if (previous == true && !next) {
-          forget();
-        }
-      },
-    )
-    ..listen(persistenceControllerProvider, (previous, status) {
-      if (previous != PersistenceStatus.loaded &&
-          status == PersistenceStatus.loaded &&
-          !saving()) {
-        forget();
-      }
-    }, fireImmediately: true);
+    ),
+    _ => null,
+  },
+);
+
+final coverCleanupProvider = Provider<void>((ref) {
+  ref.listen(_keepCoversProvider, (previous, keep) {
+    if (keep == false && previous != false) {
+      unawaited(ref.read(coverStoreProvider).forget());
+    }
+  }, fireImmediately: true);
 });

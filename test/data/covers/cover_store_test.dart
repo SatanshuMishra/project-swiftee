@@ -152,20 +152,20 @@ void main() {
     expect(requested, hasLength(2));
   });
 
-  test('a stalled request is abandoned and tried once more', () async {
-    var calls = 0;
+  test('a stalled request is aborted and tried once more', () async {
+    final client = _StallsOnce(_jpeg);
+
     final bytes = await store(
       timeout: const Duration(milliseconds: 50),
-      client: MockClient((request) {
-        calls += 1;
-        return calls == 1
-            ? Completer<http.Response>().future
-            : Future.value(http.Response.bytes(_jpeg, 200));
-      }),
+      client: client,
     ).load(_url);
 
     expect(bytes, _jpeg);
-    expect(calls, 2);
+    expect(client.sent, hasLength(2));
+    await expectLater(
+      (client.sent.first as http.Abortable).abortTrigger,
+      completes,
+    );
   });
 
   test('a refusal is not retried and nothing is kept', () async {
@@ -199,18 +199,20 @@ void main() {
   test(
     'forgetting removes every kept cover, even one still downloading',
     () async {
-      var saving = true;
+      final sent = Completer<void>();
       final response = Completer<http.Response>();
       final covers = store(
-        saving: () => saving,
-        client: MockClient((request) => response.future),
+        save: true,
+        client: MockClient((request) {
+          sent.complete();
+          return response.future;
+        }),
       );
       saved().createSync(recursive: true);
       File('${saved().path}/older.jpg').writeAsBytesSync(_jpeg);
 
       final loading = covers.load(_url);
-      await Future<void>.delayed(Duration.zero);
-      saving = false;
+      await sent.future;
       final forgetting = covers.forget();
       response.complete(http.Response.bytes(_jpeg, 200));
 
@@ -221,6 +223,16 @@ void main() {
     },
   );
 
+  test('a cover that cannot be kept leaves no temporary file behind', () async {
+    Directory(kept().path).createSync(recursive: true);
+
+    expect(await store(save: true).load(_url), _jpeg);
+    expect(
+      saved().listSync().where((entity) => entity.path.endsWith('.tmp')),
+      isEmpty,
+    );
+  });
+
   test('a covers folder that cannot be found leaves covers working', () async {
     final covers = store(
       save: true,
@@ -230,4 +242,19 @@ void main() {
     expect(await covers.load(_url), _jpeg);
     await covers.forget();
   });
+}
+
+final class _StallsOnce extends http.BaseClient {
+  _StallsOnce(this.body);
+
+  final Uint8List body;
+  List<http.BaseRequest> sent = const [];
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    sent = [...sent, request];
+    return sent.length == 1
+        ? Completer<http.StreamedResponse>().future
+        : Future.value(http.StreamedResponse(Stream.value(body), 200));
+  }
 }

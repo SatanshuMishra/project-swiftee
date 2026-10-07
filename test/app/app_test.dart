@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
@@ -19,11 +20,12 @@ import 'package:swiftie_quiz/services/audio/audio_engine.dart';
 import 'package:swiftie_quiz/services/updater/update_manifest_client.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
+import 'package:swiftie_quiz/state/covers.dart';
+import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
 import 'package:swiftie_quiz/state/persistence_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
-import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/toast_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
 import 'package:swiftie_quiz/ui/chrome/title_bar.dart';
@@ -237,6 +239,9 @@ final class _Harness {
     ),
     audioEngineProvider.overrideWithValue(engine),
     persistenceControllerProvider.overrideWith(() => persistence),
+    coversFolderProvider.overrideWithValue(
+      () => Directory('${Directory.systemTemp.path}/swiftie-test-no-covers'),
+    ),
     catalogControllerProvider.overrideWith(catalog),
     lyricsControllerProvider.overrideWith(_HeldLyrics.new),
     platformBrightnessProvider.overrideWithValue(() => platformBrightness),

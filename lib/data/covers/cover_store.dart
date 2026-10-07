@@ -155,6 +155,7 @@ final class CoverStore {
       }
     } on FileSystemException catch (error, stackTrace) {
       _log('A cover could not be kept', error, stackTrace);
+      await temp.delete().then<void>((_) {}, onError: (Object _) {});
     }
   }
 

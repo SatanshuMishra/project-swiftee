@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/services/audio/audio_engine.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
+import 'package:swiftie_quiz/state/covers.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/lyrics_controller.dart';
@@ -84,6 +86,10 @@ Future<void> launchShell(WidgetTester tester) async {
         ),
         audioEngineProvider.overrideWithValue(_SilentEngine()),
         persistenceControllerProvider.overrideWith(_LoadedPersistence.new),
+        coversFolderProvider.overrideWithValue(
+          () =>
+              Directory('${Directory.systemTemp.path}/swiftie-test-no-covers'),
+        ),
         catalogControllerProvider.overrideWith(_IdleCatalog.new),
         lyricsControllerProvider.overrideWith(_HeldLyrics.new),
         platformBrightnessProvider.overrideWithValue(() => Brightness.dark),

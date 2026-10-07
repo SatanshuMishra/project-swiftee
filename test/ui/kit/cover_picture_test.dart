@@ -35,7 +35,14 @@ void main() {
       save: () => false,
       retryAfter: Duration.zero,
     );
-    Future<void> show(Widget child) async {
+    RawImage? drawn() =>
+        tester.widgetList<RawImage>(find.byType(RawImage)).firstOrNull;
+
+    Future<void> show(
+      Widget child, {
+      int requested = 0,
+      bool drawsImage = false,
+    }) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [coverStoreProvider.overrideWithValue(store)],
@@ -45,24 +52,27 @@ void main() {
           ),
         ),
       );
-      for (var step = 0; step < 20; step++) {
+      for (
+        var step = 0;
+        step < 100 &&
+            (requests < requested || (drawsImage && drawn()?.image == null));
+        step++
+      ) {
         await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
         );
         await tester.pump();
       }
+      await tester.pump();
     }
 
-    RawImage? drawn() =>
-        tester.widgetList<RawImage>(find.byType(RawImage)).firstOrNull;
-
-    await show(CoverPicture(_url));
+    await show(CoverPicture(_url), requested: 1);
     expect(requests, 1);
     expect(drawn()?.image, isNull);
     expect(tester.takeException(), isNull);
 
     await show(const SizedBox.shrink());
-    await show(CoverPicture(_url));
+    await show(CoverPicture(_url), requested: 2, drawsImage: true);
     expect(requests, 2);
     expect(drawn()?.image, isNotNull);
   });
