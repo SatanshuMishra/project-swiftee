@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/domain/engine/release_notes.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
 import 'package:swiftie_quiz/ui/cat/cat_loader.dart';
@@ -261,6 +262,9 @@ class _PanelBody extends StatelessWidget {
 class _Notes extends StatelessWidget {
   const _Notes(this.notes);
 
+  static const double sectionGap = 12;
+  static const double bulletGap = 4;
+
   final String notes;
 
   @override
@@ -275,12 +279,59 @@ class _Notes extends StatelessWidget {
       ),
       child: SingleChildScrollView(
         padding: UpdateModal.notesPadding,
-        child: Text(
-          notes,
-          style: AppType.sized(14, 22).copyWith(color: tokens.mut),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (index, block) in parseReleaseNotes(notes).indexed)
+              Padding(
+                padding: EdgeInsets.only(
+                  top: index == 0
+                      ? 0
+                      : block.kind == NotesBlockKind.bullet
+                      ? bulletGap
+                      : sectionGap,
+                ),
+                child: _NotesBlock(block),
+              ),
+          ],
         ),
       ),
     );
+  }
+}
+
+class _NotesBlock extends StatelessWidget {
+  const _NotesBlock(this.block);
+
+  static const String bullet = '•';
+  static const double bulletWidth = 14;
+
+  final NotesBlock block;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    final body = AppType.sized(14, 22).copyWith(color: tokens.mut);
+    return switch (block.kind) {
+      NotesBlockKind.heading => Semantics(
+        header: true,
+        child: Text(
+          block.text,
+          style: AppType.sectionLabel.copyWith(color: tokens.fg),
+        ),
+      ),
+      NotesBlockKind.bullet => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: bulletWidth,
+            child: ExcludeSemantics(child: Text(bullet, style: body)),
+          ),
+          Expanded(child: Text(block.text, style: body)),
+        ],
+      ),
+      NotesBlockKind.paragraph => Text(block.text, style: body),
+    };
   }
 }
 
