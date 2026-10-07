@@ -579,7 +579,7 @@ void main() {
     test('the host plays a whole game and can play again', () {
       fakeAsync((async) {
         final host = _Harness(async);
-        host.game.setVersions(const VersionChoice(liveTakes: false));
+        host.game.setVersions(const VersionChoice(live: false));
         host
           ..hostRoom(
             RoomSettings(
@@ -1080,7 +1080,7 @@ void main() {
           )
           ..setMode(GameMode.tonight)
           ..setDifficulty(Difficulty.hard)
-          ..setVersions(const VersionChoice(liveTakes: false));
+          ..setVersions(const VersionChoice(live: false));
         progress = host.single.progress;
         history = host.container.read(playHistoryProvider);
 
@@ -1117,7 +1117,7 @@ void main() {
       expect(host.single.trackPool, isEmpty);
       expect(host.single.mode, GameMode.tonight);
       expect(host.single.difficulty, Difficulty.hard);
-      expect(host.single.versions, const VersionChoice(liveTakes: false));
+      expect(host.single.versions, const VersionChoice(live: false));
       expect(host.single.progress, progress);
       expect(host.container.read(playHistoryProvider), history);
     });

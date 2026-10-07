@@ -13,12 +13,12 @@ import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/state/providers.dart';
+import 'package:swiftie_quiz/ui/kit/choice_grid.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
 import 'package:swiftie_quiz/ui/kit/option_tile.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
-import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
@@ -27,10 +27,9 @@ import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/ui/widgets/back_link.dart';
+import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 
 typedef SetupChoice<T> = ({T value, String title, String description});
-
-typedef VersionCardChoice = ({VersionOption value, String title});
 
 typedef _Cover = ({String? url, Color placeholder});
 
@@ -44,8 +43,6 @@ class SetupScreen extends ConsumerStatefulWidget {
   static const String shuffleSublineUnknown = 'Every song, every era';
   static const String listenLabel = 'Listen or read';
   static const String lyricsGameLabel = 'Which lyrics game';
-  static const String recordingsLabel = 'Recordings';
-  static const String alsoPlayLabel = 'Also play';
   static const String difficultyLabel = 'Difficulty';
   static const String startLabel = 'Start →';
   static const String unknownSongs = '—';
@@ -74,16 +71,6 @@ class SetupScreen extends ConsumerStatefulWidget {
       title: 'Lyrics or Lie',
       description: 'See a lyric, decide if it’s real.',
     ),
-  ];
-
-  static const List<VersionCardChoice> recordingChoices = [
-    (value: VersionOption.taylorsVersions, title: 'Taylor’s Version'),
-    (value: VersionOption.originals, title: 'Originals'),
-  ];
-
-  static const List<VersionCardChoice> takeChoices = [
-    (value: VersionOption.liveTakes, title: 'Live takes'),
-    (value: VersionOption.otherTakes, title: 'Acoustic & other takes'),
   ];
 
   static const List<SetupChoice<Difficulty>> difficulties = [
@@ -253,29 +240,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
   }
 
   VersionChoice _versionsFor(_Source source, {required bool known}) =>
-      !known || source.versions.count(_versions) > 0
-      ? _versions
-      : VersionChoice.all;
+      known ? source.versions.usable(_versions) : _versions;
 
-  void _toggleVersion(_Source source, VersionOption option) {
-    final versions = _versionsFor(source, known: true);
-    if (source.versions.canToggle(versions, option)) {
-      setState(() => _versions = versions.toggled(option));
-    }
-  }
-
-  Widget _versionCard(
-    VersionCardChoice choice,
-    VersionChoice versions,
-    _Source source,
-  ) => ToggleCard(
-    key: ValueKey(choice.value),
-    title: choice.title,
-    checked: versions.includes(choice.value),
-    onTap: source.versions.canToggle(versions, choice.value)
-        ? () => _toggleVersion(source, choice.value)
-        : null,
-  );
+  void _chooseVersions(VersionChoice versions) =>
+      setState(() => _versions = versions);
 
   void _loadSource() {
     if (mounted) {
@@ -419,7 +387,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 key: const ValueKey(SetupScreen.listenLabel),
                 label: SetupScreen.listenLabel,
                 children: [
-                  _ChoiceGrid(
+                  ChoiceGrid(
                     columns: choiceColumns,
                     minTileWidth: choiceWidth,
                     children: [
@@ -440,7 +408,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   child: _Section(
                     label: SetupScreen.lyricsGameLabel,
                     children: [
-                      _ChoiceGrid(
+                      ChoiceGrid(
                         columns: choiceColumns,
                         minTileWidth: choiceWidth,
                         children: [
@@ -457,42 +425,32 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                     ],
                   ),
                 ),
-              if (_quizType == QuizType.sound &&
-                  known &&
-                  source.versions.offers(VersionOption.originals))
+              if (_quizType == QuizType.sound && known)
                 _Rise(
-                  key: const ValueKey(SetupScreen.recordingsLabel),
+                  key: const ValueKey(VersionCopy.versionsLabel),
                   child: _Section(
-                    label: SetupScreen.recordingsLabel,
+                    label: VersionCopy.versionsLabel,
                     children: [
-                      _ChoiceGrid(
-                        columns: choiceColumns,
-                        minTileWidth: choiceWidth,
-                        children: [
-                          for (final choice in SetupScreen.recordingChoices)
-                            _versionCard(choice, versions, source),
-                        ],
+                      TakeCards(
+                        index: source.versions,
+                        choice: versions,
+                        onChanged: _chooseVersions,
                       ),
                     ],
                   ),
                 ),
               if (_quizType == QuizType.sound &&
                   known &&
-                  (source.versions.offers(VersionOption.liveTakes) ||
-                      source.versions.offers(VersionOption.otherTakes)))
+                  source.versions.hasRerecorded)
                 _Rise(
-                  key: const ValueKey(SetupScreen.alsoPlayLabel),
+                  key: const ValueKey(VersionCopy.rerecordedLabel),
                   child: _Section(
-                    label: SetupScreen.alsoPlayLabel,
+                    label: VersionCopy.rerecordedLabel,
                     children: [
-                      _ChoiceGrid(
-                        columns: choiceColumns,
-                        minTileWidth: choiceWidth,
-                        children: [
-                          for (final choice in SetupScreen.takeChoices)
-                            if (source.versions.offers(choice.value))
-                              _versionCard(choice, versions, source),
-                        ],
+                      RerecordedChoice(
+                        index: source.versions,
+                        choice: versions,
+                        onChanged: _chooseVersions,
                       ),
                     ],
                   ),
@@ -501,7 +459,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                 key: const ValueKey(SetupScreen.difficultyLabel),
                 label: SetupScreen.difficultyLabel,
                 children: [
-                  _ChoiceGrid(
+                  ChoiceGrid(
                     columns: SetupScreen.difficulties.length,
                     minTileWidth: OptionTile.minWidthFor(scaler),
                     children: [
@@ -558,42 +516,6 @@ class _Section extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     spacing: gap,
     children: [SectionLabel(label), ...children],
-  );
-}
-
-class _ChoiceGrid extends StatelessWidget {
-  const _ChoiceGrid({
-    required this.columns,
-    required this.minTileWidth,
-    required this.children,
-  });
-
-  static const double gap = 10;
-
-  final int columns;
-  final double minTileWidth;
-  final List<Widget> children;
-
-  int _columnsIn(double width) => width.isFinite
-      ? ((width + gap) / (minTileWidth + gap)).floor().clamp(1, columns)
-      : columns;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: gap,
-      children: [
-        for (final row in children.slices(_columnsIn(constraints.maxWidth)))
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: gap,
-              children: [for (final child in row) Expanded(child: child)],
-            ),
-          ),
-      ],
-    ),
   );
 }
 

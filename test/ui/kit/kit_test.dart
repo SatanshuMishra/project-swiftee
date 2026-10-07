@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/ui/kit/arrow_row.dart';
 import 'package:swiftie_quiz/ui/kit/bead.dart';
+import 'package:swiftie_quiz/ui/kit/choice_grid.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
 import 'package:swiftie_quiz/ui/kit/confirm_dialog.dart';
 import 'package:swiftie_quiz/ui/kit/modal_stack.dart';
@@ -1028,7 +1029,7 @@ void main() {
       tester,
       Column(
         children: [
-          ToggleCard(title: 'Live takes', checked: true, onTap: () => taps++),
+          ToggleCard(title: 'Live', checked: true, onTap: () => taps++),
           ToggleCard(title: 'Originals', checked: false, onTap: () => taps++),
         ],
       ),
@@ -1040,12 +1041,12 @@ void main() {
     expect(checks, [true, false]);
     expect(find.text(SelectedCheck.glyph), findsOneWidget);
     expect(
-      tester.getSemantics(find.text('Live takes')),
+      tester.getSemantics(find.text('Live')),
       isSemantics(
         hasCheckedState: true,
         isChecked: true,
         isButton: false,
-        label: 'Live takes',
+        label: 'Live',
       ),
     );
     expect(
@@ -1083,5 +1084,109 @@ void main() {
       tester.getSemantics(find.text('Originals')),
       isSemantics(hasEnabledState: true, isEnabled: false, isChecked: true),
     );
+  });
+
+  testWidgets('a toggle card can carry a detail line under its title', (
+    tester,
+  ) async {
+    await pumpKit(
+      tester,
+      ToggleCard(
+        title: 'Live',
+        detail: '53 tracks',
+        checked: true,
+        onTap: () {},
+      ),
+    );
+
+    final tokens = AppTokens.of(tester.element(find.text('Live')));
+    final detail = tester.widget<Text>(find.text('53 tracks'));
+    expect(detail.style?.color, tokens.mut);
+    expect(detail.style?.fontSize, AppType.small.fontSize);
+    expect(
+      tester.getTopLeft(find.text('53 tracks')).dy,
+      greaterThan(tester.getBottomLeft(find.text('Live')).dy - 1),
+    );
+    expect(
+      tester.getSemantics(find.text('Live')),
+      isSemantics(
+        hasCheckedState: true,
+        isChecked: true,
+        label: 'Live\n53 tracks',
+      ),
+    );
+  });
+
+  testWidgets('a segment that cannot be chosen is dimmed, reported as '
+      'disabled and ignores taps', (tester) async {
+    var changes = const <String>[];
+    await pumpKit(
+      tester,
+      Center(
+        child: Segmented<String>(
+          options: const [('tv', 'Taylor’s Version'), ('both', 'Both')],
+          value: 'both',
+          enabled: (option) => option != 'tv',
+          onChanged: (value) => changes = [...changes, value],
+        ),
+      ),
+    );
+
+    double opacityOf(String label) => tester
+        .widget<AnimatedOpacity>(
+          find
+              .ancestor(
+                of: find.text(label),
+                matching: find.byType(AnimatedOpacity),
+              )
+              .first,
+        )
+        .opacity;
+    expect(opacityOf('Taylor’s Version'), PillButton.disabledOpacity);
+    expect(opacityOf('Both'), 1);
+    expect(
+      tester.getSemantics(find.text('Taylor’s Version')),
+      isSemantics(hasEnabledState: true, isEnabled: false),
+    );
+
+    await tester.tap(find.text('Taylor’s Version'));
+    await tester.pump();
+    expect(changes, isEmpty);
+  });
+
+  testWidgets('a choice grid fits as many columns as its tiles allow, up '
+      'to its limit', (tester) async {
+    Future<List<double>> tops(double width) async {
+      await pumpKit(
+        tester,
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: width,
+            child: ChoiceGrid(
+              columns: 3,
+              minTileWidth: 150,
+              children: [
+                for (final label in ['One', 'Two', 'Three'])
+                  ColoredBox(
+                    color: const Color(0xFF000000),
+                    child: Text(label),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+      return [
+        for (final label in ['One', 'Two', 'Three'])
+          tester.getTopLeft(find.text(label)).dy,
+      ];
+    }
+
+    final wide = await tops(600);
+    expect(wide.toSet(), hasLength(1));
+    final narrow = await tops(320);
+    expect(narrow[0], narrow[1]);
+    expect(narrow[2], greaterThan(narrow[0]));
   });
 }

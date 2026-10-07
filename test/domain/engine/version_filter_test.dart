@@ -35,7 +35,10 @@ void main() {
     test("taylor's version alone drops the originals she re-recorded and "
         'keeps every song', () {
       final everything = catalogue.allTracks;
-      final kept = keepVersions(everything, all.copyWith(originals: false));
+      final kept = keepVersions(
+        everything,
+        all.copyWith(rerecorded: Rerecorded.taylorsVersion),
+      );
 
       expect(everything.length - kept.length, 98);
       expect(
@@ -44,11 +47,10 @@ void main() {
       );
     });
 
-    test("originals alone drop the re-recordings but keep vault songs, "
+    test('originals alone drop the re-recordings but keep vault songs, '
         'which have no original', () {
-      final kept = titles(
-        keepVersions(catalogue.allTracks, all.copyWith(taylorsVersions: false)),
-      );
+      final originals = all.copyWith(rerecorded: Rerecorded.original);
+      final kept = titles(keepVersions(catalogue.allTracks, originals));
 
       expect(kept, contains('Red'));
       expect(kept, isNot(contains("Red (Taylor's Version)")));
@@ -58,17 +60,14 @@ void main() {
       );
       expect(
         {
-          for (final track in keepVersions(
-            catalogue.allTracks,
-            all.copyWith(taylorsVersions: false),
-          ))
+          for (final track in keepVersions(catalogue.allTracks, originals))
             songKey(track),
         },
         {for (final track in catalogue.allTracks) songKey(track)},
       );
     });
 
-    test('every vault song plays whichever recordings are selected, even '
+    test('every vault song plays whichever recordings are chosen, even '
         'one that shares a title with a re-recorded song', () {
       final red = catalogue.tracksFor(['red']);
       final vault = [
@@ -81,54 +80,68 @@ void main() {
           "All Too Well (10 Minute Version) (Taylor's Version) (From The Vault)",
         ),
       );
-      for (final choice in [
-        all.copyWith(taylorsVersions: false),
-        all.copyWith(originals: false),
-      ]) {
-        expect(titles(keepVersions(red, choice)), containsAll(vault));
+      for (final rerecorded in Rerecorded.values) {
+        expect(
+          titles(keepVersions(red, all.copyWith(rerecorded: rerecorded))),
+          containsAll(vault),
+        );
       }
     });
 
-    test('a pick offers only the cards that change it', () {
-      final rep = VersionIndex(catalogue.tracksFor(['rep']));
-      final folklore = VersionIndex(catalogue.tracksFor(['folklore']));
+    test('each kind of take counts its recordings in the pick', () {
+      final everything = VersionIndex(catalogue.allTracks);
+      final poetsAndShowgirl = VersionIndex(
+        catalogue.tracksFor(['ttpd', 'showgirl']),
+      );
 
-      expect(VersionOption.values.where(rep.offers), isEmpty);
-      expect(VersionOption.values.where(folklore.offers), [
-        VersionOption.liveTakes,
-        VersionOption.otherTakes,
-      ]);
       expect(
-        VersionOption.values.where(
-          VersionIndex(catalogue.tracksFor(['red'])).offers,
+        [for (final take in Take.values) everything.countOf(take, all)],
+        [339, 53, 28],
+      );
+      expect(
+        [for (final take in Take.values) poetsAndShowgirl.countOf(take, all)],
+        [47, 0, 8],
+      );
+      expect(
+        everything.countOf(
+          Take.studio,
+          all.copyWith(rerecorded: Rerecorded.taylorsVersion),
         ),
-        VersionOption.values,
+        lessThan(339),
       );
     });
 
-    test('turning off live or other takes drops exactly those takes', () {
+    test('turning off a kind of take drops exactly those takes', () {
       final everything = catalogue.allTracks;
 
       expect(
         everything.length -
-            keepVersions(everything, all.copyWith(liveTakes: false)).length,
+            keepVersions(everything, all.copyWith(live: false)).length,
         53,
       );
       expect(
         everything.length -
-            keepVersions(everything, all.copyWith(otherTakes: false)).length,
+            keepVersions(everything, all.copyWith(alternate: false)).length,
         28,
       );
       expect(
         keepVersions(
           everything,
-          all.copyWith(liveTakes: false, otherTakes: false),
+          all.copyWith(studio: false),
+        ).where((track) => takeOf(track.title) == Take.studio),
+        isEmpty,
+      );
+      expect(
+        keepVersions(
+          everything,
+          all.copyWith(live: false, alternate: false),
         ).where((track) => takeOf(track.title) != Take.studio),
         isEmpty,
       );
     });
 
-    test('a recording plays only when both of its labels are selected', () {
+    test('a recording plays only when its take and its recording are both '
+        'chosen', () {
       final speakNowAndRed = catalogue.tracksFor(['speaknow', 'red']);
       const acousticTv = "State Of Grace (Acoustic Version) (Taylor's Version)";
       const originalLive = 'Haunted (Live/2011)';
@@ -137,55 +150,62 @@ void main() {
         titles(keepVersions(speakNowAndRed, all)),
         containsAll([acousticTv, originalLive]),
       );
-      final tvAndOther = titles(
+      final tvAndAcoustic = titles(
         keepVersions(
           speakNowAndRed,
-          all.copyWith(originals: false, liveTakes: false),
+          all.copyWith(rerecorded: Rerecorded.taylorsVersion, live: false),
         ),
       );
-      expect(tvAndOther, contains(acousticTv));
-      expect(tvAndOther, isNot(contains(originalLive)));
+      expect(tvAndAcoustic, contains(acousticTv));
+      expect(tvAndAcoustic, isNot(contains(originalLive)));
       final originalsAndLive = titles(
         keepVersions(
           speakNowAndRed,
-          all.copyWith(taylorsVersions: false, otherTakes: false),
+          all.copyWith(rerecorded: Rerecorded.original, alternate: false),
         ),
       );
       expect(originalsAndLive, contains(originalLive));
       expect(originalsAndLive, isNot(contains(acousticTv)));
     });
 
-    test('a pick reports which choices matter to it', () {
-      expect(versionMixOf(catalogue.tracksFor(['red'])), (
-        rerecorded: true,
-        liveTakes: true,
-        otherTakes: true,
-      ));
-      expect(versionMixOf(catalogue.tracksFor(['rep'])), (
-        rerecorded: false,
-        liveTakes: false,
-        otherTakes: false,
-      ));
+    test('only a pick holding both recordings of a song asks about '
+        're-recordings', () {
+      expect(VersionIndex(catalogue.tracksFor(['red'])).hasRerecorded, isTrue);
+      expect(VersionIndex(catalogue.tracksFor(['rep'])).hasRerecorded, isFalse);
       final redTv = catalogue.releases.firstWhere(
         (release) => release.title == "Red (Taylor's Version)",
       );
-      expect(versionMixOf(redTv.tracks).rerecorded, isFalse);
+      expect(VersionIndex(redTv.tracks).hasRerecorded, isFalse);
     });
 
-    test('the last recording kind and a choice that leaves nothing cannot '
-        'be turned off', () {
-      final red = catalogue.tracksFor(['red']);
-      final tvOnly = all.copyWith(originals: false);
-      final liveOnly = [
+    test('a choice that would leave nothing to play cannot be made', () {
+      final red = VersionIndex(catalogue.tracksFor(['red']));
+      final rep = VersionIndex(catalogue.tracksFor(['rep']));
+      final mine = VersionIndex([
         for (final track in catalogue.tracksFor(['speaknow']))
-          if (takeOf(track.title) == Take.live) track,
-      ];
+          if (track.title.startsWith('Mine')) track,
+      ]);
+      final liveOnly = all.copyWith(studio: false, alternate: false);
 
-      expect(canToggle(red, all, VersionOption.originals), isTrue);
-      expect(canToggle(red, tvOnly, VersionOption.taylorsVersions), isFalse);
-      expect(canToggle(red, tvOnly, VersionOption.originals), isTrue);
-      expect(canToggle(liveOnly, all, VersionOption.liveTakes), isFalse);
-      expect(canToggle(liveOnly, all, VersionOption.otherTakes), isTrue);
+      expect(red.canToggle(all, Take.live), isTrue);
+      expect(rep.canToggle(all, Take.studio), isFalse);
+      expect(rep.canToggle(all, Take.live), isFalse);
+      expect(rep.canToggle(all, Take.alternate), isFalse);
+      expect(mine.canToggle(liveOnly, Take.live), isFalse);
+      expect(mine.canToggle(liveOnly, Take.studio), isTrue);
+      expect(mine.canChoose(liveOnly, Rerecorded.original), isTrue);
+      expect(mine.canChoose(liveOnly, Rerecorded.taylorsVersion), isFalse);
+    });
+
+    test('a remembered choice that leaves nothing for a new pick falls back '
+        'to every version', () {
+      final liveRelease = catalogue.releases.firstWhere(
+        (release) => release.title == 'Speak Now World Tour Live',
+      );
+      final noLive = all.copyWith(live: false);
+
+      expect(VersionIndex(liveRelease.tracks).usable(noLive), all);
+      expect(VersionIndex(catalogue.tracksFor(['red'])).usable(noLive), noLive);
     });
   });
 }

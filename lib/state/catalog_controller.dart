@@ -101,10 +101,10 @@ class CatalogController extends Notifier<CatalogState> {
   Future<CatalogTracks> loadTrackPool() async {
     await loadCatalogue();
     final game = ref.read(gameControllerProvider);
-    final tracks = keepVersions(
+    final versions = VersionIndex(
       tracksForGame(state.catalogue, game, ref.read(clockProvider)()),
-      game.versions,
     );
+    final tracks = versions.keep(versions.usable(game.versions));
     final pool = createTrackPool(
       tracks,
       heard: ref.read(playHistoryProvider).heard,

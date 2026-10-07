@@ -10,6 +10,7 @@ class Segmented<T> extends StatelessWidget {
     required this.options,
     required this.value,
     required this.onChanged,
+    this.enabled,
   });
 
   static const trackPadding = EdgeInsets.all(3);
@@ -24,6 +25,7 @@ class Segmented<T> extends StatelessWidget {
   final List<(T, String)> options;
   final T value;
   final ValueChanged<T>? onChanged;
+  final bool Function(T option)? enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -41,44 +43,51 @@ class Segmented<T> extends StatelessWidget {
         children: [
           for (final (index, (option, label)) in options.indexed) ...[
             if (index > 0) const SizedBox(width: gap),
-            Pressable(
-              onPressed: switch (onChanged) {
-                final onChanged? => () => onChanged(option),
-                null => null,
-              },
-              selected: option == value,
-              focusRadius: radius,
-              builder: (context, state) {
-                final selected = option == value;
-                return AnimatedContainer(
-                  duration: shift,
-                  curve: Curves.ease,
-                  padding: segmentPadding,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? tokens.btn
-                        : tokens.btn.withValues(alpha: 0),
-                    borderRadius: radius,
-                  ),
-                  child: TweenAnimationBuilder<Color?>(
-                    tween: ColorTween(
-                      end: selected
-                          ? tokens.onBtn
-                          : state.hovered
-                          ? tokens.fg
-                          : tokens.mut,
-                    ),
+            AnimatedOpacity(
+              opacity: enabled?.call(option) ?? true
+                  ? 1
+                  : PillButton.disabledOpacity,
+              duration: shift,
+              curve: Curves.ease,
+              child: Pressable(
+                onPressed: switch ((onChanged, enabled?.call(option) ?? true)) {
+                  (final onChanged?, true) => () => onChanged(option),
+                  _ => null,
+                },
+                selected: option == value,
+                focusRadius: radius,
+                builder: (context, state) {
+                  final selected = option == value;
+                  return AnimatedContainer(
                     duration: shift,
                     curve: Curves.ease,
-                    builder: (context, color, _) => Text(
-                      label,
-                      maxLines: 1,
-                      softWrap: false,
-                      style: style.copyWith(color: color),
+                    padding: segmentPadding,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? tokens.btn
+                          : tokens.btn.withValues(alpha: 0),
+                      borderRadius: radius,
                     ),
-                  ),
-                );
-              },
+                    child: TweenAnimationBuilder<Color?>(
+                      tween: ColorTween(
+                        end: selected
+                            ? tokens.onBtn
+                            : state.hovered
+                            ? tokens.fg
+                            : tokens.mut,
+                      ),
+                      duration: shift,
+                      curve: Curves.ease,
+                      builder: (context, color, _) => Text(
+                        label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: style.copyWith(color: color),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ],

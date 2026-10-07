@@ -88,11 +88,11 @@ void main() {
       expect(read().versions, VersionChoice.all);
 
       controller
-        ..setVersions(VersionChoice.all.copyWith(liveTakes: false))
+        ..setVersions(VersionChoice.all.copyWith(live: false))
         ..toggleRelease(108447472)
         ..resetGame();
 
-      expect(read().versions, VersionChoice.all.copyWith(liveTakes: false));
+      expect(read().versions, VersionChoice.all.copyWith(live: false));
       expect(read().selectedReleaseIds, isEmpty);
     });
 
