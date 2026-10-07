@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
@@ -46,7 +47,7 @@ class RoundHeading extends StatelessWidget {
         children: [
           Text(kicker, style: AppType.body.copyWith(color: tokens.mut)),
           const SizedBox(height: questionGap),
-          Text(
+          WholeWordText(
             '$song?',
             style: AppType.display(
               size,
@@ -66,7 +67,7 @@ class RoundHeading extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (hasTitle)
-          Text.rich(
+          WholeWordText.rich(
             TextSpan(
               children: [
                 if (pre.isNotEmpty) TextSpan(text: pre),

@@ -342,7 +342,11 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
                       sliver: SliverToBoxAdapter(
                         child: _TileGrid(
                           tiles: _eraTiles(catalogue, eraKeys, game.toggleEra),
-                          columns: layout.eraColumns,
+                          columns: AppLayout.columnsForText(
+                            layout.eraColumns,
+                            MediaQuery.textScalerOf(context),
+                            fontSize: _TileStyle.era.size,
+                          ),
                           style: _TileStyle.era,
                         ),
                       ),
@@ -369,7 +373,11 @@ class _AlbumGridState extends ConsumerState<AlbumGrid> {
                               child: _ReleaseSection(
                                 label: section.label,
                                 tiles: section.tiles,
-                                columns: layout.releaseColumns,
+                                columns: AppLayout.columnsForText(
+                                  layout.releaseColumns,
+                                  MediaQuery.textScalerOf(context),
+                                  fontSize: _TileStyle.release.size,
+                                ),
                               ),
                             ),
                         ],

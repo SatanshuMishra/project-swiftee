@@ -562,20 +562,30 @@ class _ChoiceGrid extends StatelessWidget {
   final int columns;
   final List<Widget> children;
 
+  int _columnsIn(double width, TextScaler scaler) =>
+      ((width + gap) / (OptionTile.minWidthFor(scaler) + gap)).floor().clamp(
+        1,
+        columns,
+      );
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    spacing: gap,
-    children: [
-      for (final row in children.slices(columns))
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: gap,
-            children: [for (final child in row) Expanded(child: child)],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: gap,
+      children: [
+        for (final row in children.slices(
+          _columnsIn(constraints.maxWidth, MediaQuery.textScalerOf(context)),
+        ))
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: gap,
+              children: [for (final child in row) Expanded(child: child)],
+            ),
           ),
-        ),
-    ],
+      ],
+    ),
   );
 }
 

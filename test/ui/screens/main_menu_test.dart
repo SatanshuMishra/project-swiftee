@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -435,6 +436,33 @@ void main() {
         loaded.read(catalogControllerProvider.notifier) as RecordingCatalog;
     expect(idle.loads, 0);
     expect(find.text('Good evening, you.'), findsOneWidget);
+  });
+
+  testWidgets('a 20-letter nickname shrinks to fit instead of breaking', (
+    tester,
+  ) async {
+    await pumpMenu(
+      tester,
+      edition: Edition.open,
+      now: outsideBirthday,
+      nickname: 'Bartholomewsworthing',
+    );
+    await tester.pumpAndSettle();
+
+    const greeting = 'Good evening, Bartholomewsworthing.';
+    const subline = "Long story short, it's a good night for a quiz.";
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(greeting));
+    final column = tester.renderObject<RenderParagraph>(find.text(subline));
+    final columnLeft = tester.getRect(find.text(subline)).left;
+
+    expect(
+      paragraph.getMinIntrinsicWidth(double.infinity),
+      lessThanOrEqualTo(paragraph.constraints.maxWidth),
+    );
+    expect(
+      tester.getRect(find.text(greeting)).right,
+      lessThanOrEqualTo(columnLeft + column.constraints.maxWidth),
+    );
   });
 
   testWidgets('the menu stacks into one column on a narrow window', (

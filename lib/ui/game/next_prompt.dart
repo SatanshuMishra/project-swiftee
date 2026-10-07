@@ -31,8 +31,10 @@ class NextPrompt extends StatelessWidget {
     final tokens = AppTokens.of(context);
     return RiseIn(
       duration: riseMotion,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: gap,
+        runSpacing: gap,
         children: [
           AnimatedOpacity(
             opacity: enabled ? 1 : waitingOpacity,
@@ -61,13 +63,7 @@ class NextPrompt extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: gap),
-          Flexible(
-            child: Text(
-              hint,
-              style: AppType.small.copyWith(color: tokens.faint),
-            ),
-          ),
+          Text(hint, style: AppType.small.copyWith(color: tokens.faint)),
         ],
       ),
     );
