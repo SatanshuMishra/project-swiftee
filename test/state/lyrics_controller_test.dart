@@ -345,7 +345,7 @@ void main() {
     test('the version choice for sound games leaves lyrics alone', () async {
       game()
         ..setMode(GameMode.random)
-        ..setVersions(TrackVersions.noLive);
+        ..setVersions(VersionChoice.all.copyWith(liveTakes: false));
 
       final tracks = await lyrics().loadSourceTracks();
 

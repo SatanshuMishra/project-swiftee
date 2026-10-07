@@ -15,6 +15,7 @@ import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/segmented.dart';
+import 'package:swiftie_quiz/ui/kit/selected_check.dart';
 import 'package:swiftie_quiz/ui/kit/serif_input.dart';
 import 'package:swiftie_quiz/ui/kit/text_link.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
@@ -939,8 +940,8 @@ class _PickTile extends StatelessWidget {
                             scale: selected ? 1 : 0,
                             duration: AppMotion.duration(context, checkPop),
                             curve: checkPopCurve,
-                            child: const ExcludeSemantics(
-                              child: _SelectedCheck(),
+                            child: const SelectedCheck(
+                              size: _PickTile.checkSize,
                             ),
                           ),
                         ),
@@ -1017,33 +1018,6 @@ class _LiftOnHoverState extends State<_LiftOnHover> {
       child: widget.child,
     ),
   );
-}
-
-class _SelectedCheck extends StatelessWidget {
-  const _SelectedCheck();
-
-  static const String glyph = '✓';
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
-    return SizedBox.square(
-      dimension: _PickTile.checkSize,
-      child: DecoratedBox(
-        decoration: BoxDecoration(shape: BoxShape.circle, color: tokens.coral),
-        child: Center(
-          child: Text(
-            glyph,
-            style: AppType.sized(
-              13,
-              13,
-              weight: FontWeight.w700,
-            ).copyWith(color: tokens.onCoral),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _EraBar extends StatelessWidget {

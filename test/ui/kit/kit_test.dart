@@ -14,9 +14,11 @@ import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/segmented.dart';
+import 'package:swiftie_quiz/ui/kit/selected_check.dart';
 import 'package:swiftie_quiz/ui/kit/serif_input.dart';
 import 'package:swiftie_quiz/ui/kit/swiftie_modal.dart';
 import 'package:swiftie_quiz/ui/kit/text_link.dart';
+import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
@@ -985,5 +987,69 @@ void main() {
     await tester.tap(find.text('Back'));
     await tester.tap(find.text('Settings'));
     expect(taps, ['back', 'settings']);
+  });
+
+  testWidgets('a toggle card shows a check when on and an empty ring when '
+      'off, and reports its checked state', (tester) async {
+    var taps = 0;
+    await pumpKit(
+      tester,
+      Column(
+        children: [
+          ToggleCard(title: 'Live takes', checked: true, onTap: () => taps++),
+          ToggleCard(title: 'Originals', checked: false, onTap: () => taps++),
+        ],
+      ),
+    );
+
+    final checks = tester
+        .widgetList<SelectedCheck>(find.byType(SelectedCheck))
+        .map((check) => check.checked);
+    expect(checks, [true, false]);
+    expect(find.text(SelectedCheck.glyph), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text('Live takes')),
+      isSemantics(
+        hasCheckedState: true,
+        isChecked: true,
+        isButton: false,
+        label: 'Live takes',
+      ),
+    );
+    expect(
+      tester.getSemantics(find.text('Originals')),
+      isSemantics(hasCheckedState: true, isChecked: false),
+    );
+
+    expect(find.bySemanticsLabel(RegExp(SelectedCheck.glyph)), findsNothing);
+
+    await tester.tap(find.text('Originals'));
+    expect(taps, 1);
+  });
+
+  testWidgets('a toggle card that cannot change is dimmed and reported as '
+      'disabled', (tester) async {
+    await pumpKit(
+      tester,
+      const ToggleCard(title: 'Originals', checked: true, onTap: null),
+    );
+
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find
+                .ancestor(
+                  of: find.text('Originals'),
+                  matching: find.byType(AnimatedOpacity),
+                )
+                .last,
+          )
+          .opacity,
+      PillButton.disabledOpacity,
+    );
+    expect(
+      tester.getSemantics(find.text('Originals')),
+      isSemantics(hasEnabledState: true, isEnabled: false, isChecked: true),
+    );
   });
 }

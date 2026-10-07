@@ -103,3 +103,6 @@ List<String> unknownTitleLabels(String title) => List.unmodifiable([
 
 bool isTaylorsVersion(String title) =>
     _titleParts(title).any(_taylorsVersion.hasMatch);
+
+bool isFromTheVault(String title) =>
+    _titleParts(title).any(_fromTheVault.hasMatch);

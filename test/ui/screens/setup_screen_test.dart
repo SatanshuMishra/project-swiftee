@@ -7,8 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_json.dart';
 import 'package:swiftie_quiz/data/catalog/catalogue_store.dart';
 import 'package:swiftie_quiz/domain/engine/catalogue_rules.dart';
-import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/engine/play_order.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
@@ -17,6 +17,8 @@ import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
 import 'package:swiftie_quiz/ui/kit/option_tile.dart';
+import 'package:swiftie_quiz/ui/kit/pill_button.dart';
+import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/screens/setup_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
@@ -104,6 +106,9 @@ bool choiceSelected(WidgetTester tester, String title) =>
 
 bool tileSelected(WidgetTester tester, String title) =>
     tester.widget<OptionTile>(find.widgetWithText(OptionTile, title)).selected;
+
+bool cardChecked(WidgetTester tester, String title) =>
+    tester.widget<ToggleCard>(find.widgetWithText(ToggleCard, title)).checked;
 
 Future<void> choose(WidgetTester tester, String label) async {
   await tester.tap(find.text(label));
@@ -419,24 +424,62 @@ void main() {
       ]);
     });
 
-    testWidgets('which versions shows for sound and not for lyrics', (
-      tester,
-    ) async {
-      await pumpSetup(tester);
+    testWidgets('a sound game over re-recorded eras offers every version, '
+        'all selected, and lyrics hide them', (tester) async {
+      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['red']);
 
-      expect(find.text('Which versions'), findsOneWidget);
-      expect(tileSelected(tester, 'Every version'), isTrue);
-      expect(find.text('Taylor’s Version'), findsOneWidget);
-      expect(find.text('No live takes'), findsOneWidget);
+      expect(find.text('Recordings'), findsOneWidget);
+      expect(find.text('Also play'), findsOneWidget);
+      for (final title in [
+        'Taylor’s Version',
+        'Originals',
+        'Live takes',
+        'Acoustic & other takes',
+      ]) {
+        expect(cardChecked(tester, title), isTrue, reason: title);
+      }
+      expect(
+        tester.getSemantics(find.text('Originals')),
+        isSemantics(hasCheckedState: true, isChecked: true),
+      );
 
       await choose(tester, 'Lyrics');
-      expect(find.text('Which versions'), findsNothing);
-      expect(find.text('Every version'), findsNothing);
+      expect(find.text('Recordings'), findsNothing);
+      expect(find.text('Also play'), findsNothing);
     });
 
-    testWidgets('a version choice recounts the tracks and starts with it', (
+    testWidgets('start stays in view at 1024 by 800 with every version '
+        'section showing', (tester) async {
+      await pumpSetup(tester);
+
+      expect(find.text('Recordings'), findsOneWidget);
+      expect(find.text('Also play'), findsOneWidget);
+      final start = find.ancestor(
+        of: find.text('Start →'),
+        matching: find.byType(PillButton),
+      );
+      expect(tester.getBottomLeft(start).dy, lessThanOrEqualTo(800));
+    });
+
+    testWidgets('an era with no re-recordings or other takes asks nothing', (
       tester,
     ) async {
+      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['rep']);
+
+      expect(find.text('Recordings'), findsNothing);
+      expect(find.text('Also play'), findsNothing);
+    });
+
+    testWidgets('an era shows only the takes it has', (tester) async {
+      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['evermore']);
+
+      expect(find.text('Recordings'), findsNothing);
+      expect(find.text('Live takes'), findsNothing);
+      expect(find.text('Acoustic & other takes'), findsOneWidget);
+    });
+
+    testWidgets('cards turn on and off together, recount the tracks and '
+        'start with the choice', (tester) async {
       final container = await pumpSetup(
         tester,
         mode: GameMode.album,
@@ -445,16 +488,37 @@ void main() {
       final red = bundled.tracksFor(['red']);
       expect(find.text('${red.length} tracks'), findsOneWidget);
 
-      await choose(tester, 'Taylor’s Version');
-      final kept = keepVersions(red, TrackVersions.taylorsVersion).length;
+      await choose(tester, 'Originals');
+      await choose(tester, 'Live takes');
+      final choice = VersionChoice.all.copyWith(
+        originals: false,
+        liveTakes: false,
+      );
+      final kept = keepVersions(red, choice).length;
       expect(kept, lessThan(red.length));
       expect(find.text('$kept tracks'), findsOneWidget);
-      expect(tileSelected(tester, 'Taylor’s Version'), isTrue);
+      expect(cardChecked(tester, 'Originals'), isFalse);
+      expect(cardChecked(tester, 'Taylor’s Version'), isTrue);
+      expect(cardChecked(tester, 'Live takes'), isFalse);
 
       await tester.tap(find.text('Start →'));
       await tester.pump();
-      expect(gameOf(container).versions, TrackVersions.taylorsVersion);
+      expect(gameOf(container).versions, choice);
       expect(gameOf(container).phase, GamePhase.playing);
+    });
+
+    testWidgets('the last recording kind cannot be turned off', (tester) async {
+      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['red']);
+
+      await choose(tester, 'Originals');
+      await choose(tester, 'Taylor’s Version');
+
+      expect(cardChecked(tester, 'Taylor’s Version'), isTrue);
+      expect(cardChecked(tester, 'Originals'), isFalse);
+      expect(
+        tester.getSemantics(find.text('Taylor’s Version')),
+        isSemantics(hasEnabledState: true, isEnabled: false),
+      );
     });
 
     testWidgets('lyrics count songs, not recordings', (tester) async {
@@ -474,18 +538,17 @@ void main() {
         mode: GameMode.album,
         prepare: (game) {
           releases(['Speak Now World Tour Live'])(game);
-          game.setVersions(TrackVersions.noLive);
+          game.setVersions(VersionChoice.all.copyWith(liveTakes: false));
         },
       );
 
-      expect(tileSelected(tester, 'Every version'), isTrue);
-      expect(tileSelected(tester, 'No live takes'), isFalse);
-      await choose(tester, 'No live takes');
-      expect(tileSelected(tester, 'No live takes'), isFalse);
+      expect(cardChecked(tester, 'Live takes'), isTrue);
+      await choose(tester, 'Live takes');
+      expect(cardChecked(tester, 'Live takes'), isTrue);
 
       await tester.tap(find.text('Start →'));
       await tester.pump();
-      expect(gameOf(container).versions, TrackVersions.every);
+      expect(gameOf(container).versions, VersionChoice.all);
     });
   });
 }

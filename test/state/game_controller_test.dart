@@ -85,14 +85,14 @@ void main() {
     });
 
     test('the version choice starts at every version and is kept', () {
-      expect(read().versions, TrackVersions.every);
+      expect(read().versions, VersionChoice.all);
 
       controller
-        ..setVersions(TrackVersions.taylorsVersion)
+        ..setVersions(VersionChoice.all.copyWith(liveTakes: false))
         ..toggleRelease(108447472)
         ..resetGame();
 
-      expect(read().versions, TrackVersions.taylorsVersion);
+      expect(read().versions, VersionChoice.all.copyWith(liveTakes: false));
       expect(read().selectedReleaseIds, isEmpty);
     });
 

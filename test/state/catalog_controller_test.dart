@@ -171,7 +171,7 @@ void main() {
       final scope = container();
       scope.read(gameControllerProvider.notifier)
         ..toggleEra('red')
-        ..setVersions(TrackVersions.taylorsVersion)
+        ..setVersions(VersionChoice.all.copyWith(originals: false))
         ..beginSetup(GameMode.album);
 
       final tracks = await scope
@@ -181,7 +181,10 @@ void main() {
       final red = scope.read(catalogControllerProvider).catalogue.tracksFor([
         'red',
       ]);
-      expect(tracks.allTracks, keepVersions(red, TrackVersions.taylorsVersion));
+      expect(
+        tracks.allTracks,
+        keepVersions(red, VersionChoice.all.copyWith(originals: false)),
+      );
       expect(tracks.allTracks.length, lessThan(red.length));
       expect(tracks.allTracks.toSet().containsAll(tracks.pool), isTrue);
     });
