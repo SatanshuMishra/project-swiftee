@@ -105,7 +105,7 @@ updater artifacts and writes `latest.json`.
 | `lib/services/` | Audio (flutter_soloud) and the updater |
 | `lib/state/` | Riverpod controllers |
 | `lib/ui/`, `lib/app/` | Screens, widgets, theme, app shell |
-| `assets/` | Cat icon, achievement cats, icons, quack sound |
+| `assets/` | Cat icon, brand icon, bundled catalogue, quack sound |
 | `test/` | flutter_test unit and widget tests |
 | `installer/windows/` | NSIS installer script |
 | `tool/release/` | Packaging scripts, release checks, `latest.json` writer |
