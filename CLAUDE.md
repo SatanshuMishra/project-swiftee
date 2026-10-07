@@ -41,7 +41,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 ## Where to look
 | I want to...                    | Look at... |
 |---------------------------------|------------|
-| Add an achievement              | lib/domain/engine/achievements.dart + achievementConditionMet in lib/state/achievements_controller.dart:26 + assets/cats/ SVG |
+| Add an achievement              | lib/domain/engine/achievements.dart + achievementConditionMet in lib/state/achievements_controller.dart:31 |
 | Add a game phase/screen         | GamePhase in lib/domain/models/game_types.dart:3 + phase switch in lib/app/app.dart:175 + new widget in lib/ui/screens/ |
 | Change save format              | bump currentSaveVersion in lib/data/save/migrations.dart:5 and defaultProgress in lib/domain/models/progress.dart:9 + a migration step in migrations.dart |
 | Fix smart-clip behaviour        | lib/domain/engine/clip_selector.dart + lib/data/lyrics/danger_zones.dart |
@@ -56,7 +56,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 ## Preferred skills (project-scoped)
 - `/verify`         — dart format check, flutter analyze, flutter test before claiming done
 - `/review-pr`      — santa-method dual-review (flutter-reviewer + audio-engine-reviewer) on uncommitted changes
-- `/new-achievement <id> "<description>"` — scaffolds definition + unlock condition + cat SVG + tests
+- `/new-achievement <id> "<description>"` — scaffolds definition + unlock condition + tests
 - `/release patch|minor|major` — bumps pubspec.yaml, writes the CHANGELOG entry, opens the release PR
 
 ## Skills to skip here

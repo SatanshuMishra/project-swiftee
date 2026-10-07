@@ -115,7 +115,7 @@ class LyricPaper extends StatelessWidget {
                     _Cover(
                       size: headerCover,
                       url: coverUrl,
-                      placeholder: placeholder ?? tokens.designCard,
+                      placeholder: placeholder ?? tokens.card,
                     ),
                     const SizedBox(width: headerGap),
                     Expanded(
@@ -164,7 +164,7 @@ class LyricPaper extends StatelessWidget {
                 _Cover(
                   size: hintCover,
                   url: coverUrl,
-                  placeholder: placeholder ?? tokens.designCard,
+                  placeholder: placeholder ?? tokens.card,
                   shadow: CssBoxShadow(
                     color: tokens.shadow,
                     offset: const Offset(0, 6),

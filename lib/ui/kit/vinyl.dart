@@ -254,7 +254,7 @@ class AlbumSleeve extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              ColoredBox(color: placeholder ?? tokens.designCard),
+              ColoredBox(color: placeholder ?? tokens.card),
               if (url != null)
                 Image.network(
                   url,

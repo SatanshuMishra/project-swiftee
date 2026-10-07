@@ -269,7 +269,7 @@ class _Notes extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: tokens.designCard,
+        color: tokens.card,
         border: Border.all(color: tokens.line),
         borderRadius: UpdateModal.boxRadius,
       ),

@@ -47,7 +47,7 @@ an external memory MCP.
 |---|---|
 | `/verify` | `dart format` check, `flutter analyze --fatal-infos`, `flutter test`; stops at the first failure |
 | `/review-pr` | Runs `flutter-reviewer` and `audio-engine-reviewer` in parallel on the diff or a PR and converges |
-| `/new-achievement` | Scaffolds an achievement: definition, unlock condition, cat SVG, tests |
+| `/new-achievement` | Scaffolds an achievement: definition, unlock condition, tests |
 | `/release` | Bumps `pubspec.yaml`, writes the CHANGELOG entry, runs `/verify`, opens the release PR; never pushes tags |
 
 ## Hooks (security guards + quality warnings)

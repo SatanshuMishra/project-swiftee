@@ -18,7 +18,6 @@ void main() {
           expect(def.id, isNotEmpty);
           expect(def.name, isNotEmpty);
           expect(def.description, isNotEmpty);
-          expect(def.catFile, isNotEmpty);
         }
       });
 

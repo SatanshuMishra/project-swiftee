@@ -34,10 +34,10 @@ typedef AnswerLook = ({
 });
 
 AnswerLook answerLook(AnswerState state, AppTokens tokens, bool hovered) {
-  final clear = tokens.designCard.withValues(alpha: 0);
+  final clear = tokens.card.withValues(alpha: 0);
   return switch (state) {
     AnswerState.idle => (
-      fill: hovered ? tokens.designCard : clear,
+      fill: hovered ? tokens.card : clear,
       border: hovered ? tokens.coral : tokens.line2,
       ink: tokens.fg,
       chipFill: tokens.hover,
