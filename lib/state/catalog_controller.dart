@@ -138,8 +138,19 @@ class CatalogController extends Notifier<CatalogState> {
     }
   }
 
-  Future<void> checkForNewReleases() => _releaseCheck ??= _checkForNewReleases()
-      .whenComplete(() => _releaseCheck = null);
+  Future<void> checkForNewReleases() {
+    if (_releaseCheck case final running?) {
+      return running;
+    }
+    late final Future<void> check;
+    check = _checkForNewReleases().whenComplete(() {
+      if (identical(_releaseCheck, check)) {
+        _releaseCheck = null;
+      }
+    });
+    _releaseCheck = check;
+    return check;
+  }
 
   Future<void> _checkForNewReleases() async {
     await loadCatalogue();

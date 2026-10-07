@@ -165,6 +165,25 @@ void main() {
       }
     });
 
+    test('sorts likely future labels', () {
+      for (final (title, take) in [
+        ("Love Story (Taylor's Version) [Live]", Take.live),
+        ('Anti-Hero (From The Eras Tour)', Take.live),
+        ('Cruel Summer (Eras Tour Live)', Take.live),
+        ('Lavender Haze (Stripped)', Take.alternate),
+        ('Karma (Piano/Vocal)', Take.alternate),
+        ('Bejeweled (Sped Up)', Take.alternate),
+        ('Fortnight (Acapella)', Take.alternate),
+        ('Style (Extended Version)', Take.alternate),
+        ('Shake It Off (Radio Edit)', Take.studio),
+        ('Blank Space (Album Version)', Take.studio),
+        ('Look What You Made Me Do (Clean Version)', Take.studio),
+      ]) {
+        expect(takeOf(title), take, reason: title);
+        expect(unknownTitleLabels(title), isEmpty, reason: title);
+      }
+    });
+
     test('names the labels it does not know, and counts them as studio', () {
       expect(unknownTitleLabels('Fearless'), isEmpty);
       expect(unknownTitleLabels("Mary's Song (Oh My My My)"), isEmpty);

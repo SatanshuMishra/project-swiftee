@@ -71,7 +71,10 @@ String encodeCatalogueEntries(
   ],
 });
 
-List<CatalogueEntry> decodeCatalogueEntries(String text) {
+List<CatalogueEntry> decodeCatalogueEntries(
+  String text, {
+  DateTime? unstamped,
+}) {
   final json = _decodeJson(text);
   return switch (json) {
     {
@@ -83,7 +86,8 @@ List<CatalogueEntry> decodeCatalogueEntries(String text) {
         for (final release in releases)
           (
             release: _decodeRelease(release),
-            fetchedAt: _fetchedAt(release) ?? _parseTime(fetchedAt),
+            fetchedAt:
+                _fetchedAt(release) ?? unstamped ?? _parseTime(fetchedAt),
           ),
       ]),
     _ => throw const ParseError('unsupported catalogue'),
