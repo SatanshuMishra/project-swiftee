@@ -4,6 +4,16 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] - 2026-10-07
+
+### Fixed
+- On Windows, lyrics games load again, and album covers show instead of blank placeholders. Windows had not yet trusted the certificates that the lyrics service and Deezer's cover images use, so the app now brings the trusted certificates it needs.
+- When lyrics cannot be reached, the game says so and offers Try again, instead of saying there are not enough songs with lyrics.
+- A lyrics game keeps looking for songs with lyrics instead of giving up after the first eight.
+- A song whose clip will not load is swapped for another instead of ending the game, and a lookup that fails once is tried again. The game stops only after four songs in a row fail to load.
+- A Play together host starting a lyrics game gives up after 30 seconds instead of keeping everyone waiting.
+- At large text sizes, the update window and the confirmation dialogs fit on screen, and their buttons stay within reach.
+
 ## [0.5.0] - 2026-10-07
 
 ### Added
