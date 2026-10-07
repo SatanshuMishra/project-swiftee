@@ -1,16 +1,10 @@
-include: package:flutter_lints/flutter.yaml
+include: package:lints/recommended.yaml
 
 analyzer:
   language:
     strict-casts: true
     strict-inference: true
     strict-raw-types: true
-  exclude:
-    - build/**
-    - windows/**
-    - macos/**
-    - packages/**
-    - relay/**
 
 linter:
   rules:
