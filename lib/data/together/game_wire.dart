@@ -12,7 +12,10 @@ Map<String, Object?> encodeGameMessage(GameMessage message) =>
         'settings': _encodeSettings(settings),
         'scopeLabel': scopeLabel,
       },
-      GameStarting() => {'k': 'starting'},
+      GameStarting(:final settings) => {
+        'k': 'starting',
+        'settings': _encodeSettings(settings),
+      },
       RoundStart(
         :final number,
         :final total,
@@ -79,7 +82,9 @@ GameMessage decodeGameMessage(Map<String, Object?> body) => switch (body) {
       settings: _decodeSettings(settings),
       scopeLabel: scopeLabel,
     ),
-  {'k': 'starting'} => const GameStarting(),
+  {'k': 'starting', 'settings': final Object? settings} => GameStarting(
+    settings: _decodeSettings(settings),
+  ),
   {
     'k': 'round',
     'number': final int number,

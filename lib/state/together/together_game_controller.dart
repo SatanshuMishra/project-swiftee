@@ -95,7 +95,7 @@ class TogetherGameController extends Notifier<TogetherGameState> {
       return;
     }
     final roomController = ref.read(roomControllerProvider.notifier)..lock();
-    _broadcast(const GameStarting());
+    _broadcast(GameStarting(settings: room.settings));
     final game = _game;
     _pointAtRoom(room.settings);
     final ready = await _buildPool(room.settings);
@@ -154,10 +154,15 @@ class TogetherGameController extends Notifier<TogetherGameState> {
     }
     final audio = ref.read(audioControllerProvider);
     final controller = ref.read(audioControllerProvider.notifier);
+    if (audio.loading) {
+      return;
+    }
     if (audio.playing) {
       controller.pause();
     } else if (audio.paused) {
       controller.resume();
+    } else if (audio.progress > 0) {
+      controller.relisten();
     }
   }
 
@@ -237,8 +242,8 @@ class TogetherGameController extends Notifier<TogetherGameState> {
       return;
     }
     switch (message) {
-      case GameStarting():
-        _starting();
+      case GameStarting(:final settings):
+        _starting(settings);
       case final RoundStart start when _inGame:
         _roundStarted(start);
       case StatusChanged(:final number, :final playerId, :final status)
@@ -267,15 +272,15 @@ class TogetherGameController extends Notifier<TogetherGameState> {
     _ => false,
   };
 
-  void _starting() {
+  void _starting(RoomSettings settings) {
     _halt();
     _lastRemarkRound = -closeFinishEvery;
     final room = ref.read(roomControllerProvider);
     state = TogetherGameState.initial.copyWith(
       stage: TogetherStage.starting,
-      total: room.settings.rounds,
-      mode: room.settings.mode,
-      difficulty: room.settings.difficulty,
+      total: settings.rounds,
+      mode: settings.mode,
+      difficulty: settings.difficulty,
       roster: room.players,
       standings: [
         for (final player in room.players) PlayerScore.start(player.id),
@@ -285,6 +290,7 @@ class TogetherGameController extends Notifier<TogetherGameState> {
 
   void _roundStarted(RoundStart start) {
     _cancelTimers();
+    ref.read(gameControllerProvider.notifier).resetRelisten();
     final round = ++_round;
     _roundStartedAt = null;
     _clipStart = start.clipStart;
@@ -477,6 +483,11 @@ class TogetherGameController extends Notifier<TogetherGameState> {
     ref.read(audioControllerProvider.notifier).stop();
     state = state.copyWith(
       stage: TogetherStage.reveal,
+      statuses: {
+        for (final MapEntry(:key, :value) in state.statuses.entries)
+          if (revealed.results.any((result) => result.playerId == key))
+            key: value,
+      },
       results: {for (final result in revealed.results) result.playerId: result},
       answerTrackId: revealed.answerTrackId,
       isReal: revealed.isReal,

@@ -158,6 +158,8 @@ class GameController extends Notifier<GameState> {
   void incrementRelisten() =>
       state = state.copyWith(relistenCount: state.relistenCount + 1);
 
+  void resetRelisten() => state = state.copyWith(relistenCount: 0);
+
   void resetGame() => state = state.copyWith(
     phase: GamePhase.menu,
     currentTrack: null,

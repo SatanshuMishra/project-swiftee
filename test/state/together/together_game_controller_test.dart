@@ -171,6 +171,8 @@ final class _FakeEngine implements AudioEngine {
   List<_FakeClip> loaded = const [];
   List<_Slice> slices = const [];
   List<AudioVoice> stopped = const [];
+  List<AudioVoice> finished = const [];
+  List<LoadedClip> unloaded = const [];
   int _nextVoice = 1;
 
   @override
@@ -184,7 +186,9 @@ final class _FakeEngine implements AudioEngine {
   }
 
   @override
-  Future<void> unloadClip(LoadedClip clip) async {}
+  Future<void> unloadClip(LoadedClip clip) async {
+    unloaded = [...unloaded, clip];
+  }
 
   @override
   AudioVoice playSlice(
@@ -211,8 +215,9 @@ final class _FakeEngine implements AudioEngine {
   }
 
   @override
-  double? positionOf(AudioVoice voice) =>
-      stopped.contains(voice) ? null : slices[voice.id - 1].offset;
+  double? positionOf(AudioVoice voice) => stopped.contains(voice)
+      ? null
+      : slices[voice.id - 1].offset + (finished.contains(voice) ? 1000 : 0);
 
   @override
   void setVolume(AudioVoice voice, double volume) {}
@@ -575,7 +580,15 @@ void main() {
         expect(lockAt, lessThan(startingAt));
         expect(
           host.relay.bodies.where((body) => body.to == null).first.message,
-          const GameStarting(),
+          GameStarting(
+            settings: RoomSettings(
+              rounds: 5,
+              scope: RoomScope.picked(
+                eraKeys: const ['lover'],
+                releaseIds: const [],
+              ),
+            ),
+          ),
         );
         expect(host.states.first.stage, TogetherStage.starting);
         expect(host.states.first.roster, [_sam, _maya, _lee]);
@@ -658,7 +671,11 @@ void main() {
             ),
           );
 
-          guest.fromHost(const GameStarting());
+          guest.fromHost(
+            const GameStarting(
+              settings: RoomSettings(mode: TogetherMode.lyricsOrLie, rounds: 5),
+            ),
+          );
           expect(guest.state.stage, TogetherStage.starting);
           expect(guest.state.mode, TogetherMode.lyricsOrLie);
           expect(guest.state.total, 5);
@@ -775,7 +792,7 @@ void main() {
           for (final id in [101, 102, 103, 104]) _track(id),
         ];
         guest
-          ..fromHost(const GameStarting())
+          ..fromHost(const GameStarting(settings: RoomSettings()))
           ..fromHost(
             RoundStart(
               number: 1,
@@ -835,6 +852,188 @@ void main() {
           everyElement(0),
         );
         expect(guest.zones.calls, isEmpty);
+      });
+    });
+
+    test('a guest plays the mode and rounds the start message carries', () {
+      fakeAsync((async) {
+        final guest = _Harness(async, nickname: 'Maya')..joinRoom();
+        expect(
+          guest.container.read(roomControllerProvider).settings,
+          const RoomSettings(),
+        );
+
+        guest.fromHost(
+          const GameStarting(
+            settings: RoomSettings(
+              mode: TogetherMode.lyricsOrLie,
+              rounds: 5,
+              difficulty: Difficulty.hard,
+            ),
+          ),
+        );
+
+        expect(guest.state.stage, TogetherStage.starting);
+        expect(guest.state.mode, TogetherMode.lyricsOrLie);
+        expect(guest.state.total, 5);
+        expect(guest.state.difficulty, Difficulty.hard);
+      });
+    });
+
+    test("an answer the host never counted is not shown as the guest's", () {
+      fakeAsync((async) {
+        final guest = _Harness(async, nickname: 'Maya')..joinRoom();
+        guest
+          ..fromHost(const GameStarting(settings: RoomSettings()))
+          ..fromHost(
+            RoundStart(
+              number: 1,
+              total: 2,
+              track: _track(101),
+              options: [
+                for (final id in [101, 102, 103, 104]) _track(id),
+              ],
+              clipStart: 3,
+            ),
+          )
+          ..countdown();
+        guest.together.answer(trackId: 101);
+        async.flushMicrotasks();
+        expect(guest.state.statuses[_maya.id], AnswerStatus.answered);
+
+        guest.fromHost(
+          RoundRevealed(
+            number: 1,
+            answerTrackId: 101,
+            isReal: null,
+            sourceSong: null,
+            winnerId: null,
+            results: const [],
+            standings: [
+              PlayerScore.start(_sam.id),
+              PlayerScore.start(_maya.id),
+            ],
+          ),
+        );
+
+        expect(guest.state.stage, TogetherStage.reveal);
+        expect(guest.state.statuses.containsKey(_maya.id), isFalse);
+      });
+    });
+
+    test('listen again replays the clip once it has ended', () {
+      fakeAsync((async) {
+        final guest = _Harness(async, nickname: 'Maya')..joinRoom();
+        final options = [
+          for (final id in [101, 102, 103, 104]) _track(id),
+        ];
+        guest
+          ..fromHost(const GameStarting(settings: RoomSettings()))
+          ..fromHost(
+            RoundStart(
+              number: 1,
+              total: 2,
+              track: _track(101),
+              options: options,
+              clipStart: 3,
+            ),
+          )
+          ..countdown();
+        expect(guest.engine.slices, hasLength(1));
+
+        guest.engine.finished = [guest.engine.slices.single.voice];
+        async.elapse(const Duration(seconds: 1));
+        expect(guest.container.read(audioControllerProvider).playing, isFalse);
+
+        guest.together.togglePause();
+        async.flushMicrotasks();
+        expect(guest.engine.slices, hasLength(2));
+        expect(guest.container.read(gameControllerProvider).relistenCount, 1);
+
+        guest.fromHost(
+          RoundRevealed(
+            number: 1,
+            answerTrackId: 101,
+            isReal: null,
+            sourceSong: null,
+            winnerId: null,
+            results: const [],
+            standings: [
+              PlayerScore.start(_sam.id),
+              PlayerScore.start(_maya.id),
+            ],
+          ),
+        );
+        guest.fromHost(
+          RoundStart(
+            number: 2,
+            total: 2,
+            track: _track(102),
+            options: options,
+            clipStart: 4,
+          ),
+        );
+        expect(guest.container.read(gameControllerProvider).relistenCount, 0);
+      });
+    });
+
+    test("a guest's late clip for an ended round never plays", () {
+      fakeAsync((async) {
+        final guest = _Harness(async, nickname: 'Maya')..joinRoom();
+        final options = [
+          for (final id in [101, 102, 103, 104]) _track(id),
+        ];
+        guest
+          ..fromHost(const GameStarting(settings: RoomSettings()))
+          ..hold(101)
+          ..fromHost(
+            RoundStart(
+              number: 1,
+              total: 2,
+              track: _track(101),
+              options: options,
+              clipStart: 3,
+            ),
+          )
+          ..countdown();
+        expect(guest.state.stage, TogetherStage.loading);
+
+        guest.fromHost(
+          RoundRevealed(
+            number: 1,
+            answerTrackId: 101,
+            isReal: null,
+            sourceSong: null,
+            winnerId: null,
+            results: const [],
+            standings: [
+              PlayerScore.start(_sam.id),
+              PlayerScore.start(_maya.id),
+            ],
+          ),
+        );
+        guest.release(101);
+        expect(guest.engine.slices, isEmpty);
+
+        guest
+          ..fromHost(
+            RoundStart(
+              number: 2,
+              total: 2,
+              track: _track(102),
+              options: options,
+              clipStart: 4,
+            ),
+          )
+          ..countdown();
+        expect(guest.engine.slices.single.offset, 4);
+        expect(guest.engine.slices.single.clip, guest.engine.loaded.last);
+        expect(
+          guest.engine.unloaded.whereType<_FakeClip>().map(
+            (clip) => clip.bytes,
+          ),
+          anyElement(_bytesOf(101)),
+        );
       });
     });
 
