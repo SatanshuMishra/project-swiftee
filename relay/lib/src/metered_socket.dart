@@ -11,11 +11,13 @@ const _maskedFrame = 0x80;
 const _lengthBits = 0x7f;
 const _continuation = 0;
 const _firstNonDataOpcode = 3;
+const _ping = 9;
 
 enum Breach {
   tooBig('too-big', destroys: false),
   unfinished('unfinished', destroys: true),
-  byteRate('byte-rate', destroys: true);
+  byteRate('byte-rate', destroys: true),
+  pings('pings', destroys: true);
 
   const Breach(this.reason, {required this.destroys});
 
@@ -28,10 +30,12 @@ final class MeteredSocket extends Stream<Uint8List> implements Socket {
     this._socket, {
     required int maxMessageBytes,
     required int bytesPerSecond,
+    required int pingsPerSecond,
     required this._breached,
   }) : _meter = _FrameMeter(
          maxMessageBytes: maxMessageBytes,
          bytesPerSecond: bytesPerSecond,
+         pingsPerSecond: pingsPerSecond,
        );
 
   final Socket _socket;
@@ -132,19 +136,27 @@ final class MeteredSocket extends Stream<Uint8List> implements Socket {
 }
 
 final class _FrameMeter {
-  _FrameMeter({required int maxMessageBytes, required int bytesPerSecond})
-    : _maxMessageBytes = maxMessageBytes,
-      _maxUnfinishedBytes = 2 * maxMessageBytes,
-      _bytesPerSecond = bytesPerSecond.toDouble(),
-      _allowance = bytesPerSecond.toDouble();
+  _FrameMeter({
+    required int maxMessageBytes,
+    required int bytesPerSecond,
+    required int pingsPerSecond,
+  }) : _maxMessageBytes = maxMessageBytes,
+       _maxUnfinishedBytes = 2 * maxMessageBytes,
+       _bytesPerSecond = bytesPerSecond.toDouble(),
+       _allowance = bytesPerSecond.toDouble(),
+       _pingsPerSecond = pingsPerSecond.toDouble(),
+       _pingAllowance = pingsPerSecond.toDouble();
 
   final int _maxMessageBytes;
   final int _maxUnfinishedBytes;
   final double _bytesPerSecond;
   final _clock = Stopwatch()..start();
   final _header = Uint8List(_longestHeader);
+  final double _pingsPerSecond;
   double _allowance;
+  double _pingAllowance;
   var _refilledAt = 0;
+  var _pingsRefilledAt = 0;
   var _headerBytes = 0;
   var _payloadLeft = 0;
   var _messageBytes = 0;
@@ -170,9 +182,16 @@ final class _FrameMeter {
         if (_headerBytes == 0) frameStart = index;
         _header[_headerBytes++] = chunk[index++];
         _unfinishedBytes++;
-        if (_headerBytes == _headerLength && !_startFrame()) {
-          _refusing = true;
-          return (admitted: frameStart, breach: Breach.tooBig);
+        if (_headerBytes == _headerLength) {
+          switch (_startFrame()) {
+            case Breach.tooBig:
+              _refusing = true;
+              return (admitted: frameStart, breach: Breach.tooBig);
+            case final Breach breach:
+              return _die(breach);
+            case null:
+              break;
+          }
         }
       }
       if (_unfinishedBytes > _maxUnfinishedBytes) {
@@ -200,20 +219,32 @@ final class _FrameMeter {
     final length => length,
   };
 
-  bool _startFrame() {
+  Breach? _startFrame() {
     final opcode = _header[0] & _opcodeBits;
     final length = _payloadLength;
     final carriesData = opcode < _firstNonDataOpcode;
     _headerBytes = 0;
     _endsMessage = carriesData && (_header[0] & _finalFrame) != 0;
-    if (length < 0 || length > _maxMessageBytes) return false;
+    if (length < 0 || length > _maxMessageBytes) return Breach.tooBig;
+    if (opcode == _ping && !_spendPing()) return Breach.pings;
     if (carriesData) {
       _messageBytes = (opcode == _continuation ? _messageBytes : 0) + length;
-      if (_messageBytes > _maxMessageBytes) return false;
+      if (_messageBytes > _maxMessageBytes) return Breach.tooBig;
     }
     _payloadLeft = length;
     if (length == 0) _endFrame();
-    return true;
+    return null;
+  }
+
+  bool _spendPing() {
+    final now = _clock.elapsedMicroseconds;
+    final refill =
+        (now - _pingsRefilledAt) *
+        _pingsPerSecond /
+        Duration.microsecondsPerSecond;
+    _pingAllowance = min(_pingsPerSecond, _pingAllowance + refill) - 1;
+    _pingsRefilledAt = now;
+    return _pingAllowance >= 0;
   }
 
   void _endFrame() {

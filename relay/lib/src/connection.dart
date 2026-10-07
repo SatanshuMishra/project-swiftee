@@ -27,6 +27,7 @@ final class Connection {
       upgraded,
       maxMessageBytes: limits.maxMessageBytes,
       bytesPerSecond: limits.inboundBytesPerSecond,
+      pingsPerSecond: limits.pingsPerSecond,
       breached: (breach) => breached(connection, breach),
     );
     final socket = WebSocket.fromUpgradedSocket(

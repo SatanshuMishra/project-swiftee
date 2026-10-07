@@ -584,7 +584,11 @@ void main() {
         relay.lines.where(
           (line) => line.startsWith('socket dropped reason=unfinished'),
         ),
-        hasLength(2),
+        hasLength(1),
+      );
+      expect(
+        relay.lines,
+        anyElement(startsWith('socket dropped reason=pings')),
       );
 
       final metered = await Relay.start(
@@ -841,6 +845,63 @@ void main() {
         await busyGuest.next(),
         Relayed(from: busy.you.id, body: const {'say': 'still playing'}),
       );
+    },
+  );
+
+  test(
+    'pings past the budget drop a socket even between complete messages',
+    () async {
+      final relay = await Relay.start(
+        limits: const RelayLimits(
+          inboundBytesPerSecond: 1 << 30,
+          burstMessages: 1 << 20,
+        ),
+      );
+      final wire = await Wire.connect(relay);
+      await wire.upgrade();
+      wire.frame(
+        1,
+        payload: utf8.encode(const OpenRoom(name: 'Pinger', game: 1).encode()),
+      );
+      await until(
+        () => relay.lines.any((line) => line.startsWith('room opened')),
+      );
+
+      final pings = repeated(Wire.frameBytes(9, payload: Uint8List(100)), 20);
+      final lock = Wire.frameBytes(
+        1,
+        payload: utf8.encode(const LockRoom().encode()),
+      );
+      await wire.push(
+        Uint8List.fromList([...pings, ...lock]),
+        limit: 1 << 20,
+        stop: () => wire.closed,
+      );
+      await wire.ended;
+
+      expect(
+        relay.lines,
+        anyElement(startsWith('socket dropped reason=pings')),
+      );
+    },
+  );
+
+  test(
+    'a host message that reaches nobody does not keep a room open',
+    () async {
+      final relay = await Relay.start(
+        limits: const RelayLimits(roomIdleTimeout: Duration(milliseconds: 600)),
+      );
+      final (host, _) = await relay.open('Maya');
+      for (var tick = 0; tick < 8; tick++) {
+        host.send(SendBody(body: {'tick': tick}));
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+      }
+
+      expect(relay.lines, anyElement(startsWith('room closed reason=idle')));
+      expect(await host.next(), const RoomClosed());
+      expect(await host.ended(), WebSocketStatus.normalClosure);
+      expect(relay.lines, anyElement(startsWith('room closed reason=idle')));
     },
   );
 
