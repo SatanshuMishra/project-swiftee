@@ -2,12 +2,13 @@ import 'package:swiftie_quiz/data/save/save_error.dart';
 
 typedef SaveMigration = Map<String, Object?> Function(Map<String, Object?>);
 
-const int currentSaveVersion = 4;
+const int currentSaveVersion = 5;
 
 const Map<int, SaveMigration> _migrations = {
   1: _migrateV1ToV2,
   2: _migrateV2ToV3,
   3: _migrateV3ToV4,
+  4: _migrateV4ToV5,
 };
 
 int? declaredSaveVersion(Map<String, Object?> state) =>
@@ -83,4 +84,14 @@ Map<String, Object?> _migrateV3ToV4(Map<String, Object?> state) => {
       if (!settings.containsKey('nickname')) 'nickname': null,
     },
   'version': 4,
+};
+
+Map<String, Object?> _migrateV4ToV5(Map<String, Object?> state) => {
+  ...state,
+  if (state['settings'] case final Map<String, Object?> settings)
+    'settings': {
+      ...settings,
+      if (!settings.containsKey('togetherLink')) 'togetherLink': null,
+    },
+  'version': 5,
 };

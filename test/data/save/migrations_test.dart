@@ -61,7 +61,7 @@ Map<String, Object?> v3Save() => {
 };
 
 Map<String, Object?> currentSave() => {
-  'version': 4,
+  'version': 5,
   'achievements': {
     'first_meow': {
       'unlocked': true,
@@ -84,6 +84,7 @@ Map<String, Object?> currentSave() => {
     'volume': 0.8,
     'misuVisits': 'often',
     'nickname': 'Sam',
+    'togetherLink': null,
   },
   'updater': {
     'autoCheckEnabled': true,
@@ -95,8 +96,8 @@ Map<String, Object?> currentSave() => {
 
 void main() {
   group('migrations parity', () {
-    test('current save version is 4', () {
-      expect(currentSaveVersion, 4);
+    test('current save version is 5', () {
+      expect(currentSaveVersion, 5);
     });
 
     test('migrates v1 to current', () {
@@ -121,7 +122,7 @@ void main() {
         'stats': v2Stats(),
         'settings': v2Settings(),
       });
-      expect(result['version'], 4);
+      expect(result['version'], 5);
       expect(
         result['updater'],
         equals({
@@ -133,7 +134,7 @@ void main() {
       );
     });
 
-    test('migrate v1 through v4 chain', () {
+    test('migrate v1 through v5 chain', () {
       final result = migrateToLatest({
         'version': 1,
         'achievements': <String, Object?>{},
@@ -144,12 +145,13 @@ void main() {
         },
         'settings': v2Settings(),
       });
-      expect(result['version'], 4);
+      expect(result['version'], 5);
       expect(result['stats'], containsPair('totalCorrect', 99));
       expect(result['stats'], containsPair('totalLyricsCorrect', 0));
       expect(result['updater'], containsPair('autoCheckEnabled', true));
       expect(result['settings'], containsPair('misuVisits', 'sometimes'));
       expect(result['settings'], containsPair('nickname', null));
+      expect(result['settings'], containsPair('togetherLink', null));
     });
 
     test('migrate v2 to v3 preserves an existing updater field', () {
@@ -169,13 +171,13 @@ void main() {
       expect(result['updater'], containsPair('skippedVersions', ['0.3.0']));
     });
 
-    test('a version 3 save migrates to version 4 unchanged', () {
+    test('a version 3 save migrates to version 5 unchanged', () {
       final input = v3Save();
 
       final result = migrateToLatest(input);
 
       expect(result, {
-        'version': 4,
+        'version': 5,
         'achievements': {
           'first_meow': {
             'unlocked': true,
@@ -200,6 +202,7 @@ void main() {
           'hardTimer': 15,
           'misuVisits': 'sometimes',
           'nickname': null,
+          'togetherLink': null,
         },
         'updater': v3Save()['updater'],
       });
@@ -239,7 +242,7 @@ void main() {
         'settings': 'dark',
       });
 
-      expect(result['version'], 4);
+      expect(result['version'], 5);
       expect(result['achievements'], {'first_meow': true});
       expect(result['settings'], 'dark');
     });

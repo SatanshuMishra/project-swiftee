@@ -9,7 +9,8 @@ enum GamePhase {
   playing('playing'),
   roundSummary('round-summary'),
   recordShelf('record-shelf'),
-  settings('settings');
+  settings('settings'),
+  together('together');
 
   const GamePhase(this.wireName);
 

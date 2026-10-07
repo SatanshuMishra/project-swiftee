@@ -239,7 +239,7 @@ void main() {
     });
 
     test('never saves after a failed load', () async {
-      writeSave({..._currentSave(totalCorrect: 1), 'version': 5});
+      writeSave({..._currentSave(totalCorrect: 1), 'version': 6});
       await persistence().load();
 
       fakeAsync((async) {
@@ -253,7 +253,7 @@ void main() {
       expect(saved, isEmpty);
       expect(
         jsonDecode(saveFile.readAsStringSync()),
-        containsPair('version', 5),
+        containsPair('version', 6),
       );
     });
 

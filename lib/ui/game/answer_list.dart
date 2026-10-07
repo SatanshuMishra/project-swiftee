@@ -6,6 +6,7 @@ import 'package:swiftie_quiz/ui/theme/app_type.dart';
 
 enum AnswerState {
   idle,
+  mine,
   right,
   wrong,
   dim;
@@ -42,6 +43,13 @@ AnswerLook answerLook(AnswerState state, AppTokens tokens, bool hovered) {
       ink: tokens.fg,
       chipFill: tokens.hover,
       chipInk: tokens.mut,
+    ),
+    AnswerState.mine => (
+      fill: tokens.card,
+      border: tokens.coral,
+      ink: tokens.fg,
+      chipFill: tokens.hover,
+      chipInk: tokens.fg,
     ),
     AnswerState.right => (
       fill: tokens.coral,
@@ -134,6 +142,7 @@ class AnswerButton extends StatelessWidget {
   static const opacityMotion = Duration(milliseconds: 300);
   static const String rightMark = '✓';
   static const String wrongMark = '✕';
+  static const String mineMark = '•';
   static const rightChip = Color.from(
     alpha: 0.14,
     red: 26 / 255,
@@ -149,6 +158,7 @@ class AnswerButton extends StatelessWidget {
   String get chipText => switch (state) {
     AnswerState.right => rightMark,
     AnswerState.wrong => wrongMark,
+    AnswerState.mine => mineMark,
     AnswerState.idle || AnswerState.dim => '$number',
   };
 
