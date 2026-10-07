@@ -55,4 +55,6 @@ abstract interface class AudioEngine {
   Future<void> playQuack(double volume);
 
   Future<void> dispose();
+
+  Future<void> shutdown();
 }

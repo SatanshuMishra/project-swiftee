@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
+import 'package:swiftie_quiz/services/audio/audio_engine.dart';
 import 'package:swiftie_quiz/services/updater/update_config.dart';
 import 'package:swiftie_quiz/services/updater/update_downloader.dart';
 import 'package:swiftie_quiz/services/updater/update_installer.dart';
 import 'package:swiftie_quiz/services/updater/update_manifest_client.dart';
+import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
@@ -758,4 +761,69 @@ void main() {
       });
     }
   });
+
+  group('leaving the app', () {
+    ProviderContainer exitContainer(_ShutdownEngine engine, List<String> log) =>
+        ProviderContainer.test(
+          overrides: [
+            audioEngineProvider.overrideWithValue(engine),
+            processExitProvider.overrideWithValue(
+              (code) => log.add('exit $code'),
+            ),
+          ],
+        );
+
+    test('shuts the audio engine down before the process exits', () async {
+      final log = <String>[];
+      final engine = _ShutdownEngine(log, () async {});
+
+      await exitContainer(engine, log).read(appExitProvider)(0);
+
+      expect(log, ['shutdown', 'exit 0']);
+    });
+
+    test('still exits when the audio engine fails to shut down', () async {
+      final log = <String>[];
+      final engine = _ShutdownEngine(
+        log,
+        () => Future<void>.error(StateError('device lost')),
+      );
+
+      await exitContainer(engine, log).read(appExitProvider)(0);
+
+      expect(log, ['shutdown', 'exit 0']);
+    });
+
+    test('exits once the shutdown limit passes when the audio engine '
+        'never finishes', () {
+      fakeAsync((async) {
+        final log = <String>[];
+        final engine = _ShutdownEngine(log, () => Completer<void>().future);
+
+        unawaited(exitContainer(engine, log).read(appExitProvider)(0));
+        async.elapse(audioShutdownLimit - const Duration(milliseconds: 1));
+        expect(log, ['shutdown']);
+
+        async.elapse(const Duration(milliseconds: 1));
+        expect(log, ['shutdown', 'exit 0']);
+      });
+    });
+  });
+}
+
+final class _ShutdownEngine implements AudioEngine {
+  _ShutdownEngine(this._log, this._shutdown);
+
+  final List<String> _log;
+  final Future<void> Function() _shutdown;
+
+  @override
+  Future<void> shutdown() {
+    _log.add('shutdown');
+    return _shutdown();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnsupportedError('${invocation.memberName} was not expected');
 }

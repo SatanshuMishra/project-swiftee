@@ -5,19 +5,22 @@ import 'package:swiftie_quiz/domain/engine/clip_selector.dart';
 import 'package:swiftie_quiz/services/audio/audio_engine.dart';
 
 final class SoLoudAudioEngine implements AudioEngine {
-  SoLoudAudioEngine();
+  SoLoudAudioEngine({SoLoud? soloud}) : _soloud = soloud ?? SoLoud.instance;
 
   static const String quackAsset = 'assets/sounds/quack.mp3';
   static const int analysisSampleRate = 8000;
   static const String _previewName = 'preview.mp3';
 
-  final SoLoud _soloud = SoLoud.instance;
+  final SoLoud _soloud;
   Future<void>? _initialization;
   Future<AudioSource>? _quack;
   Future<void> _sourceDisposals = Future.value();
+  bool _shutDown = false;
 
   @override
-  Future<void> init() => _initialization ??= _initialize();
+  Future<void> init() => _shutDown
+      ? Future.error(StateError('The audio engine has shut down'))
+      : _initialization ??= _initialize();
 
   Future<void> _initialize() async {
     try {
@@ -131,6 +134,17 @@ final class SoLoudAudioEngine implements AudioEngine {
     await _sourceDisposals;
     if (_soloud.isInitialized) {
       await _soloud.disposeAllSources();
+    }
+  }
+
+  @override
+  Future<void> shutdown() async {
+    final started = _initialization != null || _soloud.isInitialized;
+    _shutDown = true;
+    _quack = null;
+    _initialization = null;
+    if (started) {
+      await _soloud.deinitAsync();
     }
   }
 

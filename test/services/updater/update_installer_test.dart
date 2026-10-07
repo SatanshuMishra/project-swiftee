@@ -67,6 +67,8 @@ final class _Sandbox {
   final List<String> createdTempDirectories = [];
   final List<int> exitCodes = [];
 
+  Future<void> recordExit(int code) async => exitCodes.add(code);
+
   String get applications => p.join(root.path, 'Applications');
 
   String get bundlePath => p.join(applications, 'Swiftie Quiz.app');
@@ -131,7 +133,7 @@ final class _Sandbox {
     createTempDirectory: createTempDirectory ?? this.createTempDirectory,
     runProcess: (executable, arguments) =>
         runProcess(executable, arguments, fakeExitCode: stubbedExitCode),
-    exitProcess: exitCodes.add,
+    exitProcess: recordExit,
   );
 
   List<String> leftovers() =>
@@ -407,7 +409,7 @@ void main() {
             (executable, arguments, {mode = ProcessStartMode.normal}) async {
               started.add((executable, arguments, mode));
             },
-        exitProcess: sandbox.exitCodes.add,
+        exitProcess: sandbox.recordExit,
       );
 
       await installer.install(setup, version: '0.3.0');
@@ -432,7 +434,7 @@ void main() {
           arguments, {
           mode = ProcessStartMode.normal,
         }) async => fail('started $executable'),
-        exitProcess: sandbox.exitCodes.add,
+        exitProcess: sandbox.recordExit,
       );
 
       await expectLater(

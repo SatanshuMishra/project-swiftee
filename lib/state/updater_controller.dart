@@ -8,6 +8,7 @@ import 'package:swiftie_quiz/services/updater/update_config.dart';
 import 'package:swiftie_quiz/services/updater/update_downloader.dart';
 import 'package:swiftie_quiz/services/updater/update_installer.dart';
 import 'package:swiftie_quiz/services/updater/update_manifest_client.dart';
+import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
@@ -53,16 +54,29 @@ final updateDownloaderProvider = FutureProvider<UpdateDownloader>(
   ),
 );
 
+final processExitProvider = Provider<void Function(int code)>((ref) => exit);
+
+final appExitProvider = Provider<ExitProcess>((ref) {
+  final engine = ref.watch(audioEngineProvider);
+  final exitProcess = ref.watch(processExitProvider);
+  return (code) async {
+    await shutDownAudio(engine);
+    exitProcess(code);
+  };
+});
+
 final updateInstallerProvider = Provider<UpdateInstaller>(
   (ref) => Platform.isWindows
       ? WindowsUpdateInstaller(
           createTempDirectory: Directory.systemTemp.createTemp,
           startProcess: Process.start,
+          exitProcess: ref.watch(appExitProvider),
         )
       : MacUpdateInstaller(
           bundlePath: macBundlePathFromExecutable(Platform.resolvedExecutable),
           createTempDirectory: Directory.systemTemp.createTemp,
           runProcess: Process.run,
+          exitProcess: ref.watch(appExitProvider),
         ),
 );
 

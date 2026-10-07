@@ -138,6 +138,11 @@ final class _HeldLyrics extends LyricsController {
 }
 
 final class _SilentEngine implements AudioEngine {
+  int shutdowns = 0;
+
+  @override
+  Future<void> shutdown() async => shutdowns += 1;
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnsupportedError('${invocation.memberName} was not expected');
@@ -210,6 +215,7 @@ final class _Harness {
     restartApp: () => restarts += 1,
   );
   final _CountingManifestClient manifest = _CountingManifestClient();
+  final _SilentEngine engine = _SilentEngine();
   _RecordingUpdater? _updater;
   Brightness platformBrightness = Brightness.dark;
   List<(Brightness, Color)> chrome = const [];
@@ -229,7 +235,7 @@ final class _Harness {
         return http.Response('', 404);
       }),
     ),
-    audioEngineProvider.overrideWithValue(_SilentEngine()),
+    audioEngineProvider.overrideWithValue(engine),
     persistenceControllerProvider.overrideWith(() => persistence),
     catalogControllerProvider.overrideWith(catalog),
     lyricsControllerProvider.overrideWith(_HeldLyrics.new),
@@ -875,5 +881,16 @@ void main() {
     );
     expect(title.text.style?.decoration, isNot(TextDecoration.underline));
     expect(title.text.style?.fontFamily, isNot('monospace'));
+  });
+
+  testWidgets('a request to quit shuts the audio engine down, then lets the '
+      'app exit', (tester) async {
+    final harness = _Harness(tester);
+    await harness.launch();
+
+    final response = await tester.binding.handleRequestAppExit();
+
+    expect(response, AppExitResponse.exit);
+    expect(harness.engine.shutdowns, 1);
   });
 }

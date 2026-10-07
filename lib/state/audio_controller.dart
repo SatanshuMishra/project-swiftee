@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -28,6 +29,8 @@ const double snippetVolumeShare = 0.7;
 
 const Duration snippetRest = Duration(milliseconds: 250);
 const Duration prefetchedLinkLifetime = Duration(minutes: 10);
+
+const Duration audioShutdownLimit = Duration(seconds: 2);
 
 final class AudioState {
   const AudioState({
@@ -117,6 +120,19 @@ final audioEngineProvider = Provider<AudioEngine>((ref) {
   ref.onDispose(() => unawaited(engine.dispose()));
   return engine;
 });
+
+Future<void> shutDownAudio(AudioEngine engine) async {
+  try {
+    await engine.shutdown().timeout(audioShutdownLimit);
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'The audio engine did not shut down cleanly',
+      name: 'swiftie_quiz.audio',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+}
 
 final previewDownloaderProvider = FutureProvider<PreviewDownloader>(
   (ref) async => PreviewDownloader(

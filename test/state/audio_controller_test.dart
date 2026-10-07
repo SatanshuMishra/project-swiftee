@@ -206,6 +206,9 @@ final class _FakeEngine implements AudioEngine {
 
   @override
   Future<void> dispose() async {}
+
+  @override
+  Future<void> shutdown() async {}
 }
 
 typedef _DangerZoneCall = ({
