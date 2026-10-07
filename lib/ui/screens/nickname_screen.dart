@@ -10,6 +10,7 @@ import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/serif_input.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
@@ -109,7 +110,7 @@ class _NicknameScreenState extends ConsumerState<NicknameScreen> {
                       children: [
                         Semantics(
                           header: true,
-                          child: Text(
+                          child: WholeWordText(
                             NicknameScreen.heading,
                             style: AppType.display(
                               layout.h1,

@@ -15,6 +15,7 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/segmented.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart' show difficultyLabel;
 import 'package:swiftie_quiz/ui/screens/main_menu.dart';
@@ -156,7 +157,7 @@ class HostRoomScreen extends ConsumerWidget {
                 BackLink(onPressed: () => backToHub(ref)),
                 Semantics(
                   header: true,
-                  child: Text(
+                  child: WholeWordText(
                     title,
                     style: AppType.display(
                       layout.h1,

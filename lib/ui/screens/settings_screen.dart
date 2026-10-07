@@ -27,6 +27,7 @@ import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/segmented.dart';
 import 'package:swiftie_quiz/ui/kit/serif_input.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
@@ -320,7 +321,7 @@ class _SettingsIntro extends StatelessWidget {
           BackLink(onPressed: onBack, animateEntrance: false),
           Semantics(
             header: true,
-            child: Text(
+            child: WholeWordText(
               SettingsScreen.title,
               style: AppType.display(layout.h1, height: 1, color: tokens.fg),
             ),
@@ -746,6 +747,7 @@ class _TimerRow extends StatelessWidget {
 
   static const double gap = 12;
   static const double valueWidth = 32;
+  static const double valueSize = 14;
 
   final String title;
   final int seconds;
@@ -771,11 +773,14 @@ class _TimerRow extends StatelessWidget {
             onChanged: (value) => onChanged(value.round()),
           ),
           SizedBox(
-            width: valueWidth,
+            width:
+                valueWidth *
+                MediaQuery.textScalerOf(context).scale(valueSize) /
+                valueSize,
             child: Text(
               '${seconds}s',
               textAlign: TextAlign.right,
-              style: AppType.sized(14, 20).copyWith(
+              style: AppType.sized(valueSize, 20).copyWith(
                 color: tokens.fg,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),

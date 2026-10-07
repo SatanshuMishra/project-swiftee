@@ -17,7 +17,11 @@ class StandingsList extends StatelessWidget {
 
   static const double rowHeight = 56;
   static const double rowGap = 8;
-  static const double rowStep = rowHeight + rowGap;
+
+  static double rowHeightFor(TextScaler scaler) =>
+      rowHeight -
+      StandingsRow.textHeight(TextScaler.noScaling) +
+      StandingsRow.textHeight(scaler);
   static const Duration slide = Duration(milliseconds: 600);
   static const Curve slideCurve = AppMotion.screenRiseCurve;
   static const String youSuffix = ' (you)';
@@ -44,8 +48,10 @@ class StandingsList extends StatelessWidget {
           ),
     ];
     final duration = AppMotion.duration(context, slide);
+    final height = rowHeightFor(MediaQuery.textScalerOf(context));
+    final step = height + rowGap;
     return SizedBox(
-      height: math.max(0, rows.length * rowStep - rowGap),
+      height: math.max(0, rows.length * step - rowGap),
       child: Stack(
         children: [
           for (final row in rows.sortedBy<num>((row) => row.joinIndex))
@@ -55,8 +61,8 @@ class StandingsList extends StatelessWidget {
               curve: slideCurve,
               left: 0,
               right: 0,
-              top: row.rank * rowStep,
-              height: rowHeight,
+              top: row.rank * step,
+              height: height,
               child: StandingsRow(
                 rank: row.rank + 1,
                 player: row.player,
@@ -109,6 +115,13 @@ class StandingsRow extends StatelessWidget {
   static const int maxBeads = 8;
   static const double scoreWidth = 44;
   static const double gainRise = 6;
+  static const double nameSize = 15;
+  static const double nameLineHeight = 20;
+  static const TextStyle statusStyle = AppType.caption;
+
+  static double textHeight(TextScaler scaler) =>
+      scaler.scale(nameSize) * nameLineHeight / nameSize +
+      scaler.scale(statusStyle.fontSize!) * statusStyle.height!;
 
   final int rank;
   final Player player;
@@ -128,7 +141,7 @@ class StandingsRow extends StatelessWidget {
       maxLines: 1,
       softWrap: false,
       overflow: TextOverflow.ellipsis,
-      style: AppType.sized(15, 20).copyWith(color: tokens.fg),
+      style: AppType.sized(nameSize, nameLineHeight).copyWith(color: tokens.fg),
     );
     final beads = math.min(score.wins, maxBeads);
     return Container(
@@ -169,7 +182,7 @@ class StandingsRow extends StatelessWidget {
                         maxLines: 1,
                         softWrap: false,
                         overflow: TextOverflow.ellipsis,
-                        style: AppType.caption.copyWith(
+                        style: statusStyle.copyWith(
                           color: gain > 0 ? tokens.coralT : tokens.mut,
                         ),
                       ),

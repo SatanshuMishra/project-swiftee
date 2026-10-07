@@ -4,6 +4,7 @@ import 'package:swiftie_quiz/state/together/room_controller.dart';
 import 'package:swiftie_quiz/ui/kit/arrow_row.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -56,7 +57,7 @@ class TogetherHubScreen extends ConsumerWidget {
                 BackLink(onPressed: () => leavePlayTogether(ref)),
                 Semantics(
                   header: true,
-                  child: Text(
+                  child: WholeWordText(
                     title,
                     style: AppType.display(
                       layout.h1,

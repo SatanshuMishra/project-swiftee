@@ -9,6 +9,7 @@ import 'package:swiftie_quiz/state/together/room_state.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/serif_input.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/screens/settings_screen.dart' show Spinner;
 import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
@@ -118,7 +119,7 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
                     children: [
                       Semantics(
                         header: true,
-                        child: Text(
+                        child: WholeWordText(
                           JoinRoomScreen.title,
                           style: AppType.display(
                             layout.h1,

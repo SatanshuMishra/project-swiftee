@@ -19,6 +19,7 @@ import 'package:swiftie_quiz/ui/kit/selected_check.dart';
 import 'package:swiftie_quiz/ui/kit/serif_input.dart';
 import 'package:swiftie_quiz/ui/kit/text_link.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -453,7 +454,7 @@ class _PickHeader extends StatelessWidget {
               spacing: titleGapX,
               runSpacing: titleGapY,
               children: [
-                Text(
+                WholeWordText(
                   onReleases ? AlbumGrid.releasesTitle : AlbumGrid.erasTitle,
                   style: AppType.display(
                     layout.h1,
