@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
 import 'package:swiftie_quiz/domain/together/server_link.dart';
@@ -27,6 +29,7 @@ import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/ui/together/together_copy.dart';
 import 'package:swiftie_quiz/ui/widgets/back_link.dart';
 import 'package:swiftie_quiz/ui/widgets/entrance.dart';
+import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 
 void storePickedScope(WidgetRef ref) {
   final game = ref.read(gameControllerProvider);
@@ -223,6 +226,12 @@ class HostRoomScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (settings.playsSound)
+                  _HostVersions(
+                    settings: settings,
+                    onChanged: (versions) =>
+                        change(settings.copyWith(versions: versions)),
+                  ),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Wrap(
@@ -328,4 +337,79 @@ class _Group extends StatelessWidget {
     spacing: HostRoomScreen.groupGap,
     children: [SectionLabel(label), ...children],
   );
+}
+
+class _HostVersions extends ConsumerStatefulWidget {
+  const _HostVersions({required this.settings, required this.onChanged});
+
+  final RoomSettings settings;
+  final ValueChanged<VersionChoice> onChanged;
+
+  @override
+  ConsumerState<_HostVersions> createState() => _HostVersionsState();
+}
+
+class _HostVersionsState extends ConsumerState<_HostVersions> {
+  ({Catalogue catalogue, RoomScope scope, VersionIndex index})? _indexed;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && ref.read(catalogControllerProvider).catalogue.isEmpty) {
+        unawaited(ref.read(catalogControllerProvider.notifier).loadCatalogue());
+      }
+    });
+  }
+
+  VersionIndex _indexFor(Catalogue catalogue, RoomScope scope) {
+    if (_indexed
+        case (catalogue: final indexed, scope: final indexedScope, :final index)
+        when identical(indexed, catalogue) && indexedScope == scope) {
+      return index;
+    }
+    final index = VersionIndex(scope.tracksIn(catalogue));
+    _indexed = (catalogue: catalogue, scope: scope, index: index);
+    return index;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final catalogue = ref.watch(
+      catalogControllerProvider.select((catalog) => catalog.catalogue),
+    );
+    if (catalogue.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final index = _indexFor(catalogue, widget.settings.scope);
+    final versions = index.usable(widget.settings.versions);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: HostRoomScreen.sectionGap,
+      children: [
+        _Group(
+          label: VersionCopy.versionsLabel,
+          children: [
+            TakeCards(
+              index: index,
+              choice: versions,
+              onChanged: widget.onChanged,
+            ),
+          ],
+        ),
+        if (index.hasRerecorded)
+          _Group(
+            label: VersionCopy.rerecordedLabel,
+            children: [
+              RerecordedChoice(
+                index: index,
+                choice: versions,
+                onChanged: widget.onChanged,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 }

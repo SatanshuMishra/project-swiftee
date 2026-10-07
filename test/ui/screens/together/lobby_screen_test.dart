@@ -419,6 +419,27 @@ void main() {
     expect(find.text('Lyrics or Lie'), findsOneWidget);
     expect(find.text('10 rounds · Hard · 2 eras · 26 tracks'), findsOneWidget);
 
+    relay.pushGame(
+      _maya.id,
+      const SettingsChanged(
+        settings: RoomSettings(
+          versions: VersionChoice(
+            live: false,
+            rerecorded: Rerecorded.taylorsVersion,
+          ),
+        ),
+        scopeLabel: 'Shuffle everything',
+      ),
+    );
+    await settle(tester);
+    expect(
+      find.text(
+        '10 rounds · Medium · Shuffle everything · Studio, Acoustic & remixes '
+        '· Taylor’s Version',
+      ),
+      findsOneWidget,
+    );
+
     await tapAndSettle(tester, find.text('Leave room'));
     expect(inDialog('Leave the room?'), findsOneWidget);
     expect(

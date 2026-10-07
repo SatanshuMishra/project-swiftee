@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/together/relay_connection.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/together/game_messages.dart';
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
@@ -21,6 +23,8 @@ import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_shell.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
+import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 import 'package:together_protocol/together_protocol.dart';
 
 import '../../../state/together/fake_relay.dart';
@@ -160,6 +164,45 @@ void main() {
       );
     },
   );
+
+  testWidgets('a sound game asks which versions to play, the same way as '
+      'playing alone, and Lyrics or Lie does not', (tester) async {
+    final container = await pumpHost(tester, FakeRelay());
+    final everything = VersionIndex(bundled.allTracks);
+
+    expect(find.text('Versions'), findsOneWidget);
+    expect(find.text('Re-recorded songs'), findsOneWidget);
+    for (final take in Take.values) {
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ToggleCard, VersionCopy.take(take)),
+          matching: find.text(
+            VersionCopy.tracks(everything.countOf(take, VersionChoice.all)),
+          ),
+        ),
+        findsOneWidget,
+      );
+    }
+
+    await tapAndSettle(tester, find.text('Live'));
+    await tapAndSettle(tester, find.text('Taylor’s Version'));
+    expect(
+      roomOf(container).settings.versions,
+      const VersionChoice(live: false, rerecorded: Rerecorded.taylorsVersion),
+    );
+    expect(
+      tester
+          .widget<ToggleCard>(find.widgetWithText(ToggleCard, 'Live'))
+          .checked,
+      isFalse,
+    );
+
+    await tapAndSettle(tester, find.text('Quick draw'));
+    expect(find.text('Versions'), findsOneWidget);
+    await tapAndSettle(tester, find.text('Lyrics or Lie'));
+    expect(find.text('Versions'), findsNothing);
+    expect(find.text('Re-recorded songs'), findsNothing);
+  });
 
   testWidgets('a failed open shows its line under the button', (tester) async {
     for (final (refusal, line) in [

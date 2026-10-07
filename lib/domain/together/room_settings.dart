@@ -1,5 +1,7 @@
 import 'package:collection/collection.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
+import 'package:swiftie_quiz/domain/models/track.dart';
 
 enum TogetherMode {
   classic(
@@ -65,6 +67,10 @@ final class RoomScope {
 
   bool get everything => eraKeys.isEmpty && releaseIds.isEmpty;
 
+  List<Track> tracksIn(Catalogue catalogue) => everything
+      ? catalogue.allTracks
+      : catalogue.tracksFor(eraKeys, releaseIds: releaseIds);
+
   @override
   bool operator ==(Object other) =>
       other is RoomScope &&
@@ -89,23 +95,29 @@ final class RoomSettings {
     this.rounds = 10,
     this.difficulty = Difficulty.medium,
     this.scope = const RoomScope.everything(),
+    this.versions = VersionChoice.all,
   });
 
   final TogetherMode mode;
   final int rounds;
   final Difficulty difficulty;
   final RoomScope scope;
+  final VersionChoice versions;
+
+  bool get playsSound => mode != TogetherMode.lyricsOrLie;
 
   RoomSettings copyWith({
     TogetherMode? mode,
     int? rounds,
     Difficulty? difficulty,
     RoomScope? scope,
+    VersionChoice? versions,
   }) => RoomSettings(
     mode: mode ?? this.mode,
     rounds: rounds ?? this.rounds,
     difficulty: difficulty ?? this.difficulty,
     scope: scope ?? this.scope,
+    versions: versions ?? this.versions,
   );
 
   @override
@@ -114,13 +126,14 @@ final class RoomSettings {
       other.mode == mode &&
       other.rounds == rounds &&
       other.difficulty == difficulty &&
-      other.scope == scope;
+      other.scope == scope &&
+      other.versions == versions;
 
   @override
-  int get hashCode => Object.hash(mode, rounds, difficulty, scope);
+  int get hashCode => Object.hash(mode, rounds, difficulty, scope, versions);
 
   @override
   String toString() =>
       'RoomSettings(mode: $mode, rounds: $rounds, '
-      'difficulty: $difficulty, scope: $scope)';
+      'difficulty: $difficulty, scope: $scope, versions: $versions)';
 }

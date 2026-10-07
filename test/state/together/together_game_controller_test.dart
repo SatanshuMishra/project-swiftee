@@ -1122,6 +1122,38 @@ void main() {
       expect(host.container.read(playHistoryProvider), history);
     });
 
+    test("a room set to Taylor's Version plays only her re-recordings", () {
+      fakeAsync((async) {
+        const versions = VersionChoice(rerecorded: Rerecorded.taylorsVersion);
+        final host = _Harness(async);
+        host
+          ..hostRoom(
+            RoomSettings(
+              rounds: 5,
+              scope: RoomScope.picked(
+                eraKeys: const ['lover'],
+                releaseIds: const [],
+              ),
+              versions: versions,
+            ),
+          )
+          ..start();
+        for (var number = 1; number <= 5; number++) {
+          host.playRound(hostRight: true);
+          async.elapse(const Duration(seconds: revealSeconds));
+        }
+
+        expect(host.state.stage, TogetherStage.ended);
+        expect(host.single.versions, versions);
+        final played = [
+          for (final body in host.relay.bodies)
+            if (body.message case RoundStart(:final track)) track.title,
+        ];
+        expect(played, hasLength(5));
+        expect(played, everyElement(contains("Taylor's Version")));
+      });
+    });
+
     test('misu remarks on close finishes and wins unless visits are off', () {
       for (final visits in [MisuVisits.often, MisuVisits.off]) {
         fakeAsync((async) {
