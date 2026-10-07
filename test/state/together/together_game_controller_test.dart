@@ -1154,6 +1154,32 @@ void main() {
       });
     });
 
+    test('a room whose versions leave nothing for its pick plays every '
+        'version', () {
+      fakeAsync((async) {
+        final host = _Harness(async);
+        host
+          ..hostRoom(
+            RoomSettings(
+              rounds: 5,
+              scope: RoomScope.picked(
+                eraKeys: const ['lover'],
+                releaseIds: const [],
+              ),
+              versions: const VersionChoice(studio: false),
+            ),
+          )
+          ..start();
+        for (var number = 1; number <= 5; number++) {
+          host.playRound(hostRight: true);
+          async.elapse(const Duration(seconds: revealSeconds));
+        }
+
+        expect(host.state.stage, TogetherStage.ended);
+        expect(host.state.startFailed, isFalse);
+      });
+    });
+
     test('misu remarks on close finishes and wins unless visits are off', () {
       for (final visits in [MisuVisits.often, MisuVisits.off]) {
         fakeAsync((async) {

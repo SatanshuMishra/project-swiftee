@@ -33,6 +33,17 @@ final class VersionIndex {
   VersionChoice usable(VersionChoice choice) =>
       count(choice) > 0 ? choice : VersionChoice.all;
 
+  VersionChoice fitted(VersionChoice choice) {
+    final usable = this.usable(choice);
+    bool held(Take take) => countOf(take, VersionChoice.all) > 0;
+    return VersionChoice(
+      studio: usable.studio || !held(Take.studio),
+      live: usable.live || !held(Take.live),
+      alternate: usable.alternate || !held(Take.alternate),
+      rerecorded: hasRerecorded ? usable.rerecorded : Rerecorded.both,
+    );
+  }
+
   static bool _keeps(VersionChoice choice, _Labelled entry) =>
       choice.plays(entry.take) && _plays(choice.rerecorded, entry);
 

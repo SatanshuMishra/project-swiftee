@@ -11,6 +11,12 @@ abstract final class VersionCopy {
   static const String rerecordedLabel = 'Re-recorded songs';
   static const String noneInPick = 'None in your pick';
 
+  static String noneWith(Rerecorded rerecorded) => switch (rerecorded) {
+    Rerecorded.taylorsVersion => 'None in Taylor’s Version',
+    Rerecorded.original => 'None in the originals',
+    Rerecorded.both => noneInPick,
+  };
+
   static String take(Take take) => switch (take) {
     Take.studio => 'Studio',
     Take.live => 'Live',
@@ -33,9 +39,8 @@ abstract final class VersionCopy {
     final parts = [
       if (takes.length < Take.values.length) takes.join(', '),
       ...switch (choice.rerecorded) {
-        Rerecorded.taylorsVersion => [rerecorded(Rerecorded.taylorsVersion)],
-        Rerecorded.original => ['Originals'],
         Rerecorded.both => const <String>[],
+        final chosen => [rerecorded(chosen)],
       },
     ];
     return parts.isEmpty ? null : parts.join(' · ');
@@ -63,9 +68,13 @@ class TakeCards extends StatelessWidget {
         ToggleCard(
           key: ValueKey(take),
           title: VersionCopy.take(take),
-          detail: switch (index.countOf(take, choice)) {
-            0 => VersionCopy.noneInPick,
-            final count => VersionCopy.tracks(count),
+          detail: switch ((
+            index.countOf(take, choice),
+            index.countOf(take, VersionChoice.all),
+          )) {
+            (0, 0) => VersionCopy.noneInPick,
+            (0, _) => VersionCopy.noneWith(choice.rerecorded),
+            (final count, _) => VersionCopy.tracks(count),
           },
           checked: choice.plays(take),
           onTap: index.canToggle(choice, take)
@@ -84,10 +93,10 @@ class RerecordedChoice extends StatelessWidget {
     required this.onChanged,
   });
 
-  static final List<(Rerecorded, String)> options = [
+  static final List<(Rerecorded, String)> options = List.unmodifiable([
     for (final rerecorded in Rerecorded.values)
       (rerecorded, VersionCopy.rerecorded(rerecorded)),
-  ];
+  ]);
 
   final VersionIndex index;
   final VersionChoice choice;

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/together/relay_connection.dart';
-import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/engine/version_filter.dart';
+import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
-import 'package:swiftie_quiz/domain/util/song_title.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/together/game_messages.dart';
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
@@ -17,13 +17,13 @@ import 'package:swiftie_quiz/state/together/room_controller.dart';
 import 'package:swiftie_quiz/state/together/room_state.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
 import 'package:swiftie_quiz/ui/kit/segmented.dart';
+import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
 import 'package:swiftie_quiz/ui/screens/together/host_room_screen.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_shell.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
-import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 import 'package:together_protocol/together_protocol.dart';
 
@@ -257,6 +257,34 @@ void main() {
     expect(container.read(togetherNavProvider), TogetherScreen.hub);
     expect(find.byType(HostRoomScreen), findsNothing);
     expect(find.text('Room code'), findsOneWidget);
+  });
+
+  testWidgets('a new pick fits the version choice and counts the tracks '
+      'that will play', (tester) async {
+    final container = await pumpHost(tester, FakeRelay());
+    await tapAndSettle(tester, find.text('Live'));
+    await tapAndSettle(tester, find.text('Taylor’s Version'));
+
+    await tapAndSettle(tester, find.text('Pick your eras'));
+    await tapAndSettle(tester, find.byKey(const ValueKey('lover')));
+    await tapAndSettle(tester, find.text('Continue →'));
+
+    const fitted = VersionChoice(live: false);
+    final lover = VersionIndex(bundled.tracksFor(['lover']));
+    expect(roomOf(container).settings.versions, fitted);
+    expect(
+      roomOf(container).scopeLabel,
+      AlbumGrid.selectionLabel(1, 0, lover.count(fitted)),
+    );
+    expect(lover.count(fitted), lessThan(bundled.tracksFor(['lover']).length));
+    expect(find.text('Re-recorded songs'), findsNothing);
+
+    await tapAndSettle(tester, find.text('Live'));
+    expect(roomOf(container).settings.versions, VersionChoice.all);
+    expect(
+      roomOf(container).scopeLabel,
+      AlbumGrid.selectionLabel(1, 0, bundled.tracksFor(['lover']).length),
+    );
   });
 
   testWidgets('picking eras returns to the host screen with the summary', (

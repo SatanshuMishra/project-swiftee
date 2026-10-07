@@ -574,6 +574,22 @@ void main() {
       expect(gameOf(container).phase, GamePhase.playing);
     });
 
+    testWidgets("a kind left out by Taylor's Version says so rather than "
+        'none in your pick', (tester) async {
+      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['red']);
+
+      await choose(tester, 'Taylor’s Version');
+
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ToggleCard, 'Live'),
+          matching: find.text('None in Taylor’s Version'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('None in your pick'), findsNothing);
+    });
+
     testWidgets('a recording choice that would leave nothing is dimmed', (
       tester,
     ) async {

@@ -31,33 +31,38 @@ import 'package:swiftie_quiz/ui/widgets/back_link.dart';
 import 'package:swiftie_quiz/ui/widgets/entrance.dart';
 import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 
+String roomScopeLabel(RoomScope scope, int tracks) => scope.everything
+    ? MainMenu.shuffleTitle
+    : AlbumGrid.selectionLabel(
+        scope.eraKeys.length,
+        scope.releaseIds.length,
+        tracks,
+      );
+
+void storeRoomScope(WidgetRef ref, RoomScope scope) {
+  final settings = ref.read(roomControllerProvider).settings;
+  final index = VersionIndex(
+    scope.tracksIn(ref.read(catalogControllerProvider).catalogue),
+  );
+  final versions = index.fitted(settings.versions);
+  ref
+      .read(roomControllerProvider.notifier)
+      .setSettings(
+        settings.copyWith(scope: scope, versions: versions),
+        roomScopeLabel(scope, index.count(versions)),
+      );
+}
+
 void storePickedScope(WidgetRef ref) {
   final game = ref.read(gameControllerProvider);
   final eraKeys = game.selectedEraKeys;
   final releaseIds = game.selectedReleaseIds;
-  final everything = eraKeys.isEmpty && releaseIds.isEmpty;
-  final tracks = ref
-      .read(catalogControllerProvider)
-      .catalogue
-      .tracksFor(eraKeys, releaseIds: releaseIds)
-      .length;
-  final room = ref.read(roomControllerProvider);
-  ref
-      .read(roomControllerProvider.notifier)
-      .setSettings(
-        room.settings.copyWith(
-          scope: everything
-              ? const RoomScope.everything()
-              : RoomScope.picked(eraKeys: eraKeys, releaseIds: releaseIds),
-        ),
-        everything
-            ? MainMenu.shuffleTitle
-            : AlbumGrid.selectionLabel(
-                eraKeys.length,
-                releaseIds.length,
-                tracks,
-              ),
-      );
+  storeRoomScope(
+    ref,
+    eraKeys.isEmpty && releaseIds.isEmpty
+        ? const RoomScope.everything()
+        : RoomScope.picked(eraKeys: eraKeys, releaseIds: releaseIds),
+  );
   ref.read(togetherNavProvider.notifier).show(TogetherScreen.host);
 }
 
@@ -96,6 +101,7 @@ class HostRoomScreen extends ConsumerWidget {
   static const double segmentsSpacing = 40;
   static const double segmentsRunSpacing = 24;
   static const double failureRise = 8;
+  static const double versionsRise = 8;
   static const double spinnerTrackAlpha = 0.25;
 
   @override
@@ -204,34 +210,40 @@ class HostRoomScreen extends ConsumerWidget {
                       ),
                   ],
                 ),
-                _Group(
-                  label: songsLabel,
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ChoiceRow(
-                      title: MainMenu.shuffleTitle,
-                      description: MainMenu.shuffleDescription,
-                      selected: settings.scope.everything,
-                      onTap: () => change(
-                        settings.copyWith(scope: const RoomScope.everything()),
-                        MainMenu.shuffleTitle,
+                    _Group(
+                      label: songsLabel,
+                      children: [
+                        ChoiceRow(
+                          title: MainMenu.shuffleTitle,
+                          description: MainMenu.shuffleDescription,
+                          selected: settings.scope.everything,
+                          onTap: () =>
+                              storeRoomScope(ref, const RoomScope.everything()),
+                        ),
+                        ChoiceRow(
+                          title: MainMenu.erasTitle,
+                          description: settings.scope.everything
+                              ? MainMenu.erasDescription
+                              : room.scopeLabel,
+                          selected: !settings.scope.everything,
+                          onTap: pickEras,
+                        ),
+                      ],
+                    ),
+                    if (settings.playsSound)
+                      _HostVersions(
+                        settings: settings,
+                        onChanged: (versions, label) => change(
+                          settings.copyWith(versions: versions),
+                          label,
+                        ),
                       ),
-                    ),
-                    ChoiceRow(
-                      title: MainMenu.erasTitle,
-                      description: settings.scope.everything
-                          ? MainMenu.erasDescription
-                          : room.scopeLabel,
-                      selected: !settings.scope.everything,
-                      onTap: pickEras,
-                    ),
                   ],
                 ),
-                if (settings.playsSound)
-                  _HostVersions(
-                    settings: settings,
-                    onChanged: (versions) =>
-                        change(settings.copyWith(versions: versions)),
-                  ),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Wrap(
@@ -343,7 +355,7 @@ class _HostVersions extends ConsumerStatefulWidget {
   const _HostVersions({required this.settings, required this.onChanged});
 
   final RoomSettings settings;
-  final ValueChanged<VersionChoice> onChanged;
+  final void Function(VersionChoice versions, String scopeLabel) onChanged;
 
   @override
   ConsumerState<_HostVersions> createState() => _HostVersionsState();
@@ -381,35 +393,40 @@ class _HostVersionsState extends ConsumerState<_HostVersions> {
     if (catalogue.isEmpty) {
       return const SizedBox.shrink();
     }
-    final index = _indexFor(catalogue, widget.settings.scope);
+    final scope = widget.settings.scope;
+    final index = _indexFor(catalogue, scope);
     final versions = index.usable(widget.settings.versions);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: HostRoomScreen.sectionGap,
-      children: [
-        _Group(
-          label: VersionCopy.versionsLabel,
+    void choose(VersionChoice next) =>
+        widget.onChanged(next, roomScopeLabel(scope, index.count(next)));
+    return Entrance(
+      fromOffset: const Offset(0, HostRoomScreen.versionsRise),
+      child: Padding(
+        padding: const EdgeInsets.only(top: HostRoomScreen.sectionGap),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: HostRoomScreen.sectionGap,
           children: [
-            TakeCards(
-              index: index,
-              choice: versions,
-              onChanged: widget.onChanged,
+            _Group(
+              label: VersionCopy.versionsLabel,
+              children: [
+                TakeCards(index: index, choice: versions, onChanged: choose),
+              ],
             ),
+            if (index.hasRerecorded)
+              _Group(
+                label: VersionCopy.rerecordedLabel,
+                children: [
+                  RerecordedChoice(
+                    index: index,
+                    choice: versions,
+                    onChanged: choose,
+                  ),
+                ],
+              ),
           ],
         ),
-        if (index.hasRerecorded)
-          _Group(
-            label: VersionCopy.rerecordedLabel,
-            children: [
-              RerecordedChoice(
-                index: index,
-                choice: versions,
-                onChanged: widget.onChanged,
-              ),
-            ],
-          ),
-      ],
+      ),
     );
   }
 }

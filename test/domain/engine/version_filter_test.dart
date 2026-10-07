@@ -197,6 +197,22 @@ void main() {
       expect(mine.canChoose(liveOnly, Rerecorded.taylorsVersion), isFalse);
     });
 
+    test('a room fits its choice to a new pick, ticking kinds the pick '
+        'lacks and forgetting a recording choice it cannot use', () {
+      final rep = VersionIndex(catalogue.tracksFor(['rep']));
+      final lover = VersionIndex(catalogue.tracksFor(['lover']));
+      final red = VersionIndex(catalogue.tracksFor(['red']));
+      final noLiveTv = all.copyWith(
+        live: false,
+        rerecorded: Rerecorded.taylorsVersion,
+      );
+
+      expect(rep.fitted(noLiveTv), all);
+      expect(lover.fitted(noLiveTv), all.copyWith(live: false));
+      expect(red.fitted(noLiveTv), noLiveTv);
+      expect(rep.fitted(all.copyWith(studio: false)), all);
+    });
+
     test('a remembered choice that leaves nothing for a new pick falls back '
         'to every version', () {
       final liveRelease = catalogue.releases.firstWhere(

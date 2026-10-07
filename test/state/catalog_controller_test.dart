@@ -167,6 +167,30 @@ void main() {
       );
     });
 
+    test(
+      'a choice that leaves nothing for the pick plays every version',
+      () async {
+        final scope = container();
+        scope.read(gameControllerProvider.notifier)
+          ..toggleEra('red')
+          ..setVersions(
+            const VersionChoice(studio: false, live: false, alternate: false),
+          )
+          ..beginSetup(GameMode.album);
+
+        final tracks = await scope
+            .read(catalogControllerProvider.notifier)
+            .loadTrackPool();
+
+        final red = scope.read(catalogControllerProvider).catalogue.tracksFor([
+          'red',
+        ]);
+        expect(red, isNotEmpty);
+        expect(tracks.allTracks, red);
+        expect(tracks.pool, isNotEmpty);
+      },
+    );
+
     test('a sound game plays only the versions chosen', () async {
       final scope = container();
       scope.read(gameControllerProvider.notifier)
