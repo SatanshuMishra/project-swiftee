@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/domain/engine/release_notes.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/updater_controller.dart';
@@ -14,7 +15,11 @@ import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
 const Size surface = Size(800, 600);
-const String notes = '• Records everywhere.\n  • Misu drops by now and then.';
+const String notes =
+    'Added\n• Records everywhere. Every win is a record.\n'
+    '• Misu drops by now and then.';
+const String firstHeading = 'Added';
+const String firstBullet = 'Records everywhere. Every win is a record.';
 const UpdateManifest manifest = UpdateManifest(
   version: '0.3.1',
   notes: notes,
@@ -178,7 +183,7 @@ void main() {
         >[
           (
             state: const UpdaterAvailable(manifest: manifest),
-            texts: ['Version 0.3.1 is here', notes],
+            texts: ['Version 0.3.1 is here', firstHeading, firstBullet],
             presses: [
               (
                 label: 'Remind me later',
@@ -366,9 +371,10 @@ void main() {
     expect(title.style!.height, 36 / 32);
     expect(title.style!.color, tokens.fg);
 
-    final notesBox = tester.getRect(boxAround(notes));
+    final notesBox = tester.getRect(boxAround(firstBullet));
     final notesDecoration =
-        tester.widget<Container>(boxAround(notes)).decoration! as BoxDecoration;
+        tester.widget<Container>(boxAround(firstBullet)).decoration!
+            as BoxDecoration;
     expect(
       notesBox.top - tester.getRect(find.text('Version 0.3.1 is here')).bottom,
       12,
@@ -379,12 +385,12 @@ void main() {
       notesDecoration.borderRadius,
       const BorderRadius.all(Radius.circular(10)),
     );
-    final notesStyle = tester.widget<Text>(find.text(notes)).style!;
+    final notesStyle = tester.widget<Text>(find.text(firstBullet)).style!;
     expect(notesStyle.fontSize, 14);
     expect(notesStyle.height, 22 / 14);
     expect(notesStyle.color, tokens.mut);
     expect(
-      tester.getTopLeft(find.text(notes)) - notesBox.topLeft,
+      tester.getTopLeft(find.text(firstHeading)) - notesBox.topLeft,
       const Offset(17, 15),
     );
     final firstAction = tester.getRect(pill('Remind me later'));
@@ -440,10 +446,14 @@ void main() {
       theme: AppTheme.light,
     );
     final notesBox =
-        tester.widget<Container>(boxAround(notes)).decoration! as BoxDecoration;
+        tester.widget<Container>(boxAround(firstBullet)).decoration!
+            as BoxDecoration;
     expect(notesBox.color, tokens.card);
     expect(notesBox.border, Border.all(color: tokens.line));
-    expect(tester.widget<Text>(find.text(notes)).style!.color, tokens.mut);
+    expect(
+      tester.widget<Text>(find.text(firstBullet)).style!.color,
+      tokens.mut,
+    );
 
     setUpdater(const UpdaterDownloading(manifest: manifest, progress: 30));
     await tester.pumpAndSettle();
@@ -476,8 +486,104 @@ void main() {
     );
   });
 
+  testWidgets('Markdown release notes still show headings and bullets', (
+    tester,
+  ) async {
+    await openWith(
+      tester,
+      const UpdaterAvailable(
+        manifest: UpdateManifest(
+          version: '0.4.1',
+          notes:
+              '### Updating from v0.4.0\n- **Try it again** on Windows.\n\n'
+              '### Fixed\n- The window fits.',
+          pubDate: '',
+        ),
+      ),
+    );
+
+    expect(find.textContaining('#'), findsNothing);
+    expect(find.textContaining('**'), findsNothing);
+    final tokens = AppTokens.of(tester.element(find.text('Fixed')));
+    expect(tester.widget<Text>(find.text('Fixed')).style!.color, tokens.fg);
+    expect(find.text('Try it again on Windows.'), findsOneWidget);
+    expect(find.text('•'), findsNWidgets(2));
+    expect(
+      tester.getTopLeft(find.text('Try it again on Windows.')).dx,
+      greaterThan(tester.getTopLeft(find.text('Updating from v0.4.0')).dx),
+    );
+    expect(
+      tester.getSemantics(find.text('Fixed')),
+      isSemantics(isHeader: true, label: 'Fixed'),
+    );
+  });
+
+  testWidgets('plain release notes show steps, nesting and headings, and '
+      'read each step with its number', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await openWith(
+      tester,
+      UpdaterAvailable(
+        manifest: UpdateManifest(
+          version: '0.5.0',
+          notes: plainReleaseNotes(
+            '### Updating from v0.4.1\n'
+            'Two steps:\n\n'
+            '1. Open Settings.\n'
+            '   - On Windows, as admin.\n'
+            '2. Click Check now.\n\n'
+            '### Fixed\n'
+            '- The window fits.',
+          ),
+          pubDate: '',
+        ),
+      ),
+    );
+
+    for (final heading in ['Updating from v0.4.1', 'Fixed']) {
+      expect(
+        tester.getSemantics(find.text(heading)),
+        isSemantics(isHeader: true, label: heading),
+      );
+    }
+    expect(find.text('Two steps:'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.text('Open Settings.')),
+      isSemantics(label: '1.\nOpen Settings.'),
+    );
+    expect(
+      tester.getSemantics(find.text('Click Check now.')),
+      isSemantics(label: '2.\nClick Check now.'),
+    );
+    expect(
+      tester.getSemantics(find.text('The window fits.')),
+      isSemantics(label: 'The window fits.'),
+    );
+    expect(find.bySemanticsLabel(RegExp('•')), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('•').first).dx,
+      greaterThan(tester.getTopLeft(find.text('1.')).dx),
+    );
+    expect(
+      tester.getTopLeft(find.text('On Windows, as admin.')).dx,
+      greaterThan(tester.getTopLeft(find.text('Open Settings.')).dx),
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('the bullet column grows with the text size', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await openWith(tester, const UpdaterAvailable(manifest: manifest));
+
+    final dot = tester.getRect(find.text('•').first);
+    final text = tester.getRect(find.text(firstBullet));
+    expect(dot.right, lessThanOrEqualTo(text.left));
+    expect(text.left - dot.left, 21);
+  });
+
   testWidgets('long release notes scroll inside the panel', (tester) async {
-    final longNotes = List.generate(80, (line) => 'Line $line').join('\n');
+    final longNotes = List.generate(80, (line) => '- Line $line').join('\n');
     await openWith(
       tester,
       UpdaterAvailable(
@@ -495,10 +601,10 @@ void main() {
       tester.getRect(pill('Download')).bottom,
       lessThanOrEqualTo(tester.getRect(panel()).bottom),
     );
-    final before = tester.getTopLeft(find.text(longNotes)).dy;
-    await tester.drag(boxAround(longNotes), const Offset(0, -200));
+    final before = tester.getTopLeft(find.text('Line 0')).dy;
+    await tester.drag(boxAround('Line 0'), const Offset(0, -200));
     await tester.pumpAndSettle();
-    expect(tester.getTopLeft(find.text(longNotes)).dy, lessThan(before));
+    expect(tester.getTopLeft(find.text('Line 0')).dy, lessThan(before));
   });
 
   testWidgets('empty release notes leave the notes box out', (tester) async {

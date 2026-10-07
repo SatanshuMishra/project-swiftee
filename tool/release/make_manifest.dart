@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:swiftie_quiz/domain/engine/release_notes.dart';
 import 'package:swiftie_quiz/services/updater/minisign.dart' as minisign;
 import 'package:swiftie_quiz/services/updater/update_config.dart';
 
@@ -177,7 +178,7 @@ Future<int> runMakeManifest(
     );
     final manifest = buildManifest(
       version: options['version']!,
-      notes: read('notes-file').trimRight(),
+      notes: plainReleaseNotes(read('notes-file')),
       pubDate: options['pub-date']!,
       baseUrl: options['base-url']!,
       macArchive: SignedArtifact(
