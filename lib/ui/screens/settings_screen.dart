@@ -116,7 +116,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const double volumeWidth = 180;
   static const double timerWidth = 150;
   static const double nicknameWidth = 180;
-  static const double serverLinkWidth = 260;
   static const double sectionsTop = 12;
   static const double sectionsBottom = 48;
 
@@ -626,7 +625,7 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
       (_, next) => _saved(next),
     );
     return SizedBox(
-      width: SettingsScreen.serverLinkWidth,
+      width: double.infinity,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
