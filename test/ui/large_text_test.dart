@@ -21,6 +21,7 @@ import 'package:swiftie_quiz/ui/overlays/error_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
+import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
 import 'package:swiftie_quiz/domain/together/standings.dart';
@@ -197,6 +198,26 @@ void main() {
             ];
           }
         }
+        expect(faults, isEmpty);
+      });
+
+      testWidgets("every night's era fits the menu", (tester) async {
+        var faults = const <String>[];
+        var shown = const <Era>{};
+        for (var day = 1; day <= curatedEras.length; day++) {
+          final now = DateTime(2027, 1, day, 20);
+          final era = tonightsEra(now);
+          shown = {...shown, era};
+          final found = await faultsOf(
+            tester,
+            () => menu.pumpMenu(tester, edition: Edition.ana, now: now),
+          );
+          faults = [
+            ...faults,
+            for (final fault in found) '${era.eraName}: $fault',
+          ];
+        }
+        expect(shown, curatedEras.toSet());
         expect(faults, isEmpty);
       });
 

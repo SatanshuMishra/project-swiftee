@@ -535,7 +535,7 @@ class _TonightsEra extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: textGap,
                 children: [
-                  Text(
+                  WholeWordText(
                     era.eraName,
                     style: AppType.display(
                       28,
