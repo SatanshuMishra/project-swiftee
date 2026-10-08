@@ -12,16 +12,19 @@ import 'package:swiftie_quiz/domain/engine/version_filter.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/game_state.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
 import 'package:swiftie_quiz/ui/kit/option_tile.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
+import 'package:swiftie_quiz/ui/kit/segmented.dart';
 import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/screens/setup_screen.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
+import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 
 const int mediumTimer = 25;
 const int hardTimer = 15;
@@ -106,6 +109,20 @@ bool choiceSelected(WidgetTester tester, String title) =>
 
 bool tileSelected(WidgetTester tester, String title) =>
     tester.widget<OptionTile>(find.widgetWithText(OptionTile, title)).selected;
+
+bool segmentChosen(WidgetTester tester, String label) =>
+    tester
+        .widget<Segmented<Rerecorded>>(find.byType(Segmented<Rerecorded>))
+        .value ==
+    RerecordedChoice.options.firstWhere((option) => option.$2 == label).$1;
+
+int outsideCards(String text) => find
+    .text(text)
+    .evaluate()
+    .where(
+      (element) => element.findAncestorWidgetOfExactType<ToggleCard>() == null,
+    )
+    .length;
 
 bool cardChecked(WidgetTester tester, String title) =>
     tester.widget<ToggleCard>(find.widgetWithText(ToggleCard, title)).checked;
@@ -439,46 +456,74 @@ void main() {
 
       expect(find.text('folklore (deluxe version)'), findsOneWidget);
       expect(
-        find.text(
+        outsideCards(
           '${release('folklore (deluxe version)').tracks.length} tracks',
         ),
-        findsOneWidget,
+        1,
       );
       expect(fanCovers(tester), [
         release('folklore (deluxe version)').coverMedium,
       ]);
     });
 
-    testWidgets('a sound game over re-recorded eras offers every version, '
-        'all selected, and lyrics hide them', (tester) async {
+    testWidgets('a sound game over re-recorded eras starts with every '
+        'version and both recordings, and lyrics hide them', (tester) async {
       await pumpSetup(tester, mode: GameMode.album, eraKeys: ['red']);
+      final red = VersionIndex(bundled.tracksFor(['red']));
 
-      expect(find.text('Recordings'), findsOneWidget);
-      expect(find.text('Also play'), findsOneWidget);
-      for (final title in [
-        'Taylor’s Version',
-        'Originals',
-        'Live takes',
-        'Acoustic & other takes',
-      ]) {
+      expect(find.text('Versions'), findsOneWidget);
+      for (final take in Take.values) {
+        final title = VersionCopy.take(take);
         expect(cardChecked(tester, title), isTrue, reason: title);
+        expect(
+          find.text(VersionCopy.tracks(red.countOf(take, VersionChoice.all))),
+          findsOneWidget,
+          reason: title,
+        );
       }
       expect(
-        tester.getSemantics(find.text('Originals')),
+        tester.getSemantics(find.text('Live')),
         isSemantics(hasCheckedState: true, isChecked: true),
       );
+      expect(find.text('Re-recorded songs'), findsOneWidget);
+      expect(segmentChosen(tester, 'Both'), isTrue);
 
       await choose(tester, 'Lyrics');
-      expect(find.text('Recordings'), findsNothing);
-      expect(find.text('Also play'), findsNothing);
+      expect(find.text('Versions'), findsNothing);
+      expect(find.text('Re-recorded songs'), findsNothing);
     });
 
-    testWidgets('start stays in view at 1024 by 800 with every version '
-        'section showing', (tester) async {
+    testWidgets('a pick with no live recordings still shows Live, dimmed, '
+        'and says why', (tester) async {
+      await pumpSetup(
+        tester,
+        mode: GameMode.album,
+        eraKeys: ['ttpd', 'showgirl'],
+      );
+
+      expect(outsideCards('55 tracks'), 1);
+      expect(find.text('47 tracks'), findsOneWidget);
+      expect(find.text('8 tracks'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ToggleCard, 'Live'),
+          matching: find.text('None in your pick'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSemantics(find.text('Live')),
+        isSemantics(hasEnabledState: true, isEnabled: false),
+      );
+      expect(find.text('Re-recorded songs'), findsNothing);
+    });
+
+    testWidgets('start stays in view at 1024 by 800 with both version '
+        'sections showing', (tester) async {
       await pumpSetup(tester);
 
-      expect(find.text('Recordings'), findsOneWidget);
-      expect(find.text('Also play'), findsOneWidget);
+      expect(find.text('Versions'), findsOneWidget);
+      expect(find.text('Re-recorded songs'), findsOneWidget);
       final start = find.ancestor(
         of: find.text('Start →'),
         matching: find.byType(PillButton),
@@ -486,45 +531,42 @@ void main() {
       expect(tester.getBottomLeft(start).dy, lessThanOrEqualTo(800));
     });
 
-    testWidgets('an era with no re-recordings or other takes asks nothing', (
+    testWidgets('an era of studio recordings only cannot turn Studio off', (
       tester,
     ) async {
       await pumpSetup(tester, mode: GameMode.album, eraKeys: ['rep']);
 
-      expect(find.text('Recordings'), findsNothing);
-      expect(find.text('Also play'), findsNothing);
+      expect(find.text('None in your pick'), findsNWidgets(2));
+      expect(find.text('Re-recorded songs'), findsNothing);
+      await choose(tester, 'Studio');
+      expect(cardChecked(tester, 'Studio'), isTrue);
+      expect(
+        tester.getSemantics(find.text('Studio')),
+        isSemantics(hasEnabledState: true, isEnabled: false),
+      );
     });
 
-    testWidgets('an era shows only the takes it has', (tester) async {
-      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['evermore']);
-
-      expect(find.text('Recordings'), findsNothing);
-      expect(find.text('Live takes'), findsNothing);
-      expect(find.text('Acoustic & other takes'), findsOneWidget);
-    });
-
-    testWidgets('cards turn on and off together, recount the tracks and '
-        'start with the choice', (tester) async {
+    testWidgets('versions and recordings recount the tracks and start with '
+        'the choice', (tester) async {
       final container = await pumpSetup(
         tester,
         mode: GameMode.album,
         eraKeys: ['red'],
       );
       final red = bundled.tracksFor(['red']);
-      expect(find.text('${red.length} tracks'), findsOneWidget);
+      expect(outsideCards('${red.length} tracks'), 1);
 
-      await choose(tester, 'Originals');
-      await choose(tester, 'Live takes');
+      await choose(tester, 'Live');
+      await choose(tester, 'Taylor’s Version');
       final choice = VersionChoice.all.copyWith(
-        originals: false,
-        liveTakes: false,
+        rerecorded: Rerecorded.taylorsVersion,
+        live: false,
       );
       final kept = keepVersions(red, choice).length;
       expect(kept, lessThan(red.length));
-      expect(find.text('$kept tracks'), findsOneWidget);
-      expect(cardChecked(tester, 'Originals'), isFalse);
-      expect(cardChecked(tester, 'Taylor’s Version'), isTrue);
-      expect(cardChecked(tester, 'Live takes'), isFalse);
+      expect(outsideCards('$kept tracks'), 1);
+      expect(segmentChosen(tester, 'Taylor’s Version'), isTrue);
+      expect(cardChecked(tester, 'Live'), isFalse);
 
       await tester.tap(find.text('Start →'));
       await tester.pump();
@@ -532,17 +574,39 @@ void main() {
       expect(gameOf(container).phase, GamePhase.playing);
     });
 
-    testWidgets('the last recording kind cannot be turned off', (tester) async {
+    testWidgets("a kind left out by Taylor's Version says so rather than "
+        'none in your pick', (tester) async {
       await pumpSetup(tester, mode: GameMode.album, eraKeys: ['red']);
 
-      await choose(tester, 'Originals');
       await choose(tester, 'Taylor’s Version');
 
-      expect(cardChecked(tester, 'Taylor’s Version'), isTrue);
-      expect(cardChecked(tester, 'Originals'), isFalse);
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ToggleCard, 'Live'),
+          matching: find.text('None in Taylor’s Version'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('None in your pick'), findsNothing);
+    });
+
+    testWidgets('a recording choice that would leave nothing is dimmed', (
+      tester,
+    ) async {
+      await pumpSetup(tester, mode: GameMode.album, eraKeys: ['red']);
+
+      await choose(tester, 'Studio');
+      await choose(tester, 'Acoustic & remixes');
+
       expect(
         tester.getSemantics(find.text('Taylor’s Version')),
         isSemantics(hasEnabledState: true, isEnabled: false),
+      );
+      await choose(tester, 'Taylor’s Version');
+      expect(segmentChosen(tester, 'Both'), isTrue);
+      expect(
+        tester.getSemantics(find.text('Original')),
+        isSemantics(hasEnabledState: true, isEnabled: true),
       );
     });
 
@@ -557,19 +621,21 @@ void main() {
       expect(find.text('$songs songs'), findsOneWidget);
     });
 
-    testWidgets('an all-live pick cannot leave out live takes', (tester) async {
+    testWidgets('an all-live pick cannot leave out live recordings', (
+      tester,
+    ) async {
       final container = await pumpSetup(
         tester,
         mode: GameMode.album,
         prepare: (game) {
           releases(['Speak Now World Tour Live'])(game);
-          game.setVersions(VersionChoice.all.copyWith(liveTakes: false));
+          game.setVersions(VersionChoice.all.copyWith(live: false));
         },
       );
 
-      expect(cardChecked(tester, 'Live takes'), isTrue);
-      await choose(tester, 'Live takes');
-      expect(cardChecked(tester, 'Live takes'), isTrue);
+      expect(cardChecked(tester, 'Live'), isTrue);
+      await choose(tester, 'Live');
+      expect(cardChecked(tester, 'Live'), isTrue);
 
       await tester.tap(find.text('Start →'));
       await tester.pump();

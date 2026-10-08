@@ -167,11 +167,37 @@ void main() {
       );
     });
 
+    test(
+      'a choice that leaves nothing for the pick plays every version',
+      () async {
+        final scope = container();
+        scope.read(gameControllerProvider.notifier)
+          ..toggleEra('red')
+          ..setVersions(
+            const VersionChoice(studio: false, live: false, alternate: false),
+          )
+          ..beginSetup(GameMode.album);
+
+        final tracks = await scope
+            .read(catalogControllerProvider.notifier)
+            .loadTrackPool();
+
+        final red = scope.read(catalogControllerProvider).catalogue.tracksFor([
+          'red',
+        ]);
+        expect(red, isNotEmpty);
+        expect(tracks.allTracks, red);
+        expect(tracks.pool, isNotEmpty);
+      },
+    );
+
     test('a sound game plays only the versions chosen', () async {
       final scope = container();
       scope.read(gameControllerProvider.notifier)
         ..toggleEra('red')
-        ..setVersions(VersionChoice.all.copyWith(originals: false))
+        ..setVersions(
+          VersionChoice.all.copyWith(rerecorded: Rerecorded.taylorsVersion),
+        )
         ..beginSetup(GameMode.album);
 
       final tracks = await scope
@@ -183,7 +209,10 @@ void main() {
       ]);
       expect(
         tracks.allTracks,
-        keepVersions(red, VersionChoice.all.copyWith(originals: false)),
+        keepVersions(
+          red,
+          VersionChoice.all.copyWith(rerecorded: Rerecorded.taylorsVersion),
+        ),
       );
       expect(tracks.allTracks.length, lessThan(red.length));
       expect(tracks.allTracks.toSet().containsAll(tracks.pool), isTrue);

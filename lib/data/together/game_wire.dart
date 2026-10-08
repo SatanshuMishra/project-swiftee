@@ -153,6 +153,12 @@ Map<String, Object?> _encodeSettings(RoomSettings settings) => {
   'difficulty': settings.difficulty.wireName,
   'eraKeys': [...settings.scope.eraKeys],
   'releaseIds': [...settings.scope.releaseIds],
+  'versions': {
+    'studio': settings.versions.studio,
+    'live': settings.versions.live,
+    'alternate': settings.versions.alternate,
+    'rerecorded': settings.versions.rerecorded.name,
+  },
 };
 
 RoomSettings _decodeSettings(Object? json) => switch (json) {
@@ -162,6 +168,7 @@ RoomSettings _decodeSettings(Object? json) => switch (json) {
     'difficulty': final String difficulty,
     'eraKeys': final List<Object?> eraKeys,
     'releaseIds': final List<Object?> releaseIds,
+    'versions': final Object? versions,
   } =>
     RoomSettings(
       mode:
@@ -175,8 +182,27 @@ RoomSettings _decodeSettings(Object? json) => switch (json) {
         eraKeys: eraKeys.map(_decodeEraKey).toList(),
         releaseIds: releaseIds.map(_decodeReleaseId).toList(),
       ),
+      versions: _decodeVersions(versions),
     ),
   _ => throw const FormatException('invalid room settings'),
+};
+
+VersionChoice _decodeVersions(Object? json) => switch (json) {
+  {
+    'studio': final bool studio,
+    'live': final bool live,
+    'alternate': final bool alternate,
+    'rerecorded': final String rerecorded,
+  } =>
+    VersionChoice(
+      studio: studio,
+      live: live,
+      alternate: alternate,
+      rerecorded:
+          Rerecorded.values.asNameMap()[rerecorded] ??
+          (throw const FormatException('invalid recording choice')),
+    ),
+  _ => throw const FormatException('invalid version choice'),
 };
 
 String _decodeEraKey(Object? json) => switch (json) {

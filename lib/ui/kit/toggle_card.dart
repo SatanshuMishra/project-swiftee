@@ -9,6 +9,7 @@ class ToggleCard extends StatelessWidget {
   const ToggleCard({
     super.key,
     required this.title,
+    this.detail,
     required this.checked,
     required this.onTap,
   });
@@ -19,8 +20,16 @@ class ToggleCard extends StatelessWidget {
   static const double gap = 10;
   static const double titleSize = 20;
   static const double titleLineHeight = 24;
+  static const double minTextWidth = 96;
+
+  static double minWidthFor(TextScaler scaler) =>
+      padding.horizontal +
+      checkSize +
+      gap +
+      minTextWidth * scaler.scale(titleSize) / titleSize;
 
   final String title;
+  final String? detail;
   final bool checked;
   final VoidCallback? onTap;
 
@@ -58,15 +67,26 @@ class ToggleCard extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppType.display(
-                    titleSize,
-                    height: titleLineHeight / titleSize,
-                    color: tokens.fg,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppType.display(
+                        titleSize,
+                        height: titleLineHeight / titleSize,
+                        color: tokens.fg,
+                      ),
+                    ),
+                    if (detail case final detail?)
+                      Text(
+                        detail,
+                        style: AppType.small.copyWith(color: tokens.mut),
+                      ),
+                  ],
                 ),
               ),
             ],

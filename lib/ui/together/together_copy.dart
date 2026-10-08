@@ -1,10 +1,14 @@
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
 import 'package:swiftie_quiz/state/together/room_state.dart';
 import 'package:swiftie_quiz/ui/screens/game_screen.dart' show difficultyLabel;
+import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 
-String roomMeta(RoomSettings settings, String scopeLabel) =>
-    '${settings.rounds} rounds · ${difficultyLabel(settings.difficulty)} · '
-    '$scopeLabel';
+String roomMeta(RoomSettings settings, String scopeLabel) => [
+  '${settings.rounds} rounds',
+  difficultyLabel(settings.difficulty),
+  scopeLabel,
+  if (settings.playsSound) ?VersionCopy.summary(settings.versions),
+].join(' · ');
 
 String failureLine(
   RoomFailure failure, {

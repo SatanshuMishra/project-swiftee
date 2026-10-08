@@ -3,8 +3,6 @@ import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
 import 'package:swiftie_quiz/domain/util/song_title.dart';
 
-typedef VersionMix = ({bool rerecorded, bool liveTakes, bool otherTakes});
-
 typedef _Labelled = ({Track track, Take take, bool taylors, bool rerecorded});
 
 final class VersionIndex {
@@ -12,17 +10,7 @@ final class VersionIndex {
 
   final List<_Labelled> _entries;
 
-  late final VersionMix mix = (
-    rerecorded: _entries.any((entry) => entry.rerecorded),
-    liveTakes: _entries.any((entry) => entry.take == Take.live),
-    otherTakes: _entries.any((entry) => entry.take == Take.alternate),
-  );
-
-  bool offers(VersionOption option) => switch (option) {
-    VersionOption.taylorsVersions || VersionOption.originals => mix.rerecorded,
-    VersionOption.liveTakes => mix.liveTakes,
-    VersionOption.otherTakes => mix.otherTakes,
-  };
+  late final bool hasRerecorded = _entries.any((entry) => entry.rerecorded);
 
   List<Track> keep(VersionChoice choice) => List.unmodifiable([
     for (final entry in _entries)
@@ -32,20 +20,41 @@ final class VersionIndex {
   int count(VersionChoice choice) =>
       _entries.where((entry) => _keeps(choice, entry)).length;
 
-  bool canToggle(VersionChoice choice, VersionOption option) {
-    final next = choice.toggled(option);
-    return (next.taylorsVersions || next.originals) &&
-        _entries.any((entry) => _keeps(next, entry));
+  int countOf(Take take, VersionChoice choice) => _entries
+      .where((entry) => entry.take == take && _plays(choice.rerecorded, entry))
+      .length;
+
+  bool canToggle(VersionChoice choice, Take take) =>
+      countOf(take, choice) > 0 && count(choice.toggled(take)) > 0;
+
+  bool canChoose(VersionChoice choice, Rerecorded rerecorded) =>
+      count(choice.copyWith(rerecorded: rerecorded)) > 0;
+
+  VersionChoice usable(VersionChoice choice) =>
+      count(choice) > 0 ? choice : VersionChoice.all;
+
+  VersionChoice fitted(VersionChoice choice) {
+    final usable = this.usable(choice);
+    final both = usable.copyWith(rerecorded: Rerecorded.both);
+    final recording = count(usable) == count(both) ? both : usable;
+    bool held(Take take) => countOf(take, recording) > 0;
+    return recording.copyWith(
+      studio: recording.studio || !held(Take.studio),
+      live: recording.live || !held(Take.live),
+      alternate: recording.alternate || !held(Take.alternate),
+    );
   }
 
   static bool _keeps(VersionChoice choice, _Labelled entry) =>
-      switch (entry.take) {
-        Take.studio => true,
-        Take.live => choice.liveTakes,
-        Take.alternate => choice.otherTakes,
-      } &&
-      (!entry.rerecorded ||
-          (entry.taylors ? choice.taylorsVersions : choice.originals));
+      choice.plays(entry.take) && _plays(choice.rerecorded, entry);
+
+  static bool _plays(Rerecorded rerecorded, _Labelled entry) =>
+      !entry.rerecorded ||
+      switch (rerecorded) {
+        Rerecorded.taylorsVersion => entry.taylors,
+        Rerecorded.original => !entry.taylors,
+        Rerecorded.both => true,
+      };
 
   static List<_Labelled> _label(List<Track> tracks) {
     final taylors = <String>{};
@@ -73,12 +82,3 @@ final class VersionIndex {
 
 List<Track> keepVersions(List<Track> tracks, VersionChoice choice) =>
     VersionIndex(tracks).keep(choice);
-
-VersionMix versionMixOf(Iterable<Track> tracks) =>
-    VersionIndex(tracks.toList(growable: false)).mix;
-
-bool canToggle(
-  List<Track> tracks,
-  VersionChoice choice,
-  VersionOption option,
-) => VersionIndex(tracks).canToggle(choice, option);

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/together/relay_connection.dart';
+import 'package:swiftie_quiz/domain/engine/version_filter.dart';
+import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/together/game_messages.dart';
 import 'package:swiftie_quiz/domain/together/room_settings.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
@@ -15,12 +18,14 @@ import 'package:swiftie_quiz/state/together/room_controller.dart';
 import 'package:swiftie_quiz/state/together/room_state.dart';
 import 'package:swiftie_quiz/ui/kit/choice_row.dart';
 import 'package:swiftie_quiz/ui/kit/segmented.dart';
+import 'package:swiftie_quiz/ui/kit/toggle_card.dart';
 import 'package:swiftie_quiz/ui/screens/album_grid.dart';
 import 'package:swiftie_quiz/ui/screens/together/host_room_screen.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_nav.dart';
 import 'package:swiftie_quiz/ui/screens/together/together_shell.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
+import 'package:swiftie_quiz/ui/widgets/version_choices.dart';
 import 'package:together_protocol/together_protocol.dart';
 
 import '../../../state/together/fake_relay.dart';
@@ -30,7 +35,11 @@ final String _link = 'https://swiftie.satanshu.tech/#${'Ab0-_' * 8}xyz';
 
 const Player _sam = Player(id: 'host1', name: 'Sam', avatar: 'seedSam');
 
-Future<ProviderContainer> pumpHost(WidgetTester tester, FakeRelay relay) async {
+Future<ProviderContainer> pumpHost(
+  WidgetTester tester,
+  FakeRelay relay, {
+  Catalogue? catalogue,
+}) async {
   tester.view.physicalSize = const Size(1024, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -39,7 +48,9 @@ Future<ProviderContainer> pumpHost(WidgetTester tester, FakeRelay relay) async {
       relayConnectorProvider.overrideWithValue(relay),
       editionProvider.overrideWithValue(Edition.open),
       catalogControllerProvider.overrideWith(
-        () => FakeCatalog(CatalogState.initial.copyWith(catalogue: bundled)),
+        () => FakeCatalog(
+          CatalogState.initial.copyWith(catalogue: catalogue ?? bundled),
+        ),
       ),
     ],
   );
@@ -161,6 +172,45 @@ void main() {
     },
   );
 
+  testWidgets('a sound game asks which versions to play, the same way as '
+      'playing alone, and Lyrics or Lie does not', (tester) async {
+    final container = await pumpHost(tester, FakeRelay());
+    final everything = VersionIndex(bundled.allTracks);
+
+    expect(find.text('Versions'), findsOneWidget);
+    expect(find.text('Re-recorded songs'), findsOneWidget);
+    for (final take in Take.values) {
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ToggleCard, VersionCopy.take(take)),
+          matching: find.text(
+            VersionCopy.tracks(everything.countOf(take, VersionChoice.all)),
+          ),
+        ),
+        findsOneWidget,
+      );
+    }
+
+    await tapAndSettle(tester, find.text('Live'));
+    await tapAndSettle(tester, find.text('Taylor’s Version'));
+    expect(
+      roomOf(container).settings.versions,
+      const VersionChoice(live: false, rerecorded: Rerecorded.taylorsVersion),
+    );
+    expect(
+      tester
+          .widget<ToggleCard>(find.widgetWithText(ToggleCard, 'Live'))
+          .checked,
+      isFalse,
+    );
+
+    await tapAndSettle(tester, find.text('Quick draw'));
+    expect(find.text('Versions'), findsOneWidget);
+    await tapAndSettle(tester, find.text('Lyrics or Lie'));
+    expect(find.text('Versions'), findsNothing);
+    expect(find.text('Re-recorded songs'), findsNothing);
+  });
+
   testWidgets('a failed open shows its line under the button', (tester) async {
     for (final (refusal, line) in [
       (
@@ -214,6 +264,92 @@ void main() {
     expect(container.read(togetherNavProvider), TogetherScreen.hub);
     expect(find.byType(HostRoomScreen), findsNothing);
     expect(find.text('Room code'), findsOneWidget);
+  });
+
+  testWidgets('a new pick fits the version choice and counts the tracks '
+      'that will play', (tester) async {
+    final container = await pumpHost(tester, FakeRelay());
+    await tapAndSettle(tester, find.text('Live'));
+    await tapAndSettle(tester, find.text('Taylor’s Version'));
+
+    await tapAndSettle(tester, find.text('Pick your eras'));
+    await tapAndSettle(tester, find.byKey(const ValueKey('lover')));
+    await tapAndSettle(tester, find.text('Continue →'));
+
+    const fitted = VersionChoice(live: false);
+    final lover = VersionIndex(bundled.tracksFor(['lover']));
+    expect(roomOf(container).settings.versions, fitted);
+    expect(
+      roomOf(container).scopeLabel,
+      AlbumGrid.selectionLabel(1, 0, lover.count(fitted)),
+    );
+    expect(lover.count(fitted), lessThan(bundled.tracksFor(['lover']).length));
+    expect(find.text('Re-recorded songs'), findsNothing);
+
+    await tapAndSettle(tester, find.text('Live'));
+    expect(roomOf(container).settings.versions, VersionChoice.all);
+    expect(
+      roomOf(container).scopeLabel,
+      AlbumGrid.selectionLabel(1, 0, bundled.tracksFor(['lover']).length),
+    );
+  });
+
+  testWidgets('Lyrics or Lie counts every recording in the pick, whatever '
+      'versions were chosen', (tester) async {
+    final container = await pumpHost(tester, FakeRelay());
+    final lover = bundled.tracksFor(['lover']).length;
+    await tapAndSettle(tester, find.text('Pick your eras'));
+    await tapAndSettle(tester, find.byKey(const ValueKey('lover')));
+    await tapAndSettle(tester, find.text('Continue →'));
+    await tapAndSettle(tester, find.text('Studio'));
+    expect(
+      roomOf(container).scopeLabel,
+      isNot(AlbumGrid.selectionLabel(1, 0, lover)),
+    );
+
+    await tapAndSettle(tester, find.text('Lyrics or Lie'));
+    expect(roomOf(container).scopeLabel, AlbumGrid.selectionLabel(1, 0, lover));
+  });
+
+  testWidgets('Shuffle everything keeps a version choice that still applies', (
+    tester,
+  ) async {
+    final container = await pumpHost(tester, FakeRelay());
+    await tapAndSettle(tester, find.text('Live'));
+    await tapAndSettle(tester, find.text('Pick your eras'));
+    await tapAndSettle(tester, find.byKey(const ValueKey('lover')));
+    await tapAndSettle(tester, find.text('Continue →'));
+
+    await tapAndSettle(tester, find.text('Shuffle everything'));
+    expect(
+      roomOf(container).settings.versions,
+      const VersionChoice(live: false),
+    );
+    expect(roomOf(container).scopeLabel, 'Shuffle everything');
+  });
+
+  testWidgets('no gap is left for the versions while the songs load', (
+    tester,
+  ) async {
+    double gapAbove(String label) =>
+        tester.getTopLeft(find.text(label)).dy -
+        tester
+            .getBottomLeft(
+              find.ancestor(
+                of: find.text('Pick your eras'),
+                matching: find.byType(ChoiceRow),
+              ),
+            )
+            .dy;
+
+    await pumpHost(tester, FakeRelay(), catalogue: Catalogue.empty);
+    expect(find.text('Versions'), findsNothing);
+    final loading = gapAbove('Rounds');
+
+    await pumpHost(tester, FakeRelay());
+    await tapAndSettle(tester, find.text('Lyrics or Lie'));
+    expect(find.text('Versions'), findsNothing);
+    expect(loading, gapAbove('Rounds'));
   });
 
   testWidgets('picking eras returns to the host screen with the summary', (

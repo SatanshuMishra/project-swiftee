@@ -90,6 +90,10 @@ List<GameMessage> everyMessage() => [
         eraKeys: const ['speak-now', 'evermore'],
         releaseIds: const [422346587, 13],
       ),
+      versions: const VersionChoice(
+        live: false,
+        rerecorded: Rerecorded.taylorsVersion,
+      ),
     ),
     scopeLabel: '2 eras · 26 tracks',
   ),
@@ -297,6 +301,39 @@ void main() {
             settings['settings']! as Map<String, Object?>,
             'releaseIds',
             ['13'],
+          ),
+        ),
+        replaced(
+          settings,
+          'settings',
+          without(settings['settings']! as Map<String, Object?>, 'versions'),
+        ),
+        replaced(
+          settings,
+          'settings',
+          replaced(
+            settings['settings']! as Map<String, Object?>,
+            'versions',
+            replaced(
+              (settings['settings']! as Map<String, Object?>)['versions']!
+                  as Map<String, Object?>,
+              'rerecorded',
+              'remastered',
+            ),
+          ),
+        ),
+        replaced(
+          settings,
+          'settings',
+          replaced(
+            settings['settings']! as Map<String, Object?>,
+            'versions',
+            replaced(
+              (settings['settings']! as Map<String, Object?>)['versions']!
+                  as Map<String, Object?>,
+              'live',
+              'no',
+            ),
           ),
         ),
         replaced(settings, 'settings', null),

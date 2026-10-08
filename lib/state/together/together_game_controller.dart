@@ -652,7 +652,7 @@ class TogetherGameController extends Notifier<TogetherGameState> {
       }
     }
     game
-      ..setVersions(VersionChoice.all)
+      ..setVersions(settings.versions)
       ..setDifficulty(settings.difficulty);
   }
 

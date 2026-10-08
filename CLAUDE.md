@@ -48,7 +48,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 | Change how songs and lyrics avoid repeating | lib/domain/engine/play_order.dart + lib/state/play_history_controller.dart + docs/decisions/2026-10-06-repetition.md |
 | Change how new releases, eras and takes are sorted | lib/domain/engine/catalogue_rules.dart + takeOf in lib/domain/util/song_title.dart + lib/data/catalog/catalogue_store.dart + docs/decisions/2026-10-07-catalogue-growth.md |
 | Change the era and release picker | lib/ui/screens/album_grid.dart + Catalogue.releases in lib/domain/models/catalogue.dart + lib/domain/engine/release_search.dart + docs/decisions/2026-10-06-release-picker.md |
-| Change which versions a sound game plays | lib/domain/engine/version_filter.dart + the versions section in lib/ui/screens/setup_screen.dart |
+| Change which versions a sound game plays | lib/domain/engine/version_filter.dart + lib/ui/widgets/version_choices.dart (used by lib/ui/screens/setup_screen.dart and lib/ui/screens/together/host_room_screen.dart) + docs/decisions/2026-10-06-release-picker.md |
 | Change a Deezer or LRCLIB call  | lib/data/catalog/deezer_client.dart or lib/data/lyrics/lrclib_client.dart + providers in lib/state/providers.dart |
 | Change which certificates the app trusts | lib/services/network/bundled_roots.dart + assets/certs/cacert.pem + docs/decisions/2026-10-07-windows-trusted-roots.md |
 | Change how album covers load, ship or are kept | lib/data/covers/ + lib/ui/kit/cover_picture.dart + lib/state/covers.dart + tool/catalog/bundle_covers.dart + docs/decisions/2026-10-07-bundled-covers.md |

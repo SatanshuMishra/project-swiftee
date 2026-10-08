@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 enum GamePhase {
   nickname('nickname'),
@@ -57,67 +58,62 @@ enum LyricsMode {
       values.firstWhereOrNull((value) => value.wireName == wireName);
 }
 
-enum VersionOption { taylorsVersions, originals, liveTakes, otherTakes }
+enum Rerecorded { taylorsVersion, original, both }
 
 final class VersionChoice {
   const VersionChoice({
-    this.taylorsVersions = true,
-    this.originals = true,
-    this.liveTakes = true,
-    this.otherTakes = true,
+    this.studio = true,
+    this.live = true,
+    this.alternate = true,
+    this.rerecorded = Rerecorded.both,
   });
 
   static const VersionChoice all = VersionChoice();
 
-  bool includes(VersionOption option) => switch (option) {
-    VersionOption.taylorsVersions => taylorsVersions,
-    VersionOption.originals => originals,
-    VersionOption.liveTakes => liveTakes,
-    VersionOption.otherTakes => otherTakes,
+  final bool studio;
+  final bool live;
+  final bool alternate;
+  final Rerecorded rerecorded;
+
+  bool plays(Take take) => switch (take) {
+    Take.studio => studio,
+    Take.live => live,
+    Take.alternate => alternate,
   };
 
-  VersionChoice toggled(VersionOption option) => switch (option) {
-    VersionOption.taylorsVersions => copyWith(
-      taylorsVersions: !taylorsVersions,
-    ),
-    VersionOption.originals => copyWith(originals: !originals),
-    VersionOption.liveTakes => copyWith(liveTakes: !liveTakes),
-    VersionOption.otherTakes => copyWith(otherTakes: !otherTakes),
+  VersionChoice toggled(Take take) => switch (take) {
+    Take.studio => copyWith(studio: !studio),
+    Take.live => copyWith(live: !live),
+    Take.alternate => copyWith(alternate: !alternate),
   };
-
-  final bool taylorsVersions;
-  final bool originals;
-  final bool liveTakes;
-  final bool otherTakes;
 
   VersionChoice copyWith({
-    bool? taylorsVersions,
-    bool? originals,
-    bool? liveTakes,
-    bool? otherTakes,
+    bool? studio,
+    bool? live,
+    bool? alternate,
+    Rerecorded? rerecorded,
   }) => VersionChoice(
-    taylorsVersions: taylorsVersions ?? this.taylorsVersions,
-    originals: originals ?? this.originals,
-    liveTakes: liveTakes ?? this.liveTakes,
-    otherTakes: otherTakes ?? this.otherTakes,
+    studio: studio ?? this.studio,
+    live: live ?? this.live,
+    alternate: alternate ?? this.alternate,
+    rerecorded: rerecorded ?? this.rerecorded,
   );
 
   @override
   bool operator ==(Object other) =>
       other is VersionChoice &&
-      other.taylorsVersions == taylorsVersions &&
-      other.originals == originals &&
-      other.liveTakes == liveTakes &&
-      other.otherTakes == otherTakes;
+      other.studio == studio &&
+      other.live == live &&
+      other.alternate == alternate &&
+      other.rerecorded == rerecorded;
 
   @override
-  int get hashCode =>
-      Object.hash(taylorsVersions, originals, liveTakes, otherTakes);
+  int get hashCode => Object.hash(studio, live, alternate, rerecorded);
 
   @override
   String toString() =>
-      'VersionChoice(taylorsVersions: $taylorsVersions, originals: $originals, '
-      'liveTakes: $liveTakes, otherTakes: $otherTakes)';
+      'VersionChoice(studio: $studio, live: $live, alternate: $alternate, '
+      'rerecorded: $rerecorded)';
 }
 
 enum Difficulty {

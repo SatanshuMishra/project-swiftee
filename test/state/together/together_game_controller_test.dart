@@ -579,7 +579,7 @@ void main() {
     test('the host plays a whole game and returns to the room with Next', () {
       fakeAsync((async) {
         final host = _Harness(async);
-        host.game.setVersions(const VersionChoice(liveTakes: false));
+        host.game.setVersions(const VersionChoice(live: false));
         host
           ..hostRoom(
             RoomSettings(
@@ -1125,7 +1125,7 @@ void main() {
           )
           ..setMode(GameMode.tonight)
           ..setDifficulty(Difficulty.hard)
-          ..setVersions(const VersionChoice(liveTakes: false));
+          ..setVersions(const VersionChoice(live: false));
         progress = host.single.progress;
         history = host.container.read(playHistoryProvider);
 
@@ -1162,9 +1162,67 @@ void main() {
       expect(host.single.trackPool, isEmpty);
       expect(host.single.mode, GameMode.tonight);
       expect(host.single.difficulty, Difficulty.hard);
-      expect(host.single.versions, const VersionChoice(liveTakes: false));
+      expect(host.single.versions, const VersionChoice(live: false));
       expect(host.single.progress, progress);
       expect(host.container.read(playHistoryProvider), history);
+    });
+
+    test("a room set to Taylor's Version plays only her re-recordings", () {
+      fakeAsync((async) {
+        const versions = VersionChoice(rerecorded: Rerecorded.taylorsVersion);
+        final host = _Harness(async);
+        host
+          ..hostRoom(
+            RoomSettings(
+              rounds: 5,
+              scope: RoomScope.picked(
+                eraKeys: const ['lover'],
+                releaseIds: const [],
+              ),
+              versions: versions,
+            ),
+          )
+          ..start();
+        for (var number = 1; number <= 5; number++) {
+          host.playRound(hostRight: true);
+          async.elapse(const Duration(seconds: revealSeconds));
+        }
+
+        expect(host.state.stage, TogetherStage.ended);
+        expect(host.single.versions, versions);
+        final played = [
+          for (final body in host.relay.bodies)
+            if (body.message case RoundStart(:final track)) track.title,
+        ];
+        expect(played, hasLength(5));
+        expect(played, everyElement(contains("Taylor's Version")));
+      });
+    });
+
+    test('a room whose versions leave nothing for its pick plays every '
+        'version', () {
+      fakeAsync((async) {
+        final host = _Harness(async);
+        host
+          ..hostRoom(
+            RoomSettings(
+              rounds: 5,
+              scope: RoomScope.picked(
+                eraKeys: const ['lover'],
+                releaseIds: const [],
+              ),
+              versions: const VersionChoice(studio: false),
+            ),
+          )
+          ..start();
+        for (var number = 1; number <= 5; number++) {
+          host.playRound(hostRight: true);
+          async.elapse(const Duration(seconds: revealSeconds));
+        }
+
+        expect(host.state.stage, TogetherStage.ended);
+        expect(host.state.startFailed, isFalse);
+      });
     });
 
     test('misu remarks on close finishes and wins unless visits are off', () {
