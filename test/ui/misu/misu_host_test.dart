@@ -26,6 +26,10 @@ const MisuVisit _streak = MisuVisit(
 
 class _FakeMisu extends MisuController {
   int dismissals = 0;
+  List<bool> covers = const [];
+
+  @override
+  void cover({required bool covered}) => covers = [...covers, covered];
 
   @override
   MisuState build() => const MisuState();
@@ -97,6 +101,29 @@ double _bubbleOpacity(WidgetTester tester, String line) => tester
 
 void main() {
   group('misu visits', () {
+    testWidgets('a dialog over misu hides him and holds his stay', (
+      tester,
+    ) async {
+      final misu = await _pumpHost(tester);
+      final modals = ProviderScope.containerOf(
+        tester.element(find.byType(MisuHost)),
+      ).read(modalStackProvider.notifier);
+
+      misu.show(_greeting);
+      await tester.pumpAndSettle();
+      expect(misu.covers, [false]);
+
+      modals.push('dialog');
+      await tester.pump();
+      expect(misu.covers, [false, true]);
+      expect(find.text(_greeting.text), findsNothing);
+
+      modals.remove('dialog');
+      await tester.pumpAndSettle();
+      expect(misu.covers, [false, true, false]);
+      expect(find.text(_greeting.text), findsOneWidget);
+    });
+
     testWidgets('misu rises with his line and a click sends him away', (
       tester,
     ) async {

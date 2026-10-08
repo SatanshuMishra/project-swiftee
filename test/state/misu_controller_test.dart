@@ -5,34 +5,53 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
+import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/state/attention_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
+import 'package:swiftie_quiz/state/together/together_game_controller.dart';
+import 'package:swiftie_quiz/state/together/together_game_state.dart';
 
 final DateTime _evening = DateTime(2026, 10, 6, 19);
 final DateTime _morning = DateTime(2026, 10, 6, 8);
 
-const Duration _stay = Duration(milliseconds: 4200);
+const Duration _stay = Duration(seconds: 8);
 const Duration _justBefore = Duration(milliseconds: 1);
+
+class _TogetherAt extends TogetherGameController {
+  _TogetherAt(this.stage);
+
+  final TogetherStage stage;
+
+  @override
+  TogetherGameState build() => TogetherGameState.initial.copyWith(stage: stage);
+}
 
 ProviderContainer _container(
   FakeAsync async,
   MisuVisits visits, {
   Edition edition = Edition.open,
   String nickname = 'Sam',
+  TogetherStage? together,
 }) {
   final container = ProviderContainer.test(
     overrides: [
       clockProvider.overrideWithValue(() => _evening.add(async.elapsed)),
       editionProvider.overrideWithValue(edition),
       randomProvider.overrideWithValue(Random(3)),
+      if (together != null)
+        togetherGameControllerProvider.overrideWith(
+          () => _TogetherAt(together),
+        ),
     ],
   );
   container.read(gameControllerProvider.notifier)
     ..setMisuVisits(visits)
     ..setNickname(nickname);
+  container.read(attentionProvider.notifier).track();
   container.read(misuControllerProvider);
   return container;
 }
@@ -169,7 +188,7 @@ void main() {
           offVisit(),
           _visitOf(MisuLine.intro, MisuSide.right, long: true),
         );
-        async.elapse(const Duration(milliseconds: 7000) - _justBefore);
+        async.elapse(const Duration(seconds: 12) - _justBefore);
         expect(offVisit(), isNotNull);
         async.elapse(_justBefore);
         expect(offVisit(), isNull);
@@ -348,6 +367,155 @@ void main() {
         expect(async.pendingTimers, hasLength(idle + 1));
         container.dispose();
         expect(async.pendingTimers, isEmpty);
+      });
+    });
+
+    test('misu waits while the window is in the background and gives a full '
+        'eight seconds once you are back', () {
+      fakeAsync((async) {
+        final container = _container(async, MisuVisits.often);
+        final attention = container.read(attentionProvider.notifier);
+        final misu = container.read(misuControllerProvider.notifier);
+        MisuVisit? visit() => container.read(misuControllerProvider).visit;
+
+        misu.afterQuickRound(6);
+        async.elapse(const Duration(seconds: 5));
+        attention.focus(focused: false);
+        async.elapse(const Duration(minutes: 1));
+        expect(visit(), isNotNull);
+
+        attention.focus(focused: true);
+        async.elapse(const Duration(minutes: 1));
+        expect(visit(), isNotNull, reason: 'back in front but not touched');
+
+        attention.input();
+        async.elapse(_stay - _justBefore);
+        expect(visit(), isNotNull);
+        async.elapse(_justBefore);
+        expect(visit(), isNull);
+
+        misu.afterQuickRound(6);
+        async.elapse(const Duration(seconds: 7));
+        attention
+          ..focus(focused: false)
+          ..focus(focused: true);
+        async.elapse(_stay - _justBefore);
+        expect(visit(), isNotNull, reason: 'coming back restarts the stay');
+        async.elapse(_justBefore);
+        expect(visit(), isNull);
+      });
+    });
+
+    test('a line said while you are idle waits for your next move', () {
+      fakeAsync((async) {
+        final container = _container(async, MisuVisits.often);
+        final misu = container.read(misuControllerProvider.notifier);
+        MisuVisit? visit() => container.read(misuControllerProvider).visit;
+
+        async.elapse(AttentionController.activeFor);
+        expect(container.read(attentionProvider).watching, isFalse);
+        misu.afterQuickRound(6);
+        async.elapse(const Duration(minutes: 2));
+        expect(visit(), _visitOf(MisuLine.sumMid, MisuSide.right));
+
+        container.read(attentionProvider.notifier).input();
+        async.elapse(_stay - _justBefore);
+        expect(visit(), isNotNull);
+        async.elapse(_justBefore);
+        expect(visit(), isNull);
+      });
+    });
+
+    test('a dialog over misu holds his stay until it closes', () {
+      fakeAsync((async) {
+        final container = _container(async, MisuVisits.often);
+        final misu = container.read(misuControllerProvider.notifier)
+          ..afterQuickRound(6)
+          ..cover(covered: true);
+        MisuVisit? visit() => container.read(misuControllerProvider).visit;
+
+        async.elapse(const Duration(seconds: 20));
+        expect(visit(), isNotNull);
+
+        misu.cover(covered: false);
+        async.elapse(_stay - _justBefore);
+        expect(visit(), isNotNull);
+        async.elapse(_justBefore);
+        expect(visit(), isNull);
+      });
+    });
+
+    test('misu drops in once after five minutes away and waits for you', () {
+      fakeAsync((async) {
+        final container = _container(async, MisuVisits.sometimes);
+        MisuVisit? visit() => container.read(misuControllerProvider).visit;
+
+        async.elapse(AttentionController.awayAfter - _justBefore);
+        expect(visit(), isNull);
+        async.elapse(_justBefore);
+        expect(visit(), _visitOf(MisuLine.away, MisuSide.right));
+        final first = visit()!.text;
+
+        async.elapse(const Duration(minutes: 20));
+        expect(visit()?.text, first, reason: 'still waiting for you');
+
+        container.read(attentionProvider.notifier).input();
+        async.elapse(_stay);
+        expect(visit(), isNull);
+
+        async.elapse(const Duration(minutes: 4));
+        container.read(attentionProvider.notifier).input();
+        async.elapse(AttentionController.awayAfter - _justBefore);
+        expect(visit(), isNull, reason: 'the absence restarted');
+        async.elapse(_justBefore);
+        expect(visit(), _visitOf(MisuLine.away, MisuSide.right));
+        expect(visit()!.text, isNot(first));
+      });
+    });
+
+    test('misu stays quiet when you are away with visits off, on the '
+        'nickname screen, mid Play together game or while he is talking', () {
+      fakeAsync((async) {
+        MisuVisit? awayFrom(ProviderContainer container) {
+          async.elapse(AttentionController.awayAfter);
+          return container.read(misuControllerProvider).visit;
+        }
+
+        expect(awayFrom(_container(async, MisuVisits.off)), isNull);
+
+        final nickname = _container(async, MisuVisits.often);
+        nickname
+            .read(gameControllerProvider.notifier)
+            .setPhase(GamePhase.nickname);
+        expect(awayFrom(nickname), isNull);
+
+        for (final stage in TogetherStage.values) {
+          final together = _container(async, MisuVisits.often, together: stage);
+          together
+              .read(gameControllerProvider.notifier)
+              .setPhase(GamePhase.together);
+          together.read(togetherGameControllerProvider);
+          final quiet = switch (stage) {
+            TogetherStage.idle ||
+            TogetherStage.ended ||
+            TogetherStage.lost => false,
+            _ => true,
+          };
+          expect(
+            awayFrom(together),
+            quiet ? isNull : _visitOf(MisuLine.away, MisuSide.right),
+            reason: '$stage',
+          );
+        }
+
+        final talking = _container(async, MisuVisits.often);
+        async.elapse(AttentionController.activeFor);
+        talking.read(misuControllerProvider.notifier).afterQuickRound(6);
+        expect(
+          awayFrom(talking),
+          _visitOf(MisuLine.sumMid, MisuSide.right),
+          reason: 'the waiting line is not replaced',
+        );
       });
     });
 

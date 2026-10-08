@@ -64,6 +64,13 @@ class _MisuHostState extends ConsumerState<MisuHost> {
     _visit = ref.read(misuControllerProvider).visit;
     _up = _visit != null;
     HardwareKeyboard.instance.addHandler(_handleKey);
+    ref.listenManual(
+      modalStackProvider,
+      (_, modals) => ref
+          .read(misuControllerProvider.notifier)
+          .cover(covered: modals.isNotEmpty),
+      fireImmediately: true,
+    );
   }
 
   @override
