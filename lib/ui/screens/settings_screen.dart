@@ -669,7 +669,9 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
         !_editing &&
         ref.watch(
           gameControllerProvider.select(
-            (state) => state.progress.settings.togetherLink != null,
+            (state) =>
+                ServerLink.parse(state.progress.settings.togetherLink ?? '') !=
+                null,
           ),
         );
     return SizedBox(

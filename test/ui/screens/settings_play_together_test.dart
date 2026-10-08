@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/data/together/relay_connection.dart';
@@ -99,6 +101,19 @@ Color? colorOf(WidgetTester tester, String text) =>
 
 AppTokens tokensOf(WidgetTester tester) =>
     AppTokens.of(tester.element(find.byType(SettingsScreen)));
+
+Future<void> clickOff(WidgetTester tester) async {
+  final title = find.text('Server link');
+  await tester.ensureVisible(title);
+  await tester.pumpAndSettle();
+  await tester.tap(title, kind: PointerDeviceKind.mouse);
+  await tester.pumpAndSettle();
+}
+
+bool locked(WidgetTester tester) {
+  final field = tester.widget<TextField>(serverLinkField());
+  return field.obscureText && field.enabled == false;
+}
 
 void main() {
   for (final (window, saved) in [
@@ -260,13 +275,6 @@ void main() {
     );
     final field = serverLinkField();
     bool focused() => tester.widget<TextField>(field).focusNode!.hasFocus;
-    Future<void> clickOff() async {
-      final title = find.text('Server link');
-      await tester.ensureVisible(title);
-      await tester.pumpAndSettle();
-      await tester.tap(title, kind: PointerDeviceKind.mouse);
-      await tester.pumpAndSettle();
-    }
 
     await tester.ensureVisible(field);
     connector.answer(null);
@@ -301,7 +309,7 @@ void main() {
     );
 
     await tester.enterText(field, 'not a link at all');
-    await clickOff();
+    await clickOff(tester);
     expect(focused(), isFalse);
     expect(settingsOf(container).togetherLink, isNull);
     expect(find.text('Clear'), findsNothing);
@@ -322,7 +330,7 @@ void main() {
       isSemantics(value: _otherLink, isObscured: false, isEnabled: true),
     );
 
-    await clickOff();
+    await clickOff(tester);
     expect(find.text('Connected to swiftie.satanshu.tech.'), findsOneWidget);
     expect(find.text('Clear'), findsOneWidget);
     expect(
@@ -335,5 +343,94 @@ void main() {
     );
     expect(connector.checked, hasLength(2));
     semantics.dispose();
+  });
+
+  testWidgets(
+    'undo after Clear cannot bring a link back',
+    (tester) async {
+      final (container, _) = await pumpSettings(tester);
+      final field = serverLinkField();
+      final undo = defaultTargetPlatform == TargetPlatform.macOS
+          ? LogicalKeyboardKey.metaLeft
+          : LogicalKeyboardKey.controlLeft;
+
+      await tester.ensureVisible(field);
+      await tester.enterText(field, serverLink);
+      await tester.pumpAndSettle();
+      await clickOff(tester);
+      expect(locked(tester), isTrue);
+      await tester.tap(find.text('Clear'), kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyDownEvent(undo);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+      await tester.sendKeyUpEvent(undo);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+      expect(settingsOf(container).togetherLink, isNull);
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.macOS,
+      TargetPlatform.windows,
+    }),
+  );
+
+  testWidgets('leaving the app locks a link being typed', (tester) async {
+    await pumpSettings(tester);
+    final field = serverLinkField();
+
+    await tester.ensureVisible(field);
+    await tester.enterText(field, serverLink);
+    await tester.pumpAndSettle();
+    expect(locked(tester), isFalse);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pumpAndSettle();
+    expect(locked(tester), isTrue);
+    expect(find.text('Clear'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(locked(tester), isTrue);
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isFalse);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+  testWidgets('a restored save locks the field only for a real link', (
+    tester,
+  ) async {
+    final (container, connector) = await pumpSettings(
+      tester,
+      savedLink: serverLink,
+    );
+    void restore(String? link) {
+      final progress = container.read(gameControllerProvider).progress;
+      container
+          .read(gameControllerProvider.notifier)
+          .setProgress(
+            progress.copyWith(
+              settings: progress.settings.copyWith(togetherLink: link),
+            ),
+          );
+    }
+
+    await tester.ensureVisible(serverLinkField());
+    expect(locked(tester), isTrue);
+
+    restore(null);
+    await tester.pumpAndSettle();
+    expect(locked(tester), isFalse);
+    expect(find.text('Clear'), findsNothing);
+
+    restore(_otherLink);
+    await tester.pumpAndSettle();
+    expect(locked(tester), isTrue);
+    expect(find.text('Clear'), findsOneWidget);
+    expect(connector.checked.last, ServerLink.parse(_otherLink));
+
+    restore('not a link');
+    await tester.pumpAndSettle();
+    expect(locked(tester), isFalse);
+    expect(find.text('Clear'), findsNothing);
+    expect(find.text("That isn't a Play together link."), findsOneWidget);
   });
 }

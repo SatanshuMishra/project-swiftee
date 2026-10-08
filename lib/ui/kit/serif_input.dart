@@ -119,6 +119,7 @@ class _SerifInputState extends State<SerifInput> {
   Widget _field(TextStyle style, int? maxLength) {
     final tokens = AppTokens.of(context);
     final field = TextField(
+      key: ValueKey(widget.obscured),
       controller: widget.controller,
       focusNode: _focusNode,
       autofocus: widget.autofocus,
