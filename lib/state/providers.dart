@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -33,7 +34,7 @@ final httpClientProvider = Provider<http.Client>((ref) {
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 final uptimeProvider = Provider<Duration Function()>((ref) {
-  final stopwatch = Stopwatch()..start();
+  final stopwatch = clock.stopwatch()..start();
   return () => stopwatch.elapsed;
 });
 

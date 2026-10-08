@@ -147,4 +147,17 @@ void main() {
 
     expect(attention.focuses, [false]);
   });
+
+  testWidgets('a repeated report from the window still reaches the tracker', (
+    tester,
+  ) async {
+    final attention = await _pump(tester);
+    final initial = attention.focuses.length;
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+
+    expect(attention.focuses.skip(initial), [false, false, true]);
+  });
 }

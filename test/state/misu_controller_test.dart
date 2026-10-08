@@ -28,7 +28,6 @@ ProviderContainer _container(
   final container = ProviderContainer.test(
     overrides: [
       clockProvider.overrideWithValue(() => _evening.add(async.elapsed)),
-      uptimeProvider.overrideWithValue(() => async.elapsed),
       editionProvider.overrideWithValue(edition),
       randomProvider.overrideWithValue(Random(3)),
     ],

@@ -50,6 +50,9 @@ class AttentionController extends Notifier<Attention> {
   Attention build() {
     ref.onDispose(_cancel);
     _lastInput = _now();
+    if (_tracking) {
+      _arm();
+    }
     return const Attention();
   }
 

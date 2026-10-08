@@ -12,20 +12,20 @@ class AttentionListener extends ConsumerStatefulWidget {
   ConsumerState<AttentionListener> createState() => _AttentionListenerState();
 }
 
-class _AttentionListenerState extends ConsumerState<AttentionListener> {
-  late final AppLifecycleListener _lifecycle;
+class _AttentionListenerState extends ConsumerState<AttentionListener>
+    with WidgetsBindingObserver {
   late final AttentionController _attention;
 
   @override
   void initState() {
     super.initState();
     _attention = ref.read(attentionProvider.notifier)..track();
-    _lifecycle = AppLifecycleListener(onStateChange: _focusFollows);
+    WidgetsBinding.instance.addObserver(this);
     HardwareKeyboard.instance.addHandler(_keyPressed);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         if (WidgetsBinding.instance.lifecycleState case final state?) {
-          _focusFollows(state);
+          didChangeAppLifecycleState(state);
         }
       }
     });
@@ -34,19 +34,18 @@ class _AttentionListenerState extends ConsumerState<AttentionListener> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_keyPressed);
-    _lifecycle.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     _attention.untrack();
     super.dispose();
   }
 
-  AttentionController get _current => ref.read(attentionProvider.notifier);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _attention.focus(focused: state == AppLifecycleState.resumed);
 
-  void _focusFollows(AppLifecycleState state) =>
-      _current.focus(focused: state == AppLifecycleState.resumed);
+  void _input() => _attention.input();
 
-  void _input() => _current.input();
-
-  void _press() => _current.press();
+  void _press() => _attention.press();
 
   bool _keyPressed(KeyEvent event) {
     _press();

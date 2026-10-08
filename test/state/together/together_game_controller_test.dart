@@ -1300,6 +1300,44 @@ void main() {
       });
     });
 
+    test('misu is released however a game ends', () {
+      fakeAsync((async) {
+        bool running(_Harness host) =>
+            host.container.read(misuControllerProvider.notifier).inTogetherGame;
+
+        final lost = _Harness(async)..hostRoom(const RoomSettings(rounds: 3));
+        lost.start();
+        expect(running(lost), isTrue);
+        unawaited(lost.relay.end());
+        async.flushMicrotasks();
+        expect(lost.state.stage, TogetherStage.lost);
+        expect(running(lost), isFalse, reason: 'the connection dropped');
+
+        final failed = _Harness(async)..lrclibLag = const Duration(seconds: 9);
+        failed
+          ..hostRoom(
+            const RoomSettings(mode: TogetherMode.lyricsOrLie, rounds: 5),
+          )
+          ..start();
+        expect(running(failed), isTrue);
+        async.elapse(lyricsLoadLimit);
+        expect(failed.state.startFailed, isTrue);
+        expect(running(failed), isFalse, reason: 'the start failed');
+
+        final left = _Harness(async)..hostRoom(const RoomSettings(rounds: 3));
+        left.start();
+        unawaited(left.together.leaveTogether());
+        async.flushMicrotasks();
+        expect(running(left), isFalse, reason: 'the player left mid game');
+
+        final gone = _Harness(async)..hostRoom(const RoomSettings(rounds: 3));
+        gone.start();
+        gone.container.invalidate(togetherGameControllerProvider);
+        async.flushMicrotasks();
+        expect(running(gone), isFalse, reason: 'the game was disposed');
+      });
+    });
+
     test('a guest who leaves is marked and not waited for', () {
       fakeAsync((async) {
         final host = _Harness(async)

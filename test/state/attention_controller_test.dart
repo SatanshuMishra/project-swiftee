@@ -2,14 +2,11 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/state/attention_controller.dart';
-import 'package:swiftie_quiz/state/providers.dart';
 
 const Duration _justBefore = Duration(milliseconds: 1);
 
-ProviderContainer _container(FakeAsync async) {
-  final container = ProviderContainer.test(
-    overrides: [uptimeProvider.overrideWithValue(() => async.elapsed)],
-  );
+ProviderContainer _container() {
+  final container = ProviderContainer.test();
   container.read(attentionProvider.notifier).track();
   return container;
 }
@@ -18,7 +15,7 @@ void main() {
   test('you stay active for thirty seconds after you last moved and are '
       'away after five minutes', () {
     fakeAsync((async) {
-      final container = _container(async);
+      final container = _container();
       final attention = container.read(attentionProvider.notifier);
       Attention read() => container.read(attentionProvider);
 
@@ -49,7 +46,7 @@ void main() {
 
   test('watching needs the window in front as well as recent input', () {
     fakeAsync((async) {
-      final container = _container(async);
+      final container = _container();
       final attention = container.read(attentionProvider.notifier)
         ..focus(focused: false);
 
@@ -62,7 +59,7 @@ void main() {
   test('a click or key proves the window is in front, but moving over a '
       'window in the background does not count as you', () {
     fakeAsync((async) {
-      final container = _container(async);
+      final container = _container();
       final attention = container.read(attentionProvider.notifier)
         ..focus(focused: false);
       Attention read() => container.read(attentionProvider);
@@ -80,9 +77,19 @@ void main() {
     });
   });
 
+  test('a tracker that rebuilds keeps counting toward away', () {
+    fakeAsync((async) {
+      final container = _container()..invalidate(attentionProvider);
+      expect(container.read(attentionProvider), const Attention());
+
+      async.elapse(AttentionController.awayAfter);
+      expect(container.read(attentionProvider).away, isTrue);
+    });
+  });
+
   test('a stream of mouse moves keeps two timers, not one per move', () {
     fakeAsync((async) {
-      final container = _container(async);
+      final container = _container();
       final attention = container.read(attentionProvider.notifier);
       for (var move = 0; move < 500; move++) {
         attention.input();
