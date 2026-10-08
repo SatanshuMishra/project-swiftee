@@ -18,6 +18,7 @@ class SerifInput extends StatefulWidget {
     this.enabled = true,
     this.obscured = false,
     this.semanticLabel,
+    this.fieldKey,
     this.focusNode,
     this.textAlign = TextAlign.start,
     this.trailing,
@@ -39,6 +40,7 @@ class SerifInput extends StatefulWidget {
   final bool enabled;
   final bool obscured;
   final String? semanticLabel;
+  final Key? fieldKey;
   final FocusNode? focusNode;
   final TextAlign textAlign;
   final Widget? trailing;
@@ -119,6 +121,7 @@ class _SerifInputState extends State<SerifInput> {
   Widget _field(TextStyle style, int? maxLength) {
     final tokens = AppTokens.of(context);
     final field = TextField(
+      key: widget.fieldKey,
       controller: widget.controller,
       focusNode: _focusNode,
       autofocus: widget.autofocus,

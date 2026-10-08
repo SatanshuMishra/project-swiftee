@@ -683,7 +683,7 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
           Padding(
             padding: const EdgeInsets.only(top: _NicknameField.top),
             child: SerifInput(
-              key: ValueKey(locked),
+              fieldKey: ValueKey(locked),
               controller: _controller,
               focusNode: _focus,
               fontSize: _NicknameField.fontSize,
@@ -1397,23 +1397,20 @@ class _About extends StatelessWidget {
     fontFamily: emojiFamily,
     fontFamilyFallback: emojiFallbacks,
   );
-  static final RegExp emojiPresented = RegExp('.\u{FE0F}', unicode: true);
+  static const String emojiSelector = '\u{FE0F}';
 
   final String line;
 
-  static List<TextSpan> spans(String text) {
-    final marks = emojiPresented.allMatches(text).toList();
-    final starts = [0, for (final mark in marks) mark.end];
-    return [
-      for (final (index, mark) in marks.indexed) ...[
-        if (mark.start > starts[index])
-          TextSpan(text: text.substring(starts[index], mark.start)),
-        TextSpan(text: mark[0], style: emojiStyle),
-      ],
-      if (starts.last < text.length)
-        TextSpan(text: text.substring(starts.last)),
-    ];
-  }
+  static List<TextSpan> spans(String text) => [
+    for (final run in text.characters.splitBetween(
+      (first, second) =>
+          first.contains(emojiSelector) != second.contains(emojiSelector),
+    ))
+      TextSpan(
+        text: run.join(),
+        style: run.first.contains(emojiSelector) ? emojiStyle : null,
+      ),
+  ];
 
   @override
   Widget build(BuildContext context) {

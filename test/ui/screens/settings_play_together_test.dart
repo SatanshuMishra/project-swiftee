@@ -329,8 +329,10 @@ void main() {
       tester.getSemantics(field),
       isSemantics(value: _otherLink, isObscured: false, isEnabled: true),
     );
+    final node = tester.getSemantics(field).id;
 
     await clickOff(tester);
+    expect(tester.getSemantics(field).id, node);
     expect(find.text('Connected to swiftie.satanshu.tech.'), findsOneWidget);
     expect(find.text('Clear'), findsOneWidget);
     expect(
