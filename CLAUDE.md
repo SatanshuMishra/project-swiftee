@@ -41,6 +41,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 ## Where to look
 | I want to...                    | Look at... |
 |---------------------------------|------------|
+| Change what Misu says or when he drops by | lib/domain/engine/misu_lines.dart + lib/state/misu_controller.dart + lib/state/attention_controller.dart (fed by lib/app/attention_listener.dart) + docs/decisions/2026-10-07-misu-lines.md |
 | Add an achievement              | lib/domain/engine/achievements.dart + achievementConditionMet in lib/state/achievements_controller.dart:31 |
 | Add a game phase/screen         | GamePhase in lib/domain/models/game_types.dart:3 + phase switch in lib/app/app.dart:175 + new widget in lib/ui/screens/ |
 | Change save format              | bump currentSaveVersion in lib/data/save/migrations.dart:5 and defaultProgress in lib/domain/models/progress.dart:9 + a migration step in migrations.dart |
