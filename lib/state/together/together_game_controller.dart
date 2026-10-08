@@ -76,15 +76,36 @@ class TogetherGameController extends Notifier<TogetherGameState> {
     final room = ref.read(roomControllerProvider.notifier);
     final messages = room.messages.listen(_receive);
     final presence = room.presence.listen(_presence);
+    final misu = ref.read(misuControllerProvider.notifier);
+    listenSelf((previous, next) {
+      if (_running(previous?.stage) != _running(next.stage)) {
+        ref
+            .read(misuControllerProvider.notifier)
+            .togetherGame(running: _running(next.stage));
+      }
+    });
     ref
       ..listen(roomControllerProvider, (_, next) => _roomChanged(next))
       ..onDispose(() {
         _halt();
+        misu.togetherGame(running: false);
         unawaited(messages.cancel());
         unawaited(presence.cancel());
       });
     return TogetherGameState.initial;
   }
+
+  static bool _running(TogetherStage? stage) => switch (stage) {
+    TogetherStage.starting ||
+    TogetherStage.countdown ||
+    TogetherStage.loading ||
+    TogetherStage.round ||
+    TogetherStage.reveal => true,
+    TogetherStage.idle ||
+    TogetherStage.ended ||
+    TogetherStage.lost ||
+    null => false,
+  };
 
   Future<void> start() async {
     final room = ref.read(roomControllerProvider);

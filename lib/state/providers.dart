@@ -32,6 +32,11 @@ final httpClientProvider = Provider<http.Client>((ref) {
 
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
+final uptimeProvider = Provider<Duration Function()>((ref) {
+  final stopwatch = Stopwatch()..start();
+  return () => stopwatch.elapsed;
+});
+
 final randomProvider = Provider<Random>((ref) => Random());
 
 final deezerClientProvider = FutureProvider<DeezerClient>(

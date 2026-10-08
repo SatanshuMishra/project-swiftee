@@ -41,7 +41,7 @@ class AttentionController extends Notifier<Attention> {
   static const Duration activeFor = Duration(seconds: 30);
   static const Duration awayAfter = Duration(minutes: 5);
 
-  late DateTime _lastInput;
+  late Duration _lastInput;
   bool _tracking = false;
   Timer? _quiet;
   Timer? _gone;
@@ -65,14 +65,12 @@ class AttentionController extends Notifier<Attention> {
   }
 
   void input() {
-    _lastInput = _now();
-    if (_tracking) {
-      _arm();
-    }
-    if (!state.active || state.away) {
-      state = state.copyWith(active: true, away: false);
+    if (state.focused) {
+      _noticed(state);
     }
   }
+
+  void press() => _noticed(state.copyWith(focused: true));
 
   void focus({required bool focused}) {
     if (state.focused != focused) {
@@ -80,14 +78,25 @@ class AttentionController extends Notifier<Attention> {
     }
   }
 
-  DateTime _now() => ref.read(clockProvider)();
+  Duration _now() => ref.read(uptimeProvider)();
+
+  void _noticed(Attention seen) {
+    _lastInput = _now();
+    if (_tracking) {
+      _arm();
+    }
+    final next = seen.copyWith(active: true, away: false);
+    if (next != state) {
+      state = next;
+    }
+  }
 
   void _arm() {
     _quiet ??= Timer(activeFor, _checkQuiet);
     _gone ??= Timer(awayAfter, _checkGone);
   }
 
-  Duration _sinceInput() => _now().difference(_lastInput);
+  Duration _sinceInput() => _now() - _lastInput;
 
   void _checkQuiet() {
     final left = activeFor - _sinceInput();

@@ -8,8 +8,6 @@ import 'package:swiftie_quiz/state/attention_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
-import 'package:swiftie_quiz/state/together/together_game_controller.dart';
-import 'package:swiftie_quiz/state/together/together_game_state.dart';
 
 const Object _unchanged = Object();
 
@@ -83,6 +81,7 @@ class MisuController extends Notifier<MisuState> {
 
   Timer? _hide;
   bool _covered = false;
+  bool _inTogetherGame = false;
   Map<MisuLine, List<int>> _bags = const {};
   Map<MisuLine, int> _last = const {};
 
@@ -178,19 +177,13 @@ class MisuController extends Notifier<MisuState> {
     _show(_line(MisuLine.away), MisuSide.right);
   }
 
-  bool get _canDropIn => switch (ref.read(gameControllerProvider).phase) {
-    GamePhase.nickname => false,
-    GamePhase.together when ref.exists(togetherGameControllerProvider) =>
-      switch (ref.read(togetherGameControllerProvider).stage) {
-        TogetherStage.idle || TogetherStage.ended || TogetherStage.lost => true,
-        TogetherStage.starting ||
-        TogetherStage.countdown ||
-        TogetherStage.loading ||
-        TogetherStage.round ||
-        TogetherStage.reveal => false,
-      },
-    _ => true,
-  };
+  bool get inTogetherGame => _inTogetherGame;
+
+  void togetherGame({required bool running}) => _inTogetherGame = running;
+
+  bool get _canDropIn =>
+      !_inTogetherGame &&
+      ref.read(gameControllerProvider).phase != GamePhase.nickname;
 
   MisuVisits get _visits =>
       ref.read(gameControllerProvider).progress.settings.misuVisits;

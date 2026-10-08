@@ -4,14 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/state/attention_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
 
-final DateTime _start = DateTime(2026, 10, 7, 20);
 const Duration _justBefore = Duration(milliseconds: 1);
 
 ProviderContainer _container(FakeAsync async) {
   final container = ProviderContainer.test(
-    overrides: [
-      clockProvider.overrideWithValue(() => _start.add(async.elapsed)),
-    ],
+    overrides: [uptimeProvider.overrideWithValue(() => async.elapsed)],
   );
   container.read(attentionProvider.notifier).track();
   return container;
@@ -59,6 +56,27 @@ void main() {
       expect(container.read(attentionProvider).watching, isFalse);
       attention.focus(focused: true);
       expect(container.read(attentionProvider).watching, isTrue);
+    });
+  });
+
+  test('a click or key proves the window is in front, but moving over a '
+      'window in the background does not count as you', () {
+    fakeAsync((async) {
+      final container = _container(async);
+      final attention = container.read(attentionProvider.notifier)
+        ..focus(focused: false);
+      Attention read() => container.read(attentionProvider);
+
+      async.elapse(AttentionController.activeFor);
+      attention.input();
+      expect(read(), const Attention(focused: false, active: false));
+
+      async.elapse(AttentionController.awayAfter);
+      attention.input();
+      expect(read().away, isTrue, reason: 'hovering from another app');
+
+      attention.press();
+      expect(read(), const Attention());
     });
   });
 

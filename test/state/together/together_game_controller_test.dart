@@ -1281,6 +1281,25 @@ void main() {
       }
     });
 
+    test('misu knows a game is running until it ends', () {
+      fakeAsync((async) {
+        final host = _Harness(async)..hostRoom(const RoomSettings(rounds: 2));
+        bool running() =>
+            host.container.read(misuControllerProvider.notifier).inTogetherGame;
+
+        expect(running(), isFalse);
+        host.start();
+        expect(running(), isTrue);
+        for (var number = 1; number <= 2; number++) {
+          host.playRound(hostRight: true);
+          async.elapse(const Duration(seconds: revealSeconds));
+        }
+
+        expect(host.state.stage, TogetherStage.ended);
+        expect(running(), isFalse);
+      });
+    });
+
     test('a guest who leaves is marked and not waited for', () {
       fakeAsync((async) {
         final host = _Harness(async)

@@ -39,20 +39,24 @@ class _AttentionListenerState extends ConsumerState<AttentionListener> {
     super.dispose();
   }
 
-  void _focusFollows(AppLifecycleState state) =>
-      _attention.focus(focused: state == AppLifecycleState.resumed);
+  AttentionController get _current => ref.read(attentionProvider.notifier);
 
-  void _input() => _attention.input();
+  void _focusFollows(AppLifecycleState state) =>
+      _current.focus(focused: state == AppLifecycleState.resumed);
+
+  void _input() => _current.input();
+
+  void _press() => _current.press();
 
   bool _keyPressed(KeyEvent event) {
-    _input();
+    _press();
     return false;
   }
 
   @override
   Widget build(BuildContext context) => Listener(
     behavior: HitTestBehavior.translucent,
-    onPointerDown: (_) => _input(),
+    onPointerDown: (_) => _press(),
     onPointerMove: (_) => _input(),
     onPointerHover: (_) => _input(),
     onPointerSignal: (_) => _input(),

@@ -12,8 +12,6 @@ import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
-import 'package:swiftie_quiz/state/together/together_game_controller.dart';
-import 'package:swiftie_quiz/state/together/together_game_state.dart';
 
 final DateTime _evening = DateTime(2026, 10, 6, 19);
 final DateTime _morning = DateTime(2026, 10, 6, 8);
@@ -21,31 +19,18 @@ final DateTime _morning = DateTime(2026, 10, 6, 8);
 const Duration _stay = Duration(seconds: 8);
 const Duration _justBefore = Duration(milliseconds: 1);
 
-class _TogetherAt extends TogetherGameController {
-  _TogetherAt(this.stage);
-
-  final TogetherStage stage;
-
-  @override
-  TogetherGameState build() => TogetherGameState.initial.copyWith(stage: stage);
-}
-
 ProviderContainer _container(
   FakeAsync async,
   MisuVisits visits, {
   Edition edition = Edition.open,
   String nickname = 'Sam',
-  TogetherStage? together,
 }) {
   final container = ProviderContainer.test(
     overrides: [
       clockProvider.overrideWithValue(() => _evening.add(async.elapsed)),
+      uptimeProvider.overrideWithValue(() => async.elapsed),
       editionProvider.overrideWithValue(edition),
       randomProvider.overrideWithValue(Random(3)),
-      if (together != null)
-        togetherGameControllerProvider.overrideWith(
-          () => _TogetherAt(together),
-        ),
     ],
   );
   container.read(gameControllerProvider.notifier)
@@ -489,24 +474,20 @@ void main() {
             .setPhase(GamePhase.nickname);
         expect(awayFrom(nickname), isNull);
 
-        for (final stage in TogetherStage.values) {
-          final together = _container(async, MisuVisits.often, together: stage);
-          together
-              .read(gameControllerProvider.notifier)
-              .setPhase(GamePhase.together);
-          together.read(togetherGameControllerProvider);
-          final quiet = switch (stage) {
-            TogetherStage.idle ||
-            TogetherStage.ended ||
-            TogetherStage.lost => false,
-            _ => true,
-          };
-          expect(
-            awayFrom(together),
-            quiet ? isNull : _visitOf(MisuLine.away, MisuSide.right),
-            reason: '$stage',
-          );
-        }
+        final together = _container(async, MisuVisits.often);
+        together
+            .read(misuControllerProvider.notifier)
+            .togetherGame(running: true);
+        expect(awayFrom(together), isNull);
+        together
+            .read(misuControllerProvider.notifier)
+            .togetherGame(running: false);
+        together.read(attentionProvider.notifier).input();
+        expect(
+          awayFrom(together),
+          _visitOf(MisuLine.away, MisuSide.right),
+          reason: 'back in the room once the game ends',
+        );
 
         final talking = _container(async, MisuVisits.often);
         async.elapse(AttentionController.activeFor);
