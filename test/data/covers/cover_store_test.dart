@@ -213,11 +213,11 @@ void main() {
 
       final loading = covers.load(_url);
       await sent.future;
-      final forgetting = covers.forget();
-      response.complete(http.Response.bytes(_jpeg, 200));
+      await covers.forget();
+      expect(saved().existsSync(), isFalse);
 
+      response.complete(http.Response.bytes(_jpeg, 200));
       expect(await loading, _jpeg);
-      await forgetting;
       expect(saved().existsSync(), isFalse);
       await covers.forget();
     },

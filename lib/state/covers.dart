@@ -46,9 +46,24 @@ final _keepCoversProvider = Provider<bool?>(
 );
 
 final coverCleanupProvider = Provider<void>((ref) {
-  ref.listen(_keepCoversProvider, (previous, keep) {
-    if (keep == false && previous != false) {
-      unawaited(ref.read(coverStoreProvider).forget());
-    }
-  }, fireImmediately: true);
+  void forget() => unawaited(ref.read(coverStoreProvider).forget());
+  ref
+    ..listen(_keepCoversProvider, (previous, keep) {
+      if (keep == false && previous != false) {
+        forget();
+      }
+    }, fireImmediately: true)
+    ..listen(
+      gameControllerProvider.select(
+        (game) => game.progress.settings.saveCovers,
+      ),
+      (previous, saving) {
+        if (previous == true &&
+            !saving &&
+            ref.read(persistenceControllerProvider) !=
+                PersistenceStatus.loaded) {
+          forget();
+        }
+      },
+    );
 });

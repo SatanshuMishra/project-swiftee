@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -166,6 +167,48 @@ void main() {
         .writeAsStringSync(saveWith(saveCovers: false));
     await persistence.restoreBackup(_backupAt + 1);
     await untilRemoved();
+    expect(kept().existsSync(), isFalse);
+  });
+
+  test('turning saving off after a save that failed to load still removes '
+      'the kept covers', () async {
+    saveFile().writeAsStringSync('{not json');
+    final scope = container();
+    await scope.read(persistenceControllerProvider.notifier).load();
+    expect(scope.read(persistenceControllerProvider), PersistenceStatus.failed);
+
+    setSaving(scope, true);
+    await scope.read(coverStoreProvider).load(deezerCoverUrl(_newRelease, 250));
+    expect(kept().existsSync(), isTrue);
+    setSaving(scope, false);
+    await untilRemoved();
+    expect(kept().existsSync(), isFalse);
+  });
+
+  test('a download that finishes after the app closes still returns its cover '
+      'and keeps nothing', () async {
+    final sent = Completer<void>();
+    final response = Completer<http.Response>();
+    final scope = ProviderContainer(
+      overrides: [
+        coversFolderProvider.overrideWithValue(kept),
+        httpClientProvider.overrideWithValue(
+          MockClient((request) {
+            sent.complete();
+            return response.future;
+          }),
+        ),
+      ],
+    );
+    setSaving(scope, true);
+    final loading = scope
+        .read(coverStoreProvider)
+        .load(deezerCoverUrl(_newRelease, 250));
+    await sent.future;
+
+    scope.dispose();
+    response.complete(http.Response.bytes(_jpeg, 200));
+    expect(await loading, _jpeg);
     expect(kept().existsSync(), isFalse);
   });
 }
