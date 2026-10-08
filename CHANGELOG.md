@@ -4,6 +4,19 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.3] - 2026-10-08
+
+### Added
+- Misu has more to say. Every moment he speaks has four versions in his own voice, so a streak, a missed answer or a finished round no longer gets the same remark every time, and his greeting changes from day to day.
+- Leave the app alone for five minutes and Misu drops in once to say something about it. He stays quiet when his visits are off or a Play together game is running.
+
+### Changed
+- Misu stays on screen for 8 seconds instead of about 4, and the time only counts while you are using the app. If you switch to another app, step away or have a dialog open, his line waits and gets the full 8 seconds when you come back.
+
+### Fixed
+- At large text sizes, Misu's speech bubble keeps a long nickname whole instead of breaking it mid-word.
+- The Misu visits setting now calls Misu "he".
+
 ## [0.5.2] - 2026-10-07
 
 ### Added
