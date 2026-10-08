@@ -4,6 +4,22 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.2] - 2026-10-07
+
+### Added
+- Album covers ship with the app, so every era and release in the song list shows its cover at once, even offline. Covers for releases newer than the app still download, and a download that fails once is tried again.
+- Save album covers, under Storage in Settings, keeps downloaded covers on this computer so they show offline next time. It is off by default, and turning it off removes them.
+- In Classic and Quick draw rooms, the Play together host chooses which versions play, with the same choices as Set up, and the room shows that choice beside its other settings.
+
+### Changed
+- In Set up, sound games now choose Versions (Studio, Live, and Acoustic & remixes) and Re-recorded songs (Taylor's Version, Original or Both), each showing how many songs it will play. A choice with nothing to play in your pick is dimmed and says why. These replace the version cards from 0.5.0.
+- A Play together game ends with one Next button that takes each player back to the room, where they can stay for the next game or leave. It replaces Back to menu and Play again.
+
+### Fixed
+- A relisten that cannot play no longer counts as heard, so the next listen does not jump to a longer clip the player never heard, and the song is not swapped mid-round.
+- At large text sizes, up to the 225 percent Windows allows, headings, song reveals, setup tiles, record names and grids keep their words whole instead of breaking mid-word, and Play together standings fit their rows.
+- The Play together server link in Settings fills its row, so long links are no longer cut short.
+
 ## [0.5.1] - 2026-10-07
 
 ### Fixed
