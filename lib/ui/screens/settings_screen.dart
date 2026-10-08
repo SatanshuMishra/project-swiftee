@@ -1391,8 +1391,29 @@ class _About extends StatelessWidget {
   static const double gap = 12;
   static const double iconSize = 40;
   static const BorderRadius iconRadius = BorderRadius.all(Radius.circular(9));
+  static const String emojiFamily = 'Apple Color Emoji';
+  static const List<String> emojiFallbacks = ['Segoe UI Emoji'];
+  static const TextStyle emojiStyle = TextStyle(
+    fontFamily: emojiFamily,
+    fontFamilyFallback: emojiFallbacks,
+  );
+  static final RegExp emojiPresented = RegExp('.\u{FE0F}', unicode: true);
 
   final String line;
+
+  static List<TextSpan> spans(String text) {
+    final marks = emojiPresented.allMatches(text).toList();
+    final starts = [0, for (final mark in marks) mark.end];
+    return [
+      for (final (index, mark) in marks.indexed) ...[
+        if (mark.start > starts[index])
+          TextSpan(text: text.substring(starts[index], mark.start)),
+        TextSpan(text: mark[0], style: emojiStyle),
+      ],
+      if (starts.last < text.length)
+        TextSpan(text: text.substring(starts.last)),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1420,7 +1441,10 @@ class _About extends StatelessWidget {
                   SettingsScreen.appName,
                   style: AppType.sized(14, 20).copyWith(color: tokens.fg),
                 ),
-                Text(line, style: AppType.caption.copyWith(color: tokens.mut)),
+                Text.rich(
+                  TextSpan(children: spans(line)),
+                  style: AppType.caption.copyWith(color: tokens.mut),
+                ),
               ],
             ),
           ),
