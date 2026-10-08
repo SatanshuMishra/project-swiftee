@@ -32,8 +32,7 @@ class EndedTogether extends TogetherGameController {
   EndedTogether(this.initial);
 
   final TogetherGameState initial;
-  int plays = 0;
-  int leaves = 0;
+  int nexts = 0;
 
   @override
   TogetherGameState build() {
@@ -42,12 +41,9 @@ class EndedTogether extends TogetherGameController {
   }
 
   @override
-  void playAgain() => plays += 1;
-
-  @override
-  Future<void> leaveTogether() {
-    leaves += 1;
-    return super.leaveTogether();
+  void next() {
+    nexts += 1;
+    super.next();
   }
 }
 
@@ -73,7 +69,11 @@ TogetherGameState ended(Player viewer, List<PlayerScore> standings) =>
       standings: standings,
     );
 
-typedef EndHarness = ({ProviderContainer container, EndedTogether together});
+typedef EndHarness = ({
+  ProviderContainer container,
+  EndedTogether together,
+  FakeRelay relay,
+});
 
 Future<EndHarness> pumpEnd(
   WidgetTester tester, {
@@ -132,7 +132,7 @@ Future<EndHarness> pumpEnd(
   );
   await tester.pump();
   await tester.pump(const Duration(seconds: 1));
-  return (container: container, together: together);
+  return (container: container, together: together, relay: relay);
 }
 
 PlayerScore _score(
@@ -189,15 +189,15 @@ void main() {
       tester.getTopLeft(find.text('Ana (you)')).dy,
       lessThan(tester.getTopLeft(find.text('Maya')).dy),
     );
-    expect(find.text('Play again →'), findsOneWidget);
-    expect(find.text('Back to menu'), findsOneWidget);
-    expect(
-      tester.getTopLeft(find.text('Play again →')).dx,
-      lessThan(tester.getTopLeft(find.text('Back to menu')).dx),
-    );
-    await tester.tap(find.text('Play again →'));
+    expect(find.text('Next →'), findsOneWidget);
+    expect(find.text('Play again →'), findsNothing);
+    expect(find.text('Back to menu'), findsNothing);
+    await tester.tap(find.text('Next →'));
     await tester.pump();
-    expect(host.together.plays, 1);
+    await tester.pump(const Duration(seconds: 1));
+    expect(host.together.nexts, 1);
+    expect(find.text('Start game →'), findsOneWidget);
+    expect(find.text('Leave room'), findsOneWidget);
 
     final guest = await pumpEnd(
       tester,
@@ -219,16 +219,19 @@ void main() {
     expect(find.text('Maya · 1.0 s on Cruel Summer'), findsOneWidget);
     expect(find.text('Maya · 4 in a row'), findsOneWidget);
     expect(find.text('Sam (you)'), findsOneWidget);
-    expect(find.text('Play again →'), findsNothing);
-    expect(find.text('Back to menu'), findsOneWidget);
+    expect(find.text('Next →'), findsOneWidget);
+    expect(find.text('Back to menu'), findsNothing);
 
-    await tester.tap(find.text('Back to menu'));
+    await tester.tap(find.text('Next →'));
     await tester.pump();
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-    await tester.pump();
-    expect(guest.together.leaves, 1);
-    expect(guest.container.read(gameControllerProvider).phase, GamePhase.menu);
-    expect(find.text('menu'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(guest.together.nexts, 1);
+    expect(
+      guest.container.read(gameControllerProvider).phase,
+      GamePhase.together,
+    );
+    expect(find.text('Waiting for Maya to start…'), findsOneWidget);
+    expect(find.text('Leave room'), findsOneWidget);
 
     await pumpEnd(
       tester,
@@ -240,5 +243,54 @@ void main() {
     expect(find.text('You take it, Sam.'), findsOneWidget);
     expect(find.text('Fastest answer'), findsNothing);
     expect(find.text('Longest streak'), findsNothing);
+  });
+
+  testWidgets('a guest still on the results after the host closes the room '
+      'sees the room closed after Next', (tester) async {
+    final guest = await pumpEnd(
+      tester,
+      edition: Edition.open,
+      viewer: _sam,
+      hosting: false,
+      standings: [
+        _score(_maya.id, 420, best: 4),
+        _score(_sam.id, 300, best: 2),
+      ],
+    );
+    guest.relay.push(const RoomClosed());
+    await guest.relay.end();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Next →'), findsOneWidget);
+
+    await tester.tap(find.text('Next →'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Maya closed the room.'), findsOneWidget);
+    expect(find.text('Back to menu'), findsOneWidget);
+  });
+
+  testWidgets('a host whose connection drops on the results sees it after '
+      'Next', (tester) async {
+    final host = await pumpEnd(
+      tester,
+      edition: Edition.open,
+      viewer: _ana,
+      hosting: true,
+      standings: [
+        _score(_ana.id, 420, best: 4),
+        _score(_maya.id, 300, best: 2),
+      ],
+    );
+    await host.relay.end();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Next →'), findsOneWidget);
+
+    await tester.tap(find.text('Next →'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Lost the connection to the room.'), findsOneWidget);
+    expect(find.text('Back to menu'), findsOneWidget);
   });
 }

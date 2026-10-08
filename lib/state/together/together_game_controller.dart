@@ -176,12 +176,14 @@ class TogetherGameController extends Notifier<TogetherGameState> {
     unawaited(_advance());
   }
 
-  void playAgain() {
-    if (!_isHost || state.stage != TogetherStage.ended) {
+  void next() {
+    if (state.stage != TogetherStage.ended) {
       return;
     }
-    _broadcast(const BackToLobby());
-    ref.read(roomControllerProvider.notifier).unlock();
+    if (_isHost) {
+      ref.read(roomControllerProvider.notifier).unlock();
+    }
+    _toLobby();
   }
 
   Future<void> leaveTogether() async {
