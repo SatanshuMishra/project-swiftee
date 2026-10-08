@@ -101,7 +101,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const String resetAction = 'Reset…';
   static const String resetConfirmTitle = 'Reset all progress?';
   static const String resetConfirmLabel = 'Reset progress';
-  static const String madeForAna = 'Made for Ana by Satanshu';
+  static const String madeForAna =
+      'Made for Ana by Satanshu with ♥️ and lots of ☕';
   static const String madeBy = 'Made by Satanshu';
   static const String appIcon = 'assets/brand/app-icon.svg';
 

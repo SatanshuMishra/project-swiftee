@@ -243,7 +243,10 @@ void main() {
       expectSections();
       expect(find.text('Nickname'), findsNothing);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Made for Ana by Satanshu'), findsOneWidget);
+      expect(
+        find.text('Made for Ana by Satanshu with ♥️ and lots of ☕'),
+        findsOneWidget,
+      );
       expect(find.text('Made by Satanshu'), findsNothing);
 
       final open = await pumpSettings(
@@ -253,7 +256,10 @@ void main() {
       expectSections();
       expect(find.text('Nickname'), findsOneWidget);
       expect(find.text('Made by Satanshu'), findsOneWidget);
-      expect(find.text('Made for Ana by Satanshu'), findsNothing);
+      expect(
+        find.text('Made for Ana by Satanshu with ♥️ and lots of ☕'),
+        findsNothing,
+      );
       expect(find.byType(TextField), findsNWidgets(2));
       final field = find.byType(TextField).first;
       expect(
