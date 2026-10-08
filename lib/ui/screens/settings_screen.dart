@@ -683,6 +683,7 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
           Padding(
             padding: const EdgeInsets.only(top: _NicknameField.top),
             child: SerifInput(
+              key: ValueKey(locked),
               controller: _controller,
               focusNode: _focus,
               fontSize: _NicknameField.fontSize,

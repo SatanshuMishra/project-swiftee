@@ -356,7 +356,7 @@ void main() {
 
       await tester.ensureVisible(field);
       await tester.enterText(field, serverLink);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       await clickOff(tester);
       expect(locked(tester), isTrue);
       await tester.tap(find.text('Clear'), kind: PointerDeviceKind.mouse);
@@ -432,5 +432,23 @@ void main() {
     expect(locked(tester), isFalse);
     expect(find.text('Clear'), findsNothing);
     expect(find.text("That isn't a Play together link."), findsOneWidget);
+  });
+
+  testWidgets('Clear works from the keyboard', (tester) async {
+    final (container, _) = await pumpSettings(tester, savedLink: serverLink);
+    final field = serverLinkField();
+
+    await tester.ensureVisible(field);
+    Focus.of(tester.element(find.text('Clear'))).requestFocus();
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(settingsOf(container).togetherLink, isNull);
+    expect(locked(tester), isFalse);
+    expect(tester.widget<TextField>(field).focusNode!.hasFocus, isTrue);
+
+    tester.testTextInput.enterText(_otherLink);
+    await tester.pumpAndSettle();
+    expect(settingsOf(container).togetherLink, _otherLink);
   });
 }
