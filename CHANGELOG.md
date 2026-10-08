@@ -4,6 +4,15 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.4] - 2026-10-08
+
+### Changed
+- Once a Play together server link is saved, Settings shows it as stars and locks the field, so the link can't be read, copied or changed by accident. Clear, inside the field, removes it and lets you paste a new one, and the line under it still says whether the server is connected.
+- In the Ana edition, the about line in Settings now reads "Made for Ana by Satanshu with ♥️ and lots of ☕".
+
+### Fixed
+- At large text sizes, the era name on the menu's Tonight's era card keeps its words whole instead of breaking mid-word.
+
 ## [0.5.3] - 2026-10-08
 
 ### Added
