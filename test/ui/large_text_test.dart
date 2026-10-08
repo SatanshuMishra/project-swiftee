@@ -39,6 +39,7 @@ import 'screens/main_menu_test.dart' as menu;
 import 'screens/navigation_screens_test.dart' as navigation;
 import 'screens/nickname_screen_test.dart' as nickname;
 import 'screens/round_summary_screen_test.dart' as summary;
+import 'screens/settings_play_together_test.dart' as together_settings;
 import 'screens/settings_screen_test.dart' as settings;
 import 'screens/setup_screen_test.dart' as setup;
 import 'screens/together/final_standings_screen_test.dart' as standings;
@@ -549,7 +550,17 @@ void main() {
           );
           faults = [...faults, for (final fault in found) '$edition: $fault'];
         }
-        expect(faults, isEmpty);
+        final saved = await faultsOf(
+          tester,
+          () => together_settings.pumpSettings(
+            tester,
+            savedLink: together_settings.serverLink,
+          ),
+        );
+        expect([
+          ...faults,
+          for (final fault in saved) 'saved link: $fault',
+        ], isEmpty);
       });
     });
   }

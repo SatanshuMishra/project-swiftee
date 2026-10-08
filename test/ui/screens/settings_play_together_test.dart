@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +22,7 @@ import 'settings_screen_test.dart' show FakePersistence, FakeUpdater;
 
 final String _key = '${'Ab0-_' * 8}xyz';
 final String _otherKey = '${'Zy9_-' * 8}abc';
-final String _link = 'https://swiftie.satanshu.tech/#$_key';
+final String serverLink = 'https://swiftie.satanshu.tech/#$_key';
 final String _otherLink = 'https://swiftie.satanshu.tech/#$_otherKey';
 
 final class FakeConnector implements RelayConnector {
@@ -100,15 +101,17 @@ AppTokens tokensOf(WidgetTester tester) =>
     AppTokens.of(tester.element(find.byType(SettingsScreen)));
 
 void main() {
-  for (final window in const [
-    Size(1024, 800),
-    Size(1440, 900),
-    Size(686, 571),
+  for (final (window, saved) in [
+    for (final window in const [
+      Size(1024, 800),
+      Size(1440, 900),
+      Size(686, 571),
+    ])
+      for (final saved in [null, serverLink]) (window, saved),
   ]) {
-    testWidgets('the server link spans the settings column at $window', (
-      tester,
-    ) async {
-      await pumpSettings(tester);
+    testWidgets('the server link spans the settings column at $window '
+        '${saved == null ? 'while empty' : 'once saved'}', (tester) async {
+      await pumpSettings(tester, savedLink: saved);
       tester.view.physicalSize = window;
       await tester.pumpAndSettle();
       await tester.ensureVisible(serverLinkField());
@@ -157,8 +160,8 @@ void main() {
     await tester.ensureVisible(field);
     await tester.enterText(field, '  https://swiftie.satanshu.tech#$_key ');
     await tester.pumpAndSettle();
-    expect(settingsOf(container).togetherLink, _link);
-    expect(connector.checked, [ServerLink.parse(_link)]);
+    expect(settingsOf(container).togetherLink, serverLink);
+    expect(connector.checked, [ServerLink.parse(serverLink)]);
     expect(find.text("That isn't a Play together link."), findsNothing);
 
     await tester.enterText(field, 'not a link at all');
@@ -172,9 +175,9 @@ void main() {
     expect(settingsOf(container).togetherLink, isNull);
     expect(find.text("That isn't a Play together link."), findsOneWidget);
 
-    await tester.enterText(field, _link);
+    await tester.enterText(field, serverLink);
     await tester.pumpAndSettle();
-    expect(settingsOf(container).togetherLink, _link);
+    expect(settingsOf(container).togetherLink, serverLink);
 
     await tester.enterText(field, '');
     await tester.pumpAndSettle();
@@ -196,15 +199,15 @@ void main() {
       (RelayFailure.busy, 'The server is busy. Try again in a minute.', true),
       (RelayFailure.unreachable, "Couldn't reach the server.", true),
     ]) {
-      final (_, connector) = await pumpSettings(tester, savedLink: _link);
+      final (_, connector) = await pumpSettings(tester, savedLink: serverLink);
       final tokens = tokensOf(tester);
 
-      expect(connector.checked, [ServerLink.parse(_link)], reason: line);
+      expect(connector.checked, [ServerLink.parse(serverLink)], reason: line);
       expect(find.text('Checking…'), findsOneWidget, reason: line);
       expect(colorOf(tester, 'Checking…'), tokens.mut, reason: line);
       expect(
         tester.widget<TextField>(serverLinkField()).controller!.text,
-        _link,
+        serverLink,
       );
 
       connector.answer(failure);
@@ -220,9 +223,11 @@ void main() {
       expect(connector.checked, hasLength(1), reason: line);
     }
 
-    final (_, connector) = await pumpSettings(tester, savedLink: _link);
+    final (_, connector) = await pumpSettings(tester, savedLink: serverLink);
     final field = serverLinkField();
     await tester.ensureVisible(field);
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
     await tester.enterText(field, _otherLink);
     await tester.pumpAndSettle();
     expect(connector.checked, hasLength(2));
@@ -236,12 +241,99 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Connected to swiftie.satanshu.tech.'), findsOneWidget);
 
-    await tester.enterText(field, _link);
+    await tester.enterText(field, serverLink);
     await tester.pumpAndSettle();
     expect(connector.checked, hasLength(3));
     await tester.pumpWidget(const SizedBox());
     connector.answer(RelayFailure.busy);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a saved link shows as stars and changes only through Clear', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final (container, connector) = await pumpSettings(
+      tester,
+      savedLink: serverLink,
+    );
+    final field = serverLinkField();
+    bool focused() => tester.widget<TextField>(field).focusNode!.hasFocus;
+    Future<void> clickOff() async {
+      final title = find.text('Server link');
+      await tester.ensureVisible(title);
+      await tester.pumpAndSettle();
+      await tester.tap(title, kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle();
+    }
+
+    await tester.ensureVisible(field);
+    connector.answer(null);
+    await tester.pumpAndSettle();
+    expect(find.text('Connected to swiftie.satanshu.tech.'), findsOneWidget);
+    expect(
+      tester.getSemantics(field),
+      isSemantics(
+        label: 'Server link',
+        value: '*' * serverLink.length,
+        isObscured: true,
+        hasEnabledState: true,
+        isEnabled: false,
+      ),
+    );
+    expect(find.text('Clear'), findsOneWidget);
+
+    await tester.tap(field, kind: PointerDeviceKind.mouse, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(focused(), isFalse);
+    expect(settingsOf(container).togetherLink, serverLink);
+
+    await tester.tap(find.text('Clear'), kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    expect(settingsOf(container).togetherLink, isNull);
+    expect(find.text('Clear'), findsNothing);
+    expect(find.text('Connected to swiftie.satanshu.tech.'), findsNothing);
+    expect(focused(), isTrue);
+    expect(
+      tester.getSemantics(field),
+      isSemantics(value: '', isObscured: false, isEnabled: true),
+    );
+
+    await tester.enterText(field, 'not a link at all');
+    await clickOff();
+    expect(focused(), isFalse);
+    expect(settingsOf(container).togetherLink, isNull);
+    expect(find.text('Clear'), findsNothing);
+    expect(
+      tester.getSemantics(field),
+      isSemantics(value: '', isObscured: false, isEnabled: true),
+    );
+
+    await tester.enterText(field, _otherLink);
+    await tester.pumpAndSettle();
+    connector.answer(null);
+    await tester.pumpAndSettle();
+    expect(settingsOf(container).togetherLink, _otherLink);
+    expect(find.text('Connected to swiftie.satanshu.tech.'), findsOneWidget);
+    expect(find.text('Clear'), findsNothing);
+    expect(
+      tester.getSemantics(field),
+      isSemantics(value: _otherLink, isObscured: false, isEnabled: true),
+    );
+
+    await clickOff();
+    expect(find.text('Connected to swiftie.satanshu.tech.'), findsOneWidget);
+    expect(find.text('Clear'), findsOneWidget);
+    expect(
+      tester.getSemantics(field),
+      isSemantics(
+        value: '*' * _otherLink.length,
+        isObscured: true,
+        isEnabled: false,
+      ),
+    );
+    expect(connector.checked, hasLength(2));
+    semantics.dispose();
   });
 }

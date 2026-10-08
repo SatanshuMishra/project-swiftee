@@ -16,6 +16,8 @@ class SerifInput extends StatefulWidget {
     this.onChanged,
     this.autofocus = false,
     this.enabled = true,
+    this.obscured = false,
+    this.semanticLabel,
     this.focusNode,
     this.textAlign = TextAlign.start,
     this.trailing,
@@ -24,6 +26,7 @@ class SerifInput extends StatefulWidget {
   static const double underlineWidth = 1;
   static const double bottomPadding = 6;
   static const double trailingGap = 12;
+  static const String obscuringCharacter = '*';
 
   final TextEditingController controller;
   final String? placeholder;
@@ -34,6 +37,8 @@ class SerifInput extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final bool autofocus;
   final bool enabled;
+  final bool obscured;
+  final String? semanticLabel;
   final FocusNode? focusNode;
   final TextAlign textAlign;
   final Widget? trailing;
@@ -113,11 +118,13 @@ class _SerifInputState extends State<SerifInput> {
 
   Widget _field(TextStyle style, int? maxLength) {
     final tokens = AppTokens.of(context);
-    return TextField(
+    final field = TextField(
       controller: widget.controller,
       focusNode: _focusNode,
       autofocus: widget.autofocus,
       enabled: widget.enabled,
+      obscureText: widget.obscured,
+      obscuringCharacter: SerifInput.obscuringCharacter,
       onSubmitted: widget.onSubmitted,
       onChanged: widget.onChanged,
       textAlign: widget.textAlign,
@@ -132,5 +139,11 @@ class _SerifInputState extends State<SerifInput> {
         hintStyle: style.copyWith(color: tokens.faint),
       ),
     );
+    return switch (widget.semanticLabel) {
+      final label? => MergeSemantics(
+        child: Semantics(label: label, child: field),
+      ),
+      null => field,
+    };
   }
 }
