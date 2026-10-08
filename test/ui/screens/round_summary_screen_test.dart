@@ -239,7 +239,7 @@ void main() {
     expect(find.text("Tonight's era · Red"), findsOneWidget);
   });
 
-  testWidgets('leaving the summary before Misu arrives keeps her quiet', (
+  testWidgets('leaving the summary before Misu arrives keeps him quiet', (
     tester,
   ) async {
     final harness = await pumpSummary(tester, roundOf(9));

@@ -13,6 +13,7 @@ import 'package:swiftie_quiz/data/together/game_wire.dart';
 import 'package:swiftie_quiz/domain/engine/clip_selector.dart';
 import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
+import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
@@ -425,6 +426,23 @@ final class _Harness {
     async.elapse(allAnsweredDelay);
   }
 }
+
+Matcher _saidOneOf(MisuLine kind, {double seconds = 0}) => isA<MisuVisit>()
+    .having(
+      (visit) => visit.text,
+      'text',
+      isIn(
+        misuLines(
+          kind,
+          edition: Edition.open,
+          name: 'Sam',
+          now: DateTime(2026, 10, 7, 19),
+          seconds: seconds,
+        ),
+      ),
+    )
+    .having((visit) => visit.side, 'side', MisuSide.right)
+    .having((visit) => visit.long, 'long', isFalse);
 
 void main() {
   group('play together game', () {
@@ -1253,22 +1271,71 @@ void main() {
             host.visits,
             visits == MisuVisits.off
                 ? isEmpty
-                : const [
-                    MisuVisit(
-                      text: '0.3 seconds apart. Misu calls it a tie.',
-                      side: MisuSide.right,
-                      long: false,
-                    ),
-                    MisuVisit(
-                      text: 'You won, Sam! Misu knew it.',
-                      side: MisuSide.right,
-                      long: false,
-                    ),
+                : [
+                    _saidOneOf(MisuLine.closeFinish, seconds: 0.3),
+                    _saidOneOf(MisuLine.wonTogether),
                   ],
             reason: visits.name,
           );
         });
       }
+    });
+
+    test('misu knows a game is running until it ends', () {
+      fakeAsync((async) {
+        final host = _Harness(async)..hostRoom(const RoomSettings(rounds: 2));
+        bool running() =>
+            host.container.read(misuControllerProvider.notifier).inTogetherGame;
+
+        expect(running(), isFalse);
+        host.start();
+        expect(running(), isTrue);
+        for (var number = 1; number <= 2; number++) {
+          host.playRound(hostRight: true);
+          async.elapse(const Duration(seconds: revealSeconds));
+        }
+
+        expect(host.state.stage, TogetherStage.ended);
+        expect(running(), isFalse);
+      });
+    });
+
+    test('misu is released however a game ends', () {
+      fakeAsync((async) {
+        bool running(_Harness host) =>
+            host.container.read(misuControllerProvider.notifier).inTogetherGame;
+
+        final lost = _Harness(async)..hostRoom(const RoomSettings(rounds: 3));
+        lost.start();
+        expect(running(lost), isTrue);
+        unawaited(lost.relay.end());
+        async.flushMicrotasks();
+        expect(lost.state.stage, TogetherStage.lost);
+        expect(running(lost), isFalse, reason: 'the connection dropped');
+
+        final failed = _Harness(async)..lrclibLag = const Duration(seconds: 9);
+        failed
+          ..hostRoom(
+            const RoomSettings(mode: TogetherMode.lyricsOrLie, rounds: 5),
+          )
+          ..start();
+        expect(running(failed), isTrue);
+        async.elapse(lyricsLoadLimit);
+        expect(failed.state.startFailed, isTrue);
+        expect(running(failed), isFalse, reason: 'the start failed');
+
+        final left = _Harness(async)..hostRoom(const RoomSettings(rounds: 3));
+        left.start();
+        unawaited(left.together.leaveTogether());
+        async.flushMicrotasks();
+        expect(running(left), isFalse, reason: 'the player left mid game');
+
+        final gone = _Harness(async)..hostRoom(const RoomSettings(rounds: 3));
+        gone.start();
+        gone.container.invalidate(togetherGameControllerProvider);
+        async.flushMicrotasks();
+        expect(running(gone), isFalse, reason: 'the game was disposed');
+      });
     });
 
     test('a guest who leaves is marked and not waited for', () {

@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:swiftie_quiz/app/app.dart';
+import 'package:swiftie_quiz/app/attention_listener.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
@@ -419,6 +420,21 @@ void main() {
       harness
         ..expectOnlyScreen(MainMenu)
         ..expectOverlaysAbove(MainMenu);
+    });
+
+    testWidgets('the whole app is watched for input and window focus', (
+      tester,
+    ) async {
+      final harness = _Harness(tester);
+      await harness.launch();
+
+      expect(
+        find.ancestor(
+          of: find.byType(MainMenu),
+          matching: find.byType(AttentionListener),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('playing without a quiz type shows the sound game', (

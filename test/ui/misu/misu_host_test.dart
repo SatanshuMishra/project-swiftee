@@ -26,6 +26,10 @@ const MisuVisit _streak = MisuVisit(
 
 class _FakeMisu extends MisuController {
   int dismissals = 0;
+  List<bool> covers = const [];
+
+  @override
+  void cover({required bool covered}) => covers = [...covers, covered];
 
   @override
   MisuState build() => const MisuState();
@@ -97,7 +101,30 @@ double _bubbleOpacity(WidgetTester tester, String line) => tester
 
 void main() {
   group('misu visits', () {
-    testWidgets('misu rises with her line and a click sends her away', (
+    testWidgets('a dialog over misu hides him and holds his stay', (
+      tester,
+    ) async {
+      final misu = await _pumpHost(tester);
+      final modals = ProviderScope.containerOf(
+        tester.element(find.byType(MisuHost)),
+      ).read(modalStackProvider.notifier);
+
+      misu.show(_greeting);
+      await tester.pumpAndSettle();
+      expect(misu.covers, [false]);
+
+      modals.push('dialog');
+      await tester.pump();
+      expect(misu.covers, [false, true]);
+      expect(find.text(_greeting.text), findsNothing);
+
+      modals.remove('dialog');
+      await tester.pumpAndSettle();
+      expect(misu.covers, [false, true, false]);
+      expect(find.text(_greeting.text), findsOneWidget);
+    });
+
+    testWidgets('misu rises with his line and a click sends him away', (
       tester,
     ) async {
       final misu = await _pumpHost(tester);
@@ -165,7 +192,7 @@ void main() {
       }
     });
 
-    testWidgets('her line follows 120 ms after she starts rising', (
+    testWidgets('his line follows 120 ms after he starts rising', (
       tester,
     ) async {
       final misu = await _pumpHost(tester);
@@ -198,7 +225,7 @@ void main() {
       expect(hidden.center.dy, closeTo(shown.center.dy + 8, 0.01));
     });
 
-    testWidgets('misu sinks away before she leaves the screen', (tester) async {
+    testWidgets('misu sinks away before he leaves the screen', (tester) async {
       final misu = await _pumpHost(tester);
       misu.show(_greeting);
       await tester.pumpAndSettle();

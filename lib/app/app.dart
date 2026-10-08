@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:swiftie_quiz/app/attention_listener.dart';
 import 'package:swiftie_quiz/app/window_setup.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
@@ -177,15 +178,17 @@ class _SwiftieQuizAppState extends ConsumerState<SwiftieQuizApp> {
           AppMotion.duration(context, AppMotion.themeFade),
         PersistenceStatus.idle || PersistenceStatus.loading => Duration.zero,
       },
-      builder: (context, navigator) => Material(
-        color: AppTokens.of(context).bg,
-        animationDuration: Duration.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppTitleBar(),
-            Expanded(child: navigator ?? const SizedBox.shrink()),
-          ],
+      builder: (context, navigator) => AttentionListener(
+        child: Material(
+          color: AppTokens.of(context).bg,
+          animationDuration: Duration.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppTitleBar(),
+              Expanded(child: navigator ?? const SizedBox.shrink()),
+            ],
+          ),
         ),
       ),
       home: ValueListenableBuilder<Object?>(

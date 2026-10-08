@@ -41,8 +41,6 @@ abstract final class AppMotion {
   static const misuRise = Duration(milliseconds: 450);
   static const misuRiseCurve = Cubic(0.34, 1.3, 0.64, 1);
   static const misuBubbleDelay = Duration(milliseconds: 120);
-  static const misuStay = Duration(milliseconds: 4200);
-  static const misuStayLong = Duration(milliseconds: 7000);
 
   static const toastSlide = Duration(milliseconds: 350);
   static const toastSlideCurve = Cubic(0.2, 0.8, 0.2, 1);

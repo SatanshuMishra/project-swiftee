@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
+import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
+import 'package:swiftie_quiz/state/attention_controller.dart';
 import 'package:swiftie_quiz/state/edition_provider.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/providers.dart';
@@ -72,16 +74,29 @@ final misuControllerProvider = NotifierProvider<MisuController, MisuState>(
 );
 
 class MisuController extends Notifier<MisuState> {
-  static const Duration visitDuration = Duration(milliseconds: 4200);
-  static const Duration longVisitDuration = Duration(milliseconds: 7000);
+  static const Duration visitDuration = Duration(seconds: 8);
+  static const Duration longVisitDuration = Duration(seconds: 12);
   static const int oftenRoundGap = 2;
   static const int sometimesRoundGap = 5;
 
   Timer? _hide;
+  bool _covered = false;
+  bool _inTogetherGame = false;
+  Map<MisuLine, List<int>> _bags = const {};
+  Map<MisuLine, int> _last = const {};
 
   @override
   MisuState build() {
-    ref.onDispose(_cancelHide);
+    ref
+      ..onDispose(_cancelHide)
+      ..listen(attentionProvider, (previous, next) {
+        if (next.away && previous?.away != true) {
+          _away();
+        }
+        if (previous?.watching != next.watching) {
+          _countdown();
+        }
+      });
     return const MisuState();
   }
 
@@ -142,10 +157,33 @@ class MisuController extends Notifier<MisuState> {
     _show(_line(MisuLine.wonTogether), MisuSide.right);
   }
 
+  void cover({required bool covered}) {
+    if (_covered == covered) {
+      return;
+    }
+    _covered = covered;
+    _countdown();
+  }
+
   void dismiss() {
     _cancelHide();
     state = state.copyWith(visit: null);
   }
+
+  void _away() {
+    if (_visits == MisuVisits.off || state.visit != null || !_canDropIn) {
+      return;
+    }
+    _show(_line(MisuLine.away), MisuSide.right);
+  }
+
+  bool get inTogetherGame => _inTogetherGame;
+
+  void togetherGame({required bool running}) => _inTogetherGame = running;
+
+  bool get _canDropIn =>
+      !_inTogetherGame &&
+      ref.read(gameControllerProvider).phase != GamePhase.nickname;
 
   MisuVisits get _visits =>
       ref.read(gameControllerProvider).progress.settings.misuVisits;
@@ -168,25 +206,49 @@ class MisuController extends Notifier<MisuState> {
     double seconds = 0,
   }) {
     final edition = ref.read(editionProvider);
-    return misuLine(
+    final at = now ?? ref.read(clockProvider)();
+    final lines = misuLines(
       kind,
       edition: edition,
       name: displayName(
         edition,
         ref.read(gameControllerProvider).progress.settings.nickname,
       ),
-      now: now ?? ref.read(clockProvider)(),
+      now: at,
       count: count,
       seconds: seconds,
     );
+    return lines[kind == MisuLine.greet
+        ? dayVariant(at, lines.length)
+        : _draw(kind, lines.length)];
+  }
+
+  int _draw(MisuLine kind, int variants) {
+    final (:pick, :rest) = drawVariant(
+      _bags[kind] ?? const [],
+      variants: variants,
+      random: ref.read(randomProvider),
+      last: _last[kind],
+    );
+    _bags = {..._bags, kind: rest};
+    _last = {..._last, kind: pick};
+    return pick;
   }
 
   void _show(String text, MisuSide side, {bool long = false}) {
-    _cancelHide();
     state = state.copyWith(
       visit: MisuVisit(text: text, side: side, long: long),
     );
-    _hide = Timer(long ? longVisitDuration : visitDuration, () {
+    _countdown();
+  }
+
+  void _countdown() {
+    _cancelHide();
+    final visit = state.visit;
+    if (visit == null || _covered || !ref.read(attentionProvider).watching) {
+      return;
+    }
+    _hide = Timer(visit.long ? longVisitDuration : visitDuration, () {
       _hide = null;
       state = state.copyWith(visit: null);
     });
