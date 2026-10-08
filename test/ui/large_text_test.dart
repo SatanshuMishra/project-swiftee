@@ -205,7 +205,7 @@ void main() {
         var faults = const <String>[];
         var shown = const <Era>{};
         for (var day = 1; day <= curatedEras.length; day++) {
-          final now = DateTime(2026, 1, day, 20);
+          final now = DateTime(2027, 1, day, 20);
           final era = tonightsEra(now);
           shown = {...shown, era};
           final found = await faultsOf(

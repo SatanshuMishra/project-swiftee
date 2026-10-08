@@ -84,8 +84,9 @@ bool _breaksAWord(RenderParagraph paragraph) =>
     paragraph.softWrap &&
     paragraph.maxLines != 1 &&
     paragraph.constraints.hasBoundedWidth &&
+    paragraph.text.toPlainText().trim().runes.length > 1 &&
     paragraph.getMinIntrinsicWidth(double.infinity) >
-        paragraph.constraints.maxWidth + 0.5;
+        paragraph.constraints.maxWidth + 0.01;
 
 String _describe(FlutterErrorDetails details) {
   final lines = details.toString().split('\n');
