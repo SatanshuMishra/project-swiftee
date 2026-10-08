@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat;
@@ -26,6 +27,7 @@ import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
 import 'package:swiftie_quiz/ui/kit/section_label.dart';
 import 'package:swiftie_quiz/ui/kit/segmented.dart';
 import 'package:swiftie_quiz/ui/kit/serif_input.dart';
+import 'package:swiftie_quiz/ui/kit/text_link.dart';
 import 'package:swiftie_quiz/ui/kit/two_pane.dart';
 import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_layout.dart';
@@ -72,6 +74,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
       'That server needs a newer Project Swiftie.';
   static const String serverBusy = 'The server is busy. Try again in a minute.';
   static const String serverUnreachable = "Couldn't reach the server.";
+  static const String clearLink = 'Clear';
   static const String appName = 'Project Swiftie';
   static const String lastCheckedPrefix = 'Last checked ';
   static const String checkNow = 'Check now';
@@ -98,7 +101,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const String resetAction = 'Reset…';
   static const String resetConfirmTitle = 'Reset all progress?';
   static const String resetConfirmLabel = 'Reset progress';
-  static const String madeForAna = 'Made for Ana by Satanshu';
+  static const String madeForAna =
+      'Made for Ana by Satanshu with ♥️ and lots of ☕';
   static const String madeBy = 'Made by Satanshu';
   static const String appIcon = 'assets/brand/app-icon.svg';
 
@@ -551,19 +555,15 @@ class _NicknameFieldState extends ConsumerState<_NicknameField> {
       width: SettingsScreen.nicknameWidth,
       child: Padding(
         padding: const EdgeInsets.only(top: _NicknameField.top),
-        child: MergeSemantics(
-          child: Semantics(
-            label: SettingsScreen.nicknameTitle,
-            child: SerifInput(
-              controller: _controller,
-              focusNode: _focus,
-              fontSize: _NicknameField.fontSize,
-              lineHeight: _NicknameField.lineHeight,
-              maxLength: nicknameMaxLength,
-              textAlign: TextAlign.right,
-              onChanged: ref.read(gameControllerProvider.notifier).setNickname,
-            ),
-          ),
+        child: SerifInput(
+          controller: _controller,
+          focusNode: _focus,
+          fontSize: _NicknameField.fontSize,
+          lineHeight: _NicknameField.lineHeight,
+          maxLength: nicknameMaxLength,
+          textAlign: TextAlign.right,
+          semanticLabel: SettingsScreen.nicknameTitle,
+          onChanged: ref.read(gameControllerProvider.notifier).setNickname,
         ),
       ),
     );
@@ -586,6 +586,7 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
   final FocusNode _focus = FocusNode(debugLabel: 'Server link');
   _LinkCheck? _check;
   int _checks = 0;
+  bool _editing = false;
 
   String get _stored =>
       ref.read(gameControllerProvider).progress.settings.togetherLink ?? '';
@@ -593,7 +594,7 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
   @override
   void initState() {
     super.initState();
-    _focus.addListener(_showStoredOnBlur);
+    _focus.addListener(_syncFocus);
     if (ServerLink.parse(_stored) case final link?) {
       _check = _startCheck(link);
     }
@@ -602,16 +603,29 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
   @override
   void dispose() {
     _focus
-      ..removeListener(_showStoredOnBlur)
+      ..removeListener(_syncFocus)
       ..dispose();
     _controller.dispose();
     super.dispose();
   }
 
-  void _showStoredOnBlur() {
+  void _syncFocus() {
     if (!_focus.hasFocus && _controller.text != _stored) {
       _controller.text = _stored;
     }
+    if (_editing != _focus.hasFocus) {
+      setState(() => _editing = _focus.hasFocus);
+    }
+  }
+
+  void _clear() {
+    _controller.clear();
+    ref.read(gameControllerProvider.notifier).setTogetherLink('');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _focus.requestFocus();
+      }
+    });
   }
 
   _LinkCheck _startCheck(ServerLink link) {
@@ -651,6 +665,15 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
       ),
       (_, next) => _saved(next),
     );
+    final locked =
+        !_editing &&
+        ref.watch(
+          gameControllerProvider.select(
+            (state) =>
+                ServerLink.parse(state.progress.settings.togetherLink ?? '') !=
+                null,
+          ),
+        );
     return SizedBox(
       width: double.infinity,
       child: Column(
@@ -659,19 +682,31 @@ class _ServerLinkFieldState extends ConsumerState<_ServerLinkField> {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: _NicknameField.top),
-            child: MergeSemantics(
-              child: Semantics(
-                label: SettingsScreen.serverLinkTitle,
-                child: SerifInput(
-                  controller: _controller,
-                  focusNode: _focus,
-                  fontSize: _NicknameField.fontSize,
-                  lineHeight: _NicknameField.lineHeight,
-                  onChanged: ref
-                      .read(gameControllerProvider.notifier)
-                      .setTogetherLink,
-                ),
-              ),
+            child: SerifInput(
+              fieldKey: ValueKey(locked),
+              controller: _controller,
+              focusNode: _focus,
+              fontSize: _NicknameField.fontSize,
+              lineHeight: _NicknameField.lineHeight,
+              enabled: !locked,
+              obscured: locked,
+              semanticLabel: SettingsScreen.serverLinkTitle,
+              onChanged: ref
+                  .read(gameControllerProvider.notifier)
+                  .setTogetherLink,
+              trailing: locked
+                  ? SizedBox(
+                      height: _NicknameField.lineHeight,
+                      child: OverflowBox(
+                        fit: OverflowBoxFit.deferToChild,
+                        maxHeight: TextLink.minHeight,
+                        child: TextLink(
+                          label: SettingsScreen.clearLink,
+                          onTap: _clear,
+                        ),
+                      ),
+                    )
+                  : null,
             ),
           ),
           ValueListenableBuilder<TextEditingValue>(
@@ -1356,8 +1391,26 @@ class _About extends StatelessWidget {
   static const double gap = 12;
   static const double iconSize = 40;
   static const BorderRadius iconRadius = BorderRadius.all(Radius.circular(9));
+  static const String emojiFamily = 'Apple Color Emoji';
+  static const List<String> emojiFallbacks = ['Segoe UI Emoji'];
+  static const TextStyle emojiStyle = TextStyle(
+    fontFamily: emojiFamily,
+    fontFamilyFallback: emojiFallbacks,
+  );
+  static const String emojiSelector = '\u{FE0F}';
 
   final String line;
+
+  static List<TextSpan> spans(String text) => [
+    for (final run in text.characters.splitBetween(
+      (first, second) =>
+          first.contains(emojiSelector) != second.contains(emojiSelector),
+    ))
+      TextSpan(
+        text: run.join(),
+        style: run.first.contains(emojiSelector) ? emojiStyle : null,
+      ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -1385,7 +1438,10 @@ class _About extends StatelessWidget {
                   SettingsScreen.appName,
                   style: AppType.sized(14, 20).copyWith(color: tokens.fg),
                 ),
-                Text(line, style: AppType.caption.copyWith(color: tokens.mut)),
+                Text.rich(
+                  TextSpan(children: spans(line)),
+                  style: AppType.caption.copyWith(color: tokens.mut),
+                ),
               ],
             ),
           ),

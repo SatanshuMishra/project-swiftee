@@ -243,7 +243,10 @@ void main() {
       expectSections();
       expect(find.text('Nickname'), findsNothing);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Made for Ana by Satanshu'), findsOneWidget);
+      expect(
+        find.text('Made for Ana by Satanshu with ♥️ and lots of ☕'),
+        findsOneWidget,
+      );
       expect(find.text('Made by Satanshu'), findsNothing);
 
       final open = await pumpSettings(
@@ -253,7 +256,10 @@ void main() {
       expectSections();
       expect(find.text('Nickname'), findsOneWidget);
       expect(find.text('Made by Satanshu'), findsOneWidget);
-      expect(find.text('Made for Ana by Satanshu'), findsNothing);
+      expect(
+        find.text('Made for Ana by Satanshu with ♥️ and lots of ☕'),
+        findsNothing,
+      );
       expect(find.byType(TextField), findsNWidgets(2));
       final field = find.byType(TextField).first;
       expect(
@@ -319,6 +325,30 @@ void main() {
       expect(settingsOf(open.container).mediumTimer, 10);
       expect(find.text('10s'), findsOneWidget);
     });
+
+    testWidgets(
+      'emoji-styled characters in the about line use the emoji font',
+      (tester) async {
+        List<TextSpan> spansOf(String line) =>
+            (tester.widget<Text>(find.text(line)).textSpan! as TextSpan)
+                .children!
+                .cast<TextSpan>();
+
+        await pumpSettings(tester, edition: Edition.ana);
+        final ana = spansOf(SettingsScreen.madeForAna);
+        expect(ana.map((span) => span.text).join(), SettingsScreen.madeForAna);
+        final emoji = ana.where((span) => span.style?.fontFamily != null);
+        expect(emoji.map((span) => span.text), ['♥️']);
+        expect(emoji.single.style?.fontFamily, 'Apple Color Emoji');
+        expect(emoji.single.style?.fontFamilyFallback, ['Segoe UI Emoji']);
+
+        await pumpSettings(tester);
+        final open = spansOf(SettingsScreen.madeBy);
+        expect(open.map((span) => (span.text, span.style)), [
+          (SettingsScreen.madeBy, null),
+        ]);
+      },
+    );
 
     testWidgets('reset and restore ask before acting', (tester) async {
       final harness = await pumpSettings(
