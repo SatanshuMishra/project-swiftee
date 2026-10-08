@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart' show DateFormat;
-import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/data/together/relay_connection.dart';
+import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/models/backup_entry.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
@@ -49,6 +49,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const String timersLabel = 'Timers';
   static const String togetherLabel = 'Play together';
   static const String updatesLabel = 'Updates';
+  static const String storageLabel = 'Storage';
   static const String backupsLabel = 'Backups';
   static const String progressLabel = 'Progress';
 
@@ -79,6 +80,10 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const String autoCheckTitle = 'Check for updates automatically';
   static const String autoCheckNote =
       'Sends only a standard request to GitHub. No analytics or tracking.';
+  static const String saveCoversTitle = 'Save album covers';
+  static const String saveCoversNote =
+      'Keeps covers for new releases on this computer. Turning it off removes '
+      'them.';
   static const String backupsNote =
       'The three most recent automatic backups are kept.';
   static const String restore = 'Restore';
@@ -169,6 +174,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     setState(() => _checkRequested = true);
     unawaited(ref.read(updaterControllerProvider).check(manual: true));
+  }
+
+  void _setSaveCovers(bool enabled) {
+    final progress = ref.read(gameControllerProvider).progress;
+    ref
+        .read(gameControllerProvider.notifier)
+        .setProgress(
+          progress.copyWith(
+            settings: progress.settings.copyWith(saveCovers: enabled),
+          ),
+        );
   }
 
   void _setAutoCheck(bool enabled) {
@@ -270,6 +286,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     checkRequested: _checkRequested,
                     onCheck: _checkNow,
                     onAutoCheck: _setAutoCheck,
+                  ),
+                  const _SectionHeading(SettingsScreen.storageLabel),
+                  _ToggleRow(
+                    title: SettingsScreen.saveCoversTitle,
+                    note: SettingsScreen.saveCoversNote,
+                    enabled: ref.watch(
+                      gameControllerProvider.select(
+                        (state) => state.progress.settings.saveCovers,
+                      ),
+                    ),
+                    onChanged: _setSaveCovers,
                   ),
                   const _SectionHeading(SettingsScreen.backupsLabel),
                   _Backups(backups: _backups, onRestore: _restore),
@@ -1044,7 +1071,12 @@ class _Updates extends ConsumerWidget {
             onPressed: onCheck,
           ),
         ),
-        _AutoCheckRow(enabled: autoCheck, onChanged: onAutoCheck),
+        _ToggleRow(
+          title: SettingsScreen.autoCheckTitle,
+          note: SettingsScreen.autoCheckNote,
+          enabled: autoCheck,
+          onChanged: onAutoCheck,
+        ),
       ],
     );
   }
@@ -1149,12 +1181,19 @@ class _SpinnerPainter extends CustomPainter {
       oldDelegate.track != track || oldDelegate.arc != arc;
 }
 
-class _AutoCheckRow extends StatelessWidget {
-  const _AutoCheckRow({required this.enabled, required this.onChanged});
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.title,
+    required this.note,
+    required this.enabled,
+    required this.onChanged,
+  });
 
   static const double gap = 20;
   static const BorderRadius focusRadius = BorderRadius.all(Radius.circular(4));
 
+  final String title;
+  final String note;
   final bool enabled;
   final ValueChanged<bool> onChanged;
 
@@ -1173,11 +1212,8 @@ class _AutoCheckRow extends StatelessWidget {
           child: Row(
             spacing: gap,
             children: [
-              const Expanded(
-                child: _RowLabel(
-                  title: SettingsScreen.autoCheckTitle,
-                  note: SettingsScreen.autoCheckNote,
-                ),
+              Expanded(
+                child: _RowLabel(title: title, note: note),
               ),
               Semantics(
                 toggled: enabled,

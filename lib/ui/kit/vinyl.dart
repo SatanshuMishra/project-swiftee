@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:swiftie_quiz/ui/kit/cover_picture.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 
@@ -135,13 +136,7 @@ class VinylDisc extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     ColoredBox(color: labelColor ?? tokens.coral),
-                    if (showLabelImage && url != null)
-                      Image.network(
-                        url,
-                        fit: BoxFit.cover,
-                        excludeFromSemantics: true,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                      ),
+                    if (showLabelImage && url != null) CoverPicture(url),
                     if (style.hole)
                       Center(
                         child: DecoratedBox(
@@ -255,13 +250,7 @@ class AlbumSleeve extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               ColoredBox(color: placeholder ?? tokens.card),
-              if (url != null)
-                Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  excludeFromSemantics: true,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
+              if (url != null) CoverPicture(url),
             ],
           ),
         ),

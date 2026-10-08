@@ -51,6 +51,7 @@ flutter_test · fake_async · NSIS (Windows installer) · GitHub Actions
 | Change which versions a sound game plays | lib/domain/engine/version_filter.dart + the versions section in lib/ui/screens/setup_screen.dart |
 | Change a Deezer or LRCLIB call  | lib/data/catalog/deezer_client.dart or lib/data/lyrics/lrclib_client.dart + providers in lib/state/providers.dart |
 | Change which certificates the app trusts | lib/services/network/bundled_roots.dart + assets/certs/cacert.pem + docs/decisions/2026-10-07-windows-trusted-roots.md |
+| Change how album covers load, ship or are kept | lib/data/covers/ + lib/ui/kit/cover_picture.dart + lib/state/covers.dart + tool/catalog/bundle_covers.dart + docs/decisions/2026-10-07-bundled-covers.md |
 | Change the updater              | lib/services/updater/ (protocol) + lib/state/updater_controller.dart (schedule and states) |
 | Change the Windows installer    | installer/windows/swiftie-quiz.nsi + test/installer/nsis_script_test.dart + docs/decisions/2026-10-06-windows-update-exit.md |
 | Change CI or the release flow   | .github/workflows/ + tool/release/ + docs/decisions/2026-10-04-ci-hardening.md + docs/decisions/2026-10-05-release-streamlining.md; required check is the `CI OK` job name |

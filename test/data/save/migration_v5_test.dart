@@ -54,13 +54,13 @@ void main() {
     final result = migrateToLatest(input);
 
     expect(result.keys, v4Save().keys);
-    expect(result['version'], 5);
+    expect(result['version'], currentSaveVersion);
     for (final key in ['achievements', 'stats', 'updater']) {
       expect(result[key], v4Save()[key], reason: key);
     }
     final settings = result['settings']! as Map<String, Object?>;
     final before = v4Save()['settings']! as Map<String, Object?>;
-    expect(settings.keys, [...before.keys, 'togetherLink']);
+    expect(settings.keys, [...before.keys, 'togetherLink', 'saveCovers']);
     for (final MapEntry(:key, :value) in before.entries) {
       expect(settings[key], value, reason: key);
     }
@@ -68,7 +68,7 @@ void main() {
     expect(input, v4Save());
 
     final progress = GameProgress.fromJson(result);
-    expect(progress.version, 5);
+    expect(progress.version, currentSaveVersion);
     expect(progress.settings.nickname, 'Sam');
     expect(progress.settings.misuVisits, MisuVisits.often);
     expect(progress.settings.togetherLink, isNull);

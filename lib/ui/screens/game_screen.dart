@@ -14,9 +14,11 @@ import 'package:swiftie_quiz/domain/models/catalogue.dart';
 import 'package:swiftie_quiz/domain/models/era.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/track.dart';
+import 'package:swiftie_quiz/domain/util/song_title.dart';
 import 'package:swiftie_quiz/state/achievements_controller.dart';
 import 'package:swiftie_quiz/state/audio_controller.dart';
 import 'package:swiftie_quiz/state/catalog_controller.dart';
+import 'package:swiftie_quiz/state/covers.dart';
 import 'package:swiftie_quiz/state/game_controller.dart';
 import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/state/play_history_controller.dart';
@@ -30,6 +32,7 @@ import 'package:swiftie_quiz/ui/game/quack_burst.dart';
 import 'package:swiftie_quiz/ui/game/record_player.dart';
 import 'package:swiftie_quiz/ui/game/round_heading.dart';
 import 'package:swiftie_quiz/ui/game/transport_bar.dart';
+import 'package:swiftie_quiz/ui/kit/cover_picture.dart';
 import 'package:swiftie_quiz/ui/kit/modal_stack.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
 import 'package:swiftie_quiz/ui/kit/screen_enter.dart';
@@ -39,7 +42,6 @@ import 'package:swiftie_quiz/ui/theme/app_layout.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
-import 'package:swiftie_quiz/domain/util/song_title.dart';
 
 int roundTimerSeconds(Difficulty difficulty, int mediumTimer, int hardTimer) =>
     switch (difficulty) {
@@ -417,7 +419,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
     }
     _loaderTimeout = Timer(GameScreen.roundLoaderTimeout, _revealRound);
     if (draw.track.album.coverMedium case final cover?) {
-      unawaited(precacheImage(NetworkImage(cover), context));
+      unawaited(
+        precacheImage(CoverImage(cover, ref.read(coverStoreProvider)), context),
+      );
     }
     setState(() {
       _result = null;

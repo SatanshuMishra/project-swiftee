@@ -5,6 +5,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:swiftie_quiz/data/save/migrations.dart';
 import 'package:swiftie_quiz/data/save/save_error.dart';
 import 'package:swiftie_quiz/data/save/save_store.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
@@ -239,7 +240,10 @@ void main() {
     });
 
     test('never saves after a failed load', () async {
-      writeSave({..._currentSave(totalCorrect: 1), 'version': 6});
+      writeSave({
+        ..._currentSave(totalCorrect: 1),
+        'version': currentSaveVersion + 1,
+      });
       await persistence().load();
 
       fakeAsync((async) {
@@ -253,7 +257,7 @@ void main() {
       expect(saved, isEmpty);
       expect(
         jsonDecode(saveFile.readAsStringSync()),
-        containsPair('version', 6),
+        containsPair('version', currentSaveVersion + 1),
       );
     });
 

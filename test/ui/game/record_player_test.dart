@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swiftie_quiz/ui/game/lyric_paper.dart';
 import 'package:swiftie_quiz/ui/game/record_player.dart';
+import 'package:swiftie_quiz/ui/kit/cover_picture.dart';
 import 'package:swiftie_quiz/ui/kit/vinyl.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -47,8 +48,8 @@ Future<void> pumpGame(
 Finder coverImage(String url) => find.byWidgetPredicate(
   (widget) =>
       widget is Image &&
-      widget.image is NetworkImage &&
-      (widget.image as NetworkImage).url == url,
+      widget.image is CoverImage &&
+      (widget.image as CoverImage).url == url,
 );
 
 RecordSleeve sleeveOf(WidgetTester tester) =>

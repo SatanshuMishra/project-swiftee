@@ -7,7 +7,7 @@ const int _defaultMediumTimer = 30;
 const int _defaultHardTimer = 20;
 
 const GameProgress defaultProgress = GameProgress(
-  version: 5,
+  version: 6,
   achievements: {},
   stats: GameStats(
     totalCorrect: 0,
@@ -25,6 +25,7 @@ const GameProgress defaultProgress = GameProgress(
     misuVisits: MisuVisits.sometimes,
     nickname: null,
     togetherLink: null,
+    saveCovers: false,
   ),
   updater: UpdaterState(
     autoCheckEnabled: true,
@@ -219,6 +220,7 @@ final class GameSettings {
     this.misuVisits = MisuVisits.sometimes,
     this.nickname,
     this.togetherLink,
+    this.saveCovers = false,
   });
 
   factory GameSettings.fromJson(Map<String, Object?> json) => GameSettings(
@@ -235,6 +237,7 @@ final class GameSettings {
     },
     nickname: _readOptionalString(json, 'nickname'),
     togetherLink: _readOptionalString(json, 'togetherLink'),
+    saveCovers: _readBoolOr(json, 'saveCovers', false),
   );
 
   final ThemeSetting theme;
@@ -244,6 +247,7 @@ final class GameSettings {
   final MisuVisits misuVisits;
   final String? nickname;
   final String? togetherLink;
+  final bool saveCovers;
 
   Map<String, Object?> toJson() => {
     'theme': theme.wireName,
@@ -253,6 +257,7 @@ final class GameSettings {
     'misuVisits': misuVisits.wireName,
     'nickname': nickname,
     'togetherLink': togetherLink,
+    'saveCovers': saveCovers,
   };
 
   GameSettings copyWith({
@@ -263,6 +268,7 @@ final class GameSettings {
     MisuVisits? misuVisits,
     Object? nickname = _unchanged,
     Object? togetherLink = _unchanged,
+    bool? saveCovers,
   }) => GameSettings(
     theme: theme ?? this.theme,
     volume: volume ?? this.volume,
@@ -275,6 +281,7 @@ final class GameSettings {
     togetherLink: identical(togetherLink, _unchanged)
         ? this.togetherLink
         : togetherLink as String?,
+    saveCovers: saveCovers ?? this.saveCovers,
   );
 
   @override
@@ -286,7 +293,8 @@ final class GameSettings {
       other.hardTimer == hardTimer &&
       other.misuVisits == misuVisits &&
       other.nickname == nickname &&
-      other.togetherLink == togetherLink;
+      other.togetherLink == togetherLink &&
+      other.saveCovers == saveCovers;
 
   @override
   int get hashCode => Object.hash(
@@ -297,6 +305,7 @@ final class GameSettings {
     misuVisits,
     nickname,
     togetherLink,
+    saveCovers,
   );
 
   @override
@@ -304,7 +313,7 @@ final class GameSettings {
       'GameSettings(theme: $theme, volume: $volume, '
       'mediumTimer: $mediumTimer, hardTimer: $hardTimer, '
       'misuVisits: $misuVisits, nickname: $nickname, '
-      'togetherLink: $togetherLink)';
+      'togetherLink: $togetherLink, saveCovers: $saveCovers)';
 }
 
 final class UpdaterState {
@@ -497,6 +506,9 @@ int _readCount(Map<String, Object?> json, String key) =>
       final int value when value >= 0 => value,
       _ => throw _invalidType(key, 'a non-negative integer'),
     };
+
+bool _readBoolOr(Map<String, Object?> json, String key, bool fallback) =>
+    json.containsKey(key) ? _readBool(json, key) : fallback;
 
 int _readCountOr(Map<String, Object?> json, String key, int fallback) =>
     json.containsKey(key) ? _readCount(json, key) : fallback;

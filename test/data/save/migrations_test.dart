@@ -61,7 +61,7 @@ Map<String, Object?> v3Save() => {
 };
 
 Map<String, Object?> currentSave() => {
-  'version': 5,
+  'version': 6,
   'achievements': {
     'first_meow': {
       'unlocked': true,
@@ -85,6 +85,7 @@ Map<String, Object?> currentSave() => {
     'misuVisits': 'often',
     'nickname': 'Sam',
     'togetherLink': null,
+    'saveCovers': false,
   },
   'updater': {
     'autoCheckEnabled': true,
@@ -96,8 +97,8 @@ Map<String, Object?> currentSave() => {
 
 void main() {
   group('migrations parity', () {
-    test('current save version is 5', () {
-      expect(currentSaveVersion, 5);
+    test('current save version is 6', () {
+      expect(currentSaveVersion, 6);
     });
 
     test('migrates v1 to current', () {
@@ -122,7 +123,7 @@ void main() {
         'stats': v2Stats(),
         'settings': v2Settings(),
       });
-      expect(result['version'], 5);
+      expect(result['version'], 6);
       expect(
         result['updater'],
         equals({
@@ -134,7 +135,7 @@ void main() {
       );
     });
 
-    test('migrate v1 through v5 chain', () {
+    test('migrate v1 through v6 chain', () {
       final result = migrateToLatest({
         'version': 1,
         'achievements': <String, Object?>{},
@@ -145,13 +146,14 @@ void main() {
         },
         'settings': v2Settings(),
       });
-      expect(result['version'], 5);
+      expect(result['version'], 6);
       expect(result['stats'], containsPair('totalCorrect', 99));
       expect(result['stats'], containsPair('totalLyricsCorrect', 0));
       expect(result['updater'], containsPair('autoCheckEnabled', true));
       expect(result['settings'], containsPair('misuVisits', 'sometimes'));
       expect(result['settings'], containsPair('nickname', null));
       expect(result['settings'], containsPair('togetherLink', null));
+      expect(result['settings'], containsPair('saveCovers', false));
     });
 
     test('migrate v2 to v3 preserves an existing updater field', () {
@@ -171,13 +173,13 @@ void main() {
       expect(result['updater'], containsPair('skippedVersions', ['0.3.0']));
     });
 
-    test('a version 3 save migrates to version 5 unchanged', () {
+    test('a version 3 save migrates to version 6 unchanged', () {
       final input = v3Save();
 
       final result = migrateToLatest(input);
 
       expect(result, {
-        'version': 5,
+        'version': 6,
         'achievements': {
           'first_meow': {
             'unlocked': true,
@@ -203,6 +205,7 @@ void main() {
           'misuVisits': 'sometimes',
           'nickname': null,
           'togetherLink': null,
+          'saveCovers': false,
         },
         'updater': v3Save()['updater'],
       });
@@ -242,7 +245,7 @@ void main() {
         'settings': 'dark',
       });
 
-      expect(result['version'], 5);
+      expect(result['version'], 6);
       expect(result['achievements'], {'first_meow': true});
       expect(result['settings'], 'dark');
     });

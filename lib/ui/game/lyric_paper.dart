@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:swiftie_quiz/ui/game/next_prompt.dart';
+import 'package:swiftie_quiz/ui/kit/cover_picture.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
 import 'package:swiftie_quiz/ui/theme/app_type.dart';
@@ -262,13 +263,7 @@ class _Cover extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               ColoredBox(color: placeholder),
-              if (url != null)
-                Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  excludeFromSemantics: true,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
+              if (url != null) CoverPicture(url),
             ],
           ),
         ),
