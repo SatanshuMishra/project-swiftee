@@ -78,6 +78,8 @@ class MisuController extends Notifier<MisuState> {
   static const int sometimesRoundGap = 5;
 
   Timer? _hide;
+  Map<MisuLine, List<int>> _bags = const {};
+  Map<MisuLine, int> _last = const {};
 
   @override
   MisuState build() {
@@ -168,17 +170,33 @@ class MisuController extends Notifier<MisuState> {
     double seconds = 0,
   }) {
     final edition = ref.read(editionProvider);
-    return misuLine(
+    final at = now ?? ref.read(clockProvider)();
+    final lines = misuLines(
       kind,
       edition: edition,
       name: displayName(
         edition,
         ref.read(gameControllerProvider).progress.settings.nickname,
       ),
-      now: now ?? ref.read(clockProvider)(),
+      now: at,
       count: count,
       seconds: seconds,
     );
+    return lines[kind == MisuLine.greet
+        ? dayVariant(at, lines.length)
+        : _draw(kind, lines.length)];
+  }
+
+  int _draw(MisuLine kind, int variants) {
+    final (:pick, :rest) = drawVariant(
+      _bags[kind] ?? const [],
+      variants: variants,
+      random: ref.read(randomProvider),
+      last: _last[kind],
+    );
+    _bags = {..._bags, kind: rest};
+    _last = {..._last, kind: pick};
+    return pick;
   }
 
   void _show(String text, MisuSide side, {bool long = false}) {

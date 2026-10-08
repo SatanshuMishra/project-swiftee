@@ -97,7 +97,7 @@ double _bubbleOpacity(WidgetTester tester, String line) => tester
 
 void main() {
   group('misu visits', () {
-    testWidgets('misu rises with her line and a click sends her away', (
+    testWidgets('misu rises with his line and a click sends him away', (
       tester,
     ) async {
       final misu = await _pumpHost(tester);
@@ -165,7 +165,7 @@ void main() {
       }
     });
 
-    testWidgets('her line follows 120 ms after she starts rising', (
+    testWidgets('his line follows 120 ms after he starts rising', (
       tester,
     ) async {
       final misu = await _pumpHost(tester);
@@ -198,7 +198,7 @@ void main() {
       expect(hidden.center.dy, closeTo(shown.center.dy + 8, 0.01));
     });
 
-    testWidgets('misu sinks away before she leaves the screen', (tester) async {
+    testWidgets('misu sinks away before he leaves the screen', (tester) async {
       final misu = await _pumpHost(tester);
       misu.show(_greeting);
       await tester.pumpAndSettle();

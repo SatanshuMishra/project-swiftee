@@ -8,6 +8,7 @@ import 'package:swiftie_quiz/state/misu_controller.dart';
 import 'package:swiftie_quiz/ui/cat/cat_icon.dart';
 import 'package:swiftie_quiz/ui/kit/modal_stack.dart';
 import 'package:swiftie_quiz/ui/kit/pill_button.dart';
+import 'package:swiftie_quiz/ui/kit/whole_word_text.dart';
 import 'package:swiftie_quiz/ui/theme/app_motion.dart';
 import 'package:swiftie_quiz/ui/theme/app_theme.dart';
 import 'package:swiftie_quiz/ui/theme/app_tokens.dart';
@@ -255,7 +256,7 @@ class _MisuBubble extends StatelessWidget {
               ),
               child: Semantics(
                 liveRegion: true,
-                child: Text(
+                child: WholeWordText(
                   text,
                   style: AppType.display(
                     MisuHost.fontSize,

@@ -5,9 +5,9 @@ import 'package:swiftie_quiz/domain/models/edition.dart';
 final DateTime _evening = DateTime(2026, 10, 7, 19);
 
 void main() {
-  test("misu has the prototype's close-finish and win lines", () {
-    String line(MisuLine kind, Edition edition, {double seconds = 0}) =>
-        misuLine(
+  test("misu keeps the prototype's close-finish and win lines first", () {
+    List<String> lines(MisuLine kind, Edition edition, {double seconds = 0}) =>
+        misuLines(
           kind,
           edition: edition,
           name: displayName(edition, 'Sam'),
@@ -16,19 +16,19 @@ void main() {
         );
 
     expect(
-      line(MisuLine.closeFinish, Edition.ana, seconds: 4.3 - 4.0),
+      lines(MisuLine.closeFinish, Edition.ana, seconds: 4.3 - 4.0).first,
       "0.3 seconds apart. I'm calling it a tie.",
     );
     expect(
-      line(MisuLine.wonTogether, Edition.ana),
+      lines(MisuLine.wonTogether, Edition.ana).first,
       'You won! I knew you would.',
     );
     expect(
-      line(MisuLine.closeFinish, Edition.open, seconds: 4.3 - 4.0),
+      lines(MisuLine.closeFinish, Edition.open, seconds: 4.3 - 4.0).first,
       '0.3 seconds apart. Misu calls it a tie.',
     );
     expect(
-      line(MisuLine.wonTogether, Edition.open),
+      lines(MisuLine.wonTogether, Edition.open).first,
       'You won, Sam! Misu knew it.',
     );
   });

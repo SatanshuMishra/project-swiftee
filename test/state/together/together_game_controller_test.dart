@@ -13,6 +13,7 @@ import 'package:swiftie_quiz/data/together/game_wire.dart';
 import 'package:swiftie_quiz/domain/engine/clip_selector.dart';
 import 'package:swiftie_quiz/domain/engine/play_order.dart';
 import 'package:swiftie_quiz/domain/models/catalogue.dart';
+import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/models/edition.dart';
 import 'package:swiftie_quiz/domain/models/game_types.dart';
 import 'package:swiftie_quiz/domain/models/lyrics.dart';
@@ -425,6 +426,23 @@ final class _Harness {
     async.elapse(allAnsweredDelay);
   }
 }
+
+Matcher _saidOneOf(MisuLine kind, {double seconds = 0}) => isA<MisuVisit>()
+    .having(
+      (visit) => visit.text,
+      'text',
+      isIn(
+        misuLines(
+          kind,
+          edition: Edition.open,
+          name: 'Sam',
+          now: DateTime(2026, 10, 7, 19),
+          seconds: seconds,
+        ),
+      ),
+    )
+    .having((visit) => visit.side, 'side', MisuSide.right)
+    .having((visit) => visit.long, 'long', isFalse);
 
 void main() {
   group('play together game', () {
@@ -1253,17 +1271,9 @@ void main() {
             host.visits,
             visits == MisuVisits.off
                 ? isEmpty
-                : const [
-                    MisuVisit(
-                      text: '0.3 seconds apart. Misu calls it a tie.',
-                      side: MisuSide.right,
-                      long: false,
-                    ),
-                    MisuVisit(
-                      text: 'You won, Sam! Misu knew it.',
-                      side: MisuSide.right,
-                      long: false,
-                    ),
+                : [
+                    _saidOneOf(MisuLine.closeFinish, seconds: 0.3),
+                    _saidOneOf(MisuLine.wonTogether),
                   ],
             reason: visits.name,
           );

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:swiftie_quiz/domain/engine/misu_lines.dart';
 import 'package:swiftie_quiz/domain/engine/achievements.dart';
 import 'package:swiftie_quiz/domain/models/progress.dart';
 import 'package:swiftie_quiz/domain/models/updater.dart';
@@ -94,6 +95,29 @@ final class _StillWindow implements WindowControls {
   @override
   dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
 }
+
+class _SayingMisu extends MisuController {
+  @override
+  MisuState build() => const MisuState();
+
+  void say(String text) => state = state.copyWith(
+    visit: MisuVisit(text: text, side: MisuSide.right, long: false),
+  );
+}
+
+final Set<String> _everyMisuLine = {
+  for (final edition in Edition.values)
+    for (final kind in MisuLine.values)
+      for (final hour in const [8, 15, 20, 2])
+        ...misuLines(
+          kind,
+          edition: edition,
+          name: displayName(edition, 'Bartholomewsworthing'),
+          now: DateTime(2026, 10, 6, hour),
+          count: 25,
+          seconds: 0.3,
+        ),
+};
 
 Future<ProviderContainer> _pumpInApp(
   WidgetTester tester,
@@ -489,17 +513,31 @@ void main() {
         );
       });
 
-      testWidgets("Misu's speech bubble fits", (tester) async {
-        final faults = await faultsOf(tester, () async {
-          final container = await _pumpInApp(
+      testWidgets("every one of Misu's lines fits his speech bubble", (
+        tester,
+      ) async {
+        final misu = _SayingMisu();
+        var broken = const <String>[];
+        final faults = await faultsOf(
+          tester,
+          () => _pumpInApp(
             tester,
             const Stack(children: [MisuHost()]),
-          );
-          container.read(misuControllerProvider.notifier).introduce();
-        });
-        await tester.pump(const Duration(seconds: 10));
+            overrides: [misuControllerProvider.overrideWith(() => misu)],
+          ),
+          then: () async {
+            for (final line in _everyMisuLine) {
+              misu.say(line);
+              await tester.pump(const Duration(milliseconds: 100));
+              broken = [
+                ...broken,
+                for (final fault in brokenWords(tester)) '$line: $fault',
+              ];
+            }
+          },
+        );
 
-        expect(faults, isEmpty);
+        expect([...faults, ...broken], isEmpty);
       });
 
       testWidgets('settings fit in both editions', (tester) async {

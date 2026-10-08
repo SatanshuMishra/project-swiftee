@@ -57,7 +57,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   static const String themeNote = 'System follows your computer.';
   static const String volumeTitle = 'Volume';
   static const String misuTitle = 'Misu visits';
-  static const String misuNote = 'How often she drops by with a word.';
+  static const String misuNote = 'How often he drops by with a word.';
   static const String nicknameTitle = 'Nickname';
   static const String nicknameNote = 'Shown in the app.';
   static const String mediumTitle = 'Medium';
