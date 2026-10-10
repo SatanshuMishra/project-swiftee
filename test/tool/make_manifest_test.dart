@@ -10,6 +10,8 @@ const baseUrl =
     'https://github.com/SatanshuMishra/project-swiftee/releases/download/v0.3.0';
 const macSignature =
     'dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKbWFj';
+const macAnaSignature =
+    'dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKYW5h';
 const windowsSignature =
     'dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKd2lu';
 const windowsOpenSignature =
@@ -19,6 +21,10 @@ const notes = '### Changed\n- **Rewritten in Flutter.** Same game, same save.';
 const macArchive = SignedArtifact(
   fileName: 'Project.Swiftie.app.tar.gz',
   signature: macSignature,
+);
+const macAnaArchive = SignedArtifact(
+  fileName: 'Project.Swiftie.Ana.app.tar.gz',
+  signature: macAnaSignature,
 );
 const windowsInstaller = SignedArtifact(
   fileName: 'Project.Swiftie_0.3.0_x64-setup.exe',
@@ -32,6 +38,10 @@ const windowsOpenInstaller = SignedArtifact(
 const expectedMac = {
   'signature': macSignature,
   'url': '$baseUrl/Project.Swiftie.app.tar.gz',
+};
+const expectedMacAna = {
+  'signature': macAnaSignature,
+  'url': '$baseUrl/Project.Swiftie.Ana.app.tar.gz',
 };
 const expectedWindows = {
   'signature': windowsSignature,
@@ -48,6 +58,7 @@ const expectedManifest = {
   'platforms': {
     'darwin-aarch64': expectedMac,
     'darwin-aarch64-app': expectedMac,
+    'darwin-aarch64-ana': expectedMacAna,
     'windows-x86_64': expectedWindows,
     'windows-x86_64-nsis': expectedWindows,
     'windows-x86_64-open': expectedWindowsOpen,
@@ -58,6 +69,7 @@ Map<String, Object> fixtureManifest({
   String pubDate = '2026-10-05T12:00:00Z',
   String base = baseUrl,
   SignedArtifact mac = macArchive,
+  SignedArtifact macAna = macAnaArchive,
   SignedArtifact windows = windowsInstaller,
   SignedArtifact windowsOpen = windowsOpenInstaller,
 }) => buildManifest(
@@ -66,14 +78,18 @@ Map<String, Object> fixtureManifest({
   pubDate: pubDate,
   baseUrl: base,
   macArchive: mac,
+  macAnaArchive: macAna,
   windowsInstaller: windows,
   windowsOpenInstaller: windowsOpen,
 );
 
 void main() {
   group('latest.json carries every platform', () {
-    test('writes version, notes, pub_date and the five platform keys', () {
-      expect(jsonDecode(encodeManifest(fixtureManifest())), expectedManifest);
+    test('writes version, notes, pub_date and the six platform keys', () {
+      final encoded = encodeManifest(fixtureManifest());
+
+      expect(jsonDecode(encoded), expectedManifest);
+      expect(encoded, encodeManifest(expectedManifest));
     });
 
     test('macOS keys share the .app.tar.gz and Windows keys share the setup '
@@ -83,11 +99,17 @@ void main() {
       expect(platforms.keys, [
         'darwin-aarch64',
         'darwin-aarch64-app',
+        'darwin-aarch64-ana',
         'windows-x86_64',
         'windows-x86_64-nsis',
         'windows-x86_64-open',
       ]);
       expect(platforms['darwin-aarch64'], platforms['darwin-aarch64-app']);
+      expect(platforms['darwin-aarch64-ana'], expectedMacAna);
+      expect(
+        platforms['darwin-aarch64-ana'],
+        isNot(platforms['darwin-aarch64']),
+      );
       expect(platforms['windows-x86_64'], platforms['windows-x86_64-nsis']);
     });
 
@@ -99,14 +121,24 @@ void main() {
                 pubDate: '2026-10-05T12:00:00Z',
                 baseUrl: baseUrl,
                 macArchive: macArchive,
+                macAnaArchive: macAnaArchive,
                 windowsInstaller: windowsInstaller,
                 windowsOpenInstaller: windowsOpenInstaller,
               )['platforms']!
               as Map<String, Map<String, String>>;
 
+      expect(platforms.keys, [
+        'darwin-aarch64',
+        'darwin-aarch64-app',
+        UpdatePlatform.macosAna.manifestKey,
+        'windows-x86_64',
+        'windows-x86_64-nsis',
+        UpdatePlatform.windowsOpen.manifestKey,
+      ]);
       expect(platforms, {
         'darwin-aarch64': expectedMac,
         'darwin-aarch64-app': expectedMac,
+        UpdatePlatform.macosAna.manifestKey: expectedMacAna,
         'windows-x86_64': expectedWindows,
         'windows-x86_64-nsis': expectedWindows,
         UpdatePlatform.windowsOpen.manifestKey: expectedWindowsOpen,
@@ -144,6 +176,67 @@ void main() {
             (error) => error.message,
             'message',
             allOf(contains('--win-open-exe'), contains('--win-open-sig')),
+          ),
+        ),
+      );
+    });
+
+    test('refuses a macOS Ana archive that is the Open archive', () {
+      expect(
+        () => fixtureManifest(
+          macAna: const SignedArtifact(
+            fileName: 'Project.Swiftie.app.tar.gz',
+            signature: macAnaSignature,
+          ),
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('Project.Swiftie.app.tar.gz'),
+              contains('Open archive'),
+            ),
+          ),
+        ),
+      );
+      for (final missing in [
+        const SignedArtifact(fileName: '', signature: macAnaSignature),
+        const SignedArtifact(
+          fileName: 'Project.Swiftie.Ana.app.tar.gz',
+          signature: '\n',
+        ),
+      ]) {
+        expect(
+          () => fixtureManifest(macAna: missing),
+          throwsFormatException,
+          reason: missing.fileName,
+        );
+      }
+    });
+
+    test('refuses a command line without the macOS Ana archive', () {
+      expect(
+        () => parseOptions([
+          for (final MapEntry(:key, :value) in {
+            'version': '0.3.0',
+            'notes-file': 'notes.md',
+            'pub-date': '2026-10-05T12:00:00Z',
+            'base-url': baseUrl,
+            'mac-tar': macArchive.fileName,
+            'mac-sig': '${macArchive.fileName}.sig',
+            'win-exe': windowsInstaller.fileName,
+            'win-sig': '${windowsInstaller.fileName}.sig',
+            'win-open-exe': windowsOpenInstaller.fileName,
+            'win-open-sig': '${windowsOpenInstaller.fileName}.sig',
+            'out': 'latest.json',
+          }.entries) ...['--$key', value],
+        ]),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('--mac-ana-tar'), contains('--mac-ana-sig')),
           ),
         ),
       );
@@ -257,6 +350,10 @@ void main() {
         copyArtifact('Project.Swiftie.app.tar.gz'),
         '--mac-sig',
         write('Project.Swiftie.app.tar.gz.sig', signature),
+        '--mac-ana-tar',
+        copyArtifact('Project.Swiftie.Ana.app.tar.gz'),
+        '--mac-ana-sig',
+        write('Project.Swiftie.Ana.app.tar.gz.sig', '$signature\n'),
         '--win-exe',
         copyArtifact('Project.Swiftie_0.3.0_x64-setup.exe'),
         '--win-sig',
@@ -299,12 +396,17 @@ void main() {
           'url': '$baseUrl/$fileName',
         };
         expect(code, 0, reason: errors.toString());
-        expect(jsonDecode(File(out).readAsStringSync()), {
+        final written =
+            jsonDecode(File(out).readAsStringSync()) as Map<String, Object?>;
+        expect(written, {
           ...expectedManifest,
           'notes': "Changed\n• Rewritten in Flutter. Same game, same save.",
           'platforms': {
             'darwin-aarch64': expectedEntry('Project.Swiftie.app.tar.gz'),
             'darwin-aarch64-app': expectedEntry('Project.Swiftie.app.tar.gz'),
+            'darwin-aarch64-ana': expectedEntry(
+              'Project.Swiftie.Ana.app.tar.gz',
+            ),
             'windows-x86_64': expectedEntry(
               'Project.Swiftie_0.3.0_x64-setup.exe',
             ),
@@ -316,6 +418,14 @@ void main() {
             ),
           },
         });
+        expect((written['platforms']! as Map<String, Object?>).keys, [
+          'darwin-aarch64',
+          'darwin-aarch64-app',
+          'darwin-aarch64-ana',
+          'windows-x86_64',
+          'windows-x86_64-nsis',
+          'windows-x86_64-open',
+        ]);
         expect(File(out).readAsStringSync(), endsWith('}\n'));
       });
 
@@ -384,6 +494,23 @@ void main() {
           expect(File(out).existsSync(), isFalse);
         });
       }
+
+      test(
+        'refuses Project.Swiftie.Ana.app.tar.gz changed after it was signed',
+        () async {
+          final out = '${temp.path}/latest.json';
+          final complete = arguments(out);
+          File('${temp.path}/Project.Swiftie.Ana.app.tar.gz')
+              .writeAsBytesSync([1, 2, 3], mode: FileMode.append);
+
+          expect(await run(complete), 1);
+          expect(
+            errors.toString(),
+            contains('The signature of Project.Swiftie.Ana.app.tar.gz'),
+          );
+          expect(File(out).existsSync(), isFalse);
+        },
+      );
 
       test('uses the update key of the app by default', () async {
         List<String> decodedLines(String tauriText) =>

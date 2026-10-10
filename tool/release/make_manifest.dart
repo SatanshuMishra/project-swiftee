@@ -15,6 +15,8 @@ const manifestOptions = {
   'base-url',
   'mac-tar',
   'mac-sig',
+  'mac-ana-tar',
+  'mac-ana-sig',
   'win-exe',
   'win-sig',
   'win-open-exe',
@@ -24,7 +26,8 @@ const manifestOptions = {
 const usage =
     'usage: dart run tool/release/make_manifest.dart --version <x.y.z> '
     '--notes-file <file> --pub-date <rfc3339> --base-url <url> '
-    '--mac-tar <file> --mac-sig <file> --win-exe <file> --win-sig <file> '
+    '--mac-tar <file> --mac-sig <file> --mac-ana-tar <file> '
+    '--mac-ana-sig <file> --win-exe <file> --win-sig <file> '
     '--win-open-exe <file> --win-open-sig <file> --out <latest.json>';
 
 final rfc3339 = RegExp(
@@ -70,6 +73,7 @@ Map<String, Object> buildManifest({
   required String pubDate,
   required String baseUrl,
   required SignedArtifact macArchive,
+  required SignedArtifact macAnaArchive,
   required SignedArtifact windowsInstaller,
   required SignedArtifact windowsOpenInstaller,
 }) {
@@ -79,6 +83,11 @@ Map<String, Object> buildManifest({
   if (!rfc3339.hasMatch(pubDate)) {
     throw FormatException('pub_date "$pubDate" is not an RFC 3339 timestamp');
   }
+  if (macAnaArchive.fileName == macArchive.fileName) {
+    throw FormatException(
+      'The Ana archive ${macAnaArchive.fileName} is the Open archive',
+    );
+  }
   if (windowsOpenInstaller.fileName == windowsInstaller.fileName) {
     throw FormatException(
       'The Open installer ${windowsOpenInstaller.fileName} is the Ana '
@@ -86,6 +95,7 @@ Map<String, Object> buildManifest({
     );
   }
   final macEntry = platformEntry(baseUrl, macArchive);
+  final macAnaEntry = platformEntry(baseUrl, macAnaArchive);
   final windowsEntry = platformEntry(baseUrl, windowsInstaller);
   final windowsOpenEntry = platformEntry(baseUrl, windowsOpenInstaller);
   return Map.unmodifiable({
@@ -94,6 +104,7 @@ Map<String, Object> buildManifest({
     'pub_date': pubDate,
     'platforms': Map<String, Map<String, String>>.unmodifiable({
       for (final platform in macPlatforms) platform: macEntry,
+      UpdatePlatform.macosAna.manifestKey: macAnaEntry,
       for (final platform in windowsPlatforms) platform: windowsEntry,
       UpdatePlatform.windowsOpen.manifestKey: windowsOpenEntry,
     }),
@@ -159,11 +170,17 @@ Future<int> runMakeManifest(
     final options = parseOptions(arguments);
     String read(String option) => File(options[option]!).readAsStringSync();
     final macSignature = read('mac-sig');
+    final macAnaSignature = read('mac-ana-sig');
     final windowsSignature = read('win-sig');
     final windowsOpenSignature = read('win-open-sig');
     await verifyArtifact(
       artifactPath: options['mac-tar']!,
       signature: macSignature,
+      publicKey: publicKey,
+    );
+    await verifyArtifact(
+      artifactPath: options['mac-ana-tar']!,
+      signature: macAnaSignature,
       publicKey: publicKey,
     );
     await verifyArtifact(
@@ -184,6 +201,10 @@ Future<int> runMakeManifest(
       macArchive: SignedArtifact(
         fileName: p.basename(options['mac-tar']!),
         signature: macSignature,
+      ),
+      macAnaArchive: SignedArtifact(
+        fileName: p.basename(options['mac-ana-tar']!),
+        signature: macAnaSignature,
       ),
       windowsInstaller: SignedArtifact(
         fileName: p.basename(options['win-exe']!),

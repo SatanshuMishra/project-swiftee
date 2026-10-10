@@ -11,6 +11,7 @@ const updateCheckTimeout = Duration(seconds: 10);
 
 enum UpdatePlatform {
   macos('darwin-aarch64'),
+  macosAna('darwin-aarch64-ana'),
   windows('windows-x86_64'),
   windowsOpen('windows-x86_64-open');
 
@@ -20,7 +21,8 @@ enum UpdatePlatform {
 
   static UpdatePlatform? forBuild(String operatingSystem, Edition edition) =>
       switch ((operatingSystem, edition)) {
-        ('macos', _) => UpdatePlatform.macos,
+        ('macos', Edition.ana) => UpdatePlatform.macosAna,
+        ('macos', Edition.open) => UpdatePlatform.macos,
         ('windows', Edition.ana) => UpdatePlatform.windows,
         ('windows', Edition.open) => UpdatePlatform.windowsOpen,
         _ => null,
