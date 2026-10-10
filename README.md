@@ -6,8 +6,8 @@ cat-themed achievements, climb your high-score streak. Formerly
 Swiftie Quiz.
 
 It comes in two editions: the Ana edition, made for Ana, and the Open
-edition for everyone else. Each release ships three builds: macOS
-(Open), Windows Ana and Windows Open.
+edition for everyone else. Each release ships four builds: macOS Ana,
+macOS Open, Windows Ana and Windows Open.
 
 This is a personal/hobby project. Distribution is unsigned for now —
 the in-app updater is the update channel from v0.2.0 onward.
@@ -28,6 +28,7 @@ Download the latest version from the
 | Build | File |
 |---|---|
 | macOS (Open edition) | `Project.Swiftie_<version>_aarch64.dmg` |
+| macOS (Ana edition) | `Project.Swiftie.Ana_<version>_aarch64.dmg` |
 | Windows, Ana edition | `Project.Swiftie_<version>_x64-setup.exe` |
 | Windows, Open edition | `Project.Swiftie.Open_<version>_x64-setup.exe` |
 
@@ -82,9 +83,13 @@ dart format --output=none --set-exit-if-changed lib test tool
 # run a chosen edition (ana or open; without the define it is open)
 flutter run -d macos --dart-define=EDITION=ana
 
-# build and package for macOS (on a Mac): Project Swiftie_<version>_aarch64.dmg + Project Swiftie.app.tar.gz
+# build and package for macOS (on a Mac), one edition per build:
+# open: Project Swiftie_<version>_aarch64.dmg + Project Swiftie.app.tar.gz
 flutter build macos --release --dart-define=EDITION=open
-tool/release/package_macos.sh 0.3.0
+tool/release/package_macos.sh 0.3.0 open
+# ana: Project Swiftie Ana_<version>_aarch64.dmg + Project Swiftie Ana.app.tar.gz
+flutter build macos --release --dart-define=EDITION=ana
+tool/release/package_macos.sh 0.3.0 ana
 
 # build and package for Windows (on Windows, with NSIS 3), one edition per build:
 # Project Swiftie_<version>_x64-setup.exe (ana) or Project Swiftie Open_<version>_x64-setup.exe (open)

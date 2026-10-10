@@ -233,10 +233,9 @@ void main() {
         expect(build['if'], isNull);
       }
       expect(runsOf(macos), contains('flutter build macos --release'));
-      expect(
-        runsOf(macos).where((run) => run.contains('package_macos.sh')),
-        hasLength(1),
-      );
+      expect(runsOf(macos).where((run) => run.contains('package_macos.sh')), [
+        contains(r'package_macos.sh "$version" open'),
+      ]);
       expect(
         runsOf(windows),
         contains('flutter build windows --release --dart-define=EDITION=ana'),
@@ -425,9 +424,10 @@ void main() {
       final builds = {
         'build-macos': (
           runner: 'macos-26',
-          build: 'flutter build macos --release --dart-define=EDITION=open',
+          build:
+              r'flutter build macos --release --dart-define=EDITION="$EDITION"',
           package: 'tool/release/package_macos.sh',
-          signed: 'Project Swiftie.app.tar.gz',
+          signed: r'${PRODUCT}.app.tar.gz',
         ),
         'build-windows': (
           runner: 'windows-2025',
@@ -507,6 +507,7 @@ void main() {
       for (final platform in [
         'darwin-aarch64',
         'darwin-aarch64-app',
+        'darwin-aarch64-ana',
         'windows-x86_64',
         'windows-x86_64-nsis',
         'windows-x86_64-open',
@@ -549,8 +550,66 @@ void main() {
       }
     });
 
-    test('attestations cover the archive, the DMG and the setup '
-        'executable', () {
+    test('latest.json carries the macOS Ana archive and the publish check '
+        'requires six keys', () {
+      final manifestJob = job(release, 'publish-manifest');
+      final downloads = [
+        for (final step in stepsOf(manifestJob))
+          if (usesAction(step, 'actions/download-artifact@'))
+            step['with'] as YamlMap,
+      ];
+      final manifestRun =
+          stepsOf(
+                manifestJob,
+              ).singleWhere((s) => runsCommand(s, 'make_manifest.dart'))['run']
+              as String;
+      final verify =
+          stepsOf(manifestJob).singleWhere(
+                (s) => runsCommand(s, 'latest.json is not publishable'),
+              )['run']
+              as String;
+
+      for (final edition in ['ana', 'open']) {
+        expect(
+          downloads.where(
+            (settings) =>
+                settings['name'] == 'macos-$edition-bundles' &&
+                settings['path'] == 'artifacts/macos-$edition',
+          ),
+          hasLength(1),
+          reason: edition,
+        );
+      }
+      expect(
+        downloads.where((settings) => settings['name'] == 'macos-bundles'),
+        isEmpty,
+      );
+      expect(
+        manifestRun,
+        contains('artifacts/macos-open/Project.Swiftie.app.tar.gz.sig'),
+      );
+      expect(
+        manifestRun,
+        contains('artifacts/macos-ana/Project.Swiftie.Ana.app.tar.gz.sig'),
+      );
+      expect(
+        manifestRun,
+        matches(RegExp(r'for sig in [^\n]*"\$mac_ana_sig"[^\n]*; do')),
+      );
+      expect(manifestRun, contains(r'--mac-ana-tar "${mac_ana_sig%.sig}"'));
+      expect(manifestRun, contains(r'--mac-ana-sig "$mac_ana_sig"'));
+      expect(
+        verify,
+        contains(
+          'for platform in darwin-aarch64 darwin-aarch64-app '
+          'darwin-aarch64-ana windows-x86_64 windows-x86_64-nsis '
+          'windows-x86_64-open; do',
+        ),
+      );
+    });
+
+    test('attestations cover both macos editions and both windows '
+        'editions', () {
       final attest = job(release, 'attest');
       final provenance = stepsOf(
         attest,
@@ -563,24 +622,86 @@ void main() {
         'id-token': 'write',
         'attestations': 'write',
       });
-      expect(subjects, contains('*.app.tar.gz'));
-      expect(subjects, contains('*.dmg'));
-      for (final edition in ['ana', 'open']) {
-        expect(subjects, contains('artifacts/windows-$edition/**/*-setup.exe'));
+      for (final name in [
+        'macos-ana',
+        'macos-open',
+        'windows-ana',
+        'windows-open',
+      ]) {
         expect(
           stepsOf(attest).where(
             (s) =>
                 usesAction(s, 'actions/download-artifact@') &&
-                (s['with'] as YamlMap)['name'] == 'windows-$edition-bundles' &&
-                (s['with'] as YamlMap)['path'] == 'artifacts/windows-$edition',
+                (s['with'] as YamlMap)['name'] == '$name-bundles' &&
+                (s['with'] as YamlMap)['path'] == 'artifacts/$name',
           ),
           hasLength(1),
-          reason: edition,
+          reason: name,
         );
+      }
+      for (final subject in [
+        'artifacts/macos-ana/**/*.app.tar.gz',
+        'artifacts/macos-ana/**/*.dmg',
+        'artifacts/macos-open/**/*.app.tar.gz',
+        'artifacts/macos-open/**/*.dmg',
+        'artifacts/windows-ana/**/*-setup.exe',
+        'artifacts/windows-open/**/*-setup.exe',
+      ]) {
+        expect(subjects, contains(subject));
       }
     });
 
-    test('the release builds macos open and both windows editions', () {
+    test('the release builds both macos editions and both windows '
+        'editions', () {
+      final macos = job(release, 'build-macos');
+      final macosLegs = matrixLegs(macos);
+      const macosProducts = {
+        'ana': 'Project Swiftie Ana',
+        'open': 'Project Swiftie',
+      };
+
+      expect([for (final leg in macosLegs) leg['edition']], ['ana', 'open']);
+      for (final leg in macosLegs) {
+        final edition = leg['edition'] as String;
+        final env = legEnv(macos, leg);
+        final runs = [
+          for (final run in runsOf(macos)) resolveLeg(run, leg, env),
+        ];
+        final upload = stepsOf(macos)
+            .singleWhere((s) => usesAction(s, 'actions/upload-artifact@'));
+        final uploadSettings = upload['with'] as YamlMap;
+
+        expect(
+          runs,
+          contains(
+            'flutter build macos --release --dart-define=EDITION="$edition"',
+          ),
+          reason: edition,
+        );
+        expect(runs.where((run) => run.contains('package_macos.sh')), [
+          contains('"\$VERSION" "$edition"'),
+        ], reason: edition);
+        expect(runs.where((run) => run.contains(signCommand)), [
+          '$signCommand "build/release/${macosProducts[edition]}.app.tar.gz"',
+        ], reason: edition);
+        expect(runs.where((run) => run.contains('gh release upload')), [
+          contains('build/upload/*'),
+        ], reason: edition);
+        expect(
+          resolveLeg('${uploadSettings['name']}', leg, env),
+          'macos-$edition-bundles',
+        );
+        expect(
+          '${uploadSettings['path']}'.trim().split('\n'),
+          containsAll([
+            'build/upload/*.app.tar.gz',
+            'build/upload/*.app.tar.gz.sig',
+            'build/upload/*.dmg',
+          ]),
+          reason: edition,
+        );
+      }
+
       final windows = job(release, 'build-windows');
       final legs = matrixLegs(windows);
       const products = {
@@ -588,10 +709,6 @@ void main() {
         'open': 'Project Swiftie Open',
       };
 
-      expect(
-        runsOf(job(release, 'build-macos')),
-        contains('flutter build macos --release --dart-define=EDITION=open'),
-      );
       expect([for (final leg in legs) leg['edition']], ['ana', 'open']);
       for (final leg in legs) {
         final edition = leg['edition'] as String;
@@ -651,15 +768,35 @@ void main() {
       );
       expect(manifestRun, contains('--win-open-exe "\${win_open_sig%.sig}"'));
       expect(manifestRun, contains('--win-open-sig "\$win_open_sig"'));
-      expect(
-        stepsOf(manifestJob).singleWhere(
-          (s) => runsCommand(s, 'latest.json is not publishable'),
-        )['run'],
-        contains(
-          'for platform in darwin-aarch64 darwin-aarch64-app windows-x86_64 '
-          'windows-x86_64-nsis windows-x86_64-open; do',
-        ),
+    });
+
+    test('ci tests macos packaging on macos and packages the open '
+        'edition', () {
+      const packagingTest = 'flutter test test/tool/package_macos_test.dart';
+      final macos = job(ci, 'build-macos');
+      final steps = stepsOf(macos);
+      final tests = steps.where((s) => s['run'] == packagingTest);
+      final testIndex = indexOfStep(macos, (s) => s['run'] == packagingTest);
+      final setup = indexOfStep(macos, (s) => usesAction(s, flutterAction));
+      final build = indexOfStep(
+        macos,
+        (s) => s['run'] == 'flutter build macos --release',
       );
+      final package = indexOfStep(
+        macos,
+        (s) => runsCommand(s, 'package_macos.sh'),
+      );
+
+      expect(tests, hasLength(1));
+      expect(tests.single['if'], entryPointCondition);
+      expect(testIndex, greaterThan(setup));
+      expect(build, greaterThan(testIndex));
+      expect(package, greaterThan(testIndex));
+      expect(
+        steps[package]['run'],
+        contains(r'package_macos.sh "$version" open'),
+      );
+      expect(runsOf(macos), contains('flutter build macos --release'));
     });
 
     test('every job has a timeout', () {
