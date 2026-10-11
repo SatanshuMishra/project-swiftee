@@ -83,6 +83,10 @@ Map<String, Object> fixtureManifest({
   windowsOpenInstaller: windowsOpen,
 );
 
+Matcher throwsFormatMessage(String message) => throwsA(
+  isA<FormatException>().having((error) => error.message, 'message', message),
+);
+
 void main() {
   group('latest.json carries every platform', () {
     test('writes version, notes, pub_date and the six platform keys', () {
@@ -92,8 +96,8 @@ void main() {
       expect(encoded, encodeManifest(expectedManifest));
     });
 
-    test('macOS keys share the .app.tar.gz and Windows keys share the setup '
-        'exe', () {
+    test('the Open macOS keys share the Open archive, Ana has its own, and '
+        'Windows keys share the setup exe', () {
       final platforms = fixtureManifest()['platforms']! as Map<String, Object>;
 
       expect(platforms.keys, [
@@ -215,6 +219,175 @@ void main() {
       }
     });
 
+    test('refuses a manifest whose macOS archives are swapped', () async {
+      const fixtures = 'test/fixtures/updater';
+      SignedArtifact named(String fileName, String signature) =>
+          SignedArtifact(fileName: fileName, signature: signature);
+
+      expect(
+        () => buildManifest(
+          version: '0.3.0',
+          notes: 'notes',
+          pubDate: '2026-10-05T12:00:00Z',
+          baseUrl: baseUrl,
+          macArchive: named('Project.Swiftie.Ana.app.tar.gz', 'c2lnLWFuYQ=='),
+          macAnaArchive: named('Project.Swiftie.app.tar.gz', 'c2lnLW9wZW4='),
+          windowsInstaller: named(
+            'Project.Swiftie_0.3.0_x64-setup.exe',
+            'c2lnLXdpbg==',
+          ),
+          windowsOpenInstaller: named(
+            'Project.Swiftie.Open_0.3.0_x64-setup.exe',
+            'c2lnLXdpbi1vcGVu',
+          ),
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            allOf(
+              contains('must point at'),
+              contains('Project.Swiftie.Ana.app.tar.gz'),
+            ),
+          ),
+        ),
+      );
+
+      final temp = Directory.systemTemp.createTempSync('swiftie_swap_');
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final signature = File('$fixtures/artifact.bin.sig').readAsStringSync();
+      final testKey = File('$fixtures/test_key.pub').readAsStringSync().trim();
+      String artefact(String name) {
+        File('$fixtures/artifact.bin').copySync('${temp.path}/$name');
+        File('${temp.path}/$name.sig').writeAsStringSync(signature);
+        return '${temp.path}/$name';
+      }
+
+      final open = artefact('Project.Swiftie.app.tar.gz');
+      final ana = artefact('Project.Swiftie.Ana.app.tar.gz');
+      final windows = artefact('Project.Swiftie_0.3.0_x64-setup.exe');
+      final windowsOpen = artefact('Project.Swiftie.Open_0.3.0_x64-setup.exe');
+      final notesFile = File('${temp.path}/notes.md')..writeAsStringSync('n\n');
+      final out = '${temp.path}/latest.json';
+      final errors = StringBuffer();
+
+      final code = await runMakeManifest(
+        [
+          '--version',
+          '0.3.0',
+          '--notes-file',
+          notesFile.path,
+          '--pub-date',
+          '2026-10-05T12:00:00Z',
+          '--base-url',
+          baseUrl,
+          '--mac-tar',
+          ana,
+          '--mac-sig',
+          '$ana.sig',
+          '--mac-ana-tar',
+          open,
+          '--mac-ana-sig',
+          '$open.sig',
+          '--win-exe',
+          windows,
+          '--win-sig',
+          '$windows.sig',
+          '--win-open-exe',
+          windowsOpen,
+          '--win-open-sig',
+          '$windowsOpen.sig',
+          '--out',
+          out,
+        ],
+        output: StringBuffer(),
+        errors: errors,
+        publicKey: testKey,
+      );
+
+      expect(code, 64, reason: errors.toString());
+      expect(errors.toString(), contains('must point at'));
+      expect(File(out).existsSync(), isFalse);
+    });
+
+    test('refuses an artefact under another key', () {
+      for (final (build, message) in [
+        (
+          () => fixtureManifest(
+            windowsOpen: const SignedArtifact(
+              fileName: 'Project.Swiftie.Ana.app.tar.gz',
+              signature: windowsOpenSignature,
+            ),
+          ),
+          'windows-x86_64-open must point at '
+              'Project.Swiftie.Open_0.3.0_x64-setup.exe, not '
+              'Project.Swiftie.Ana.app.tar.gz',
+        ),
+        (
+          () => fixtureManifest(
+            macAna: const SignedArtifact(
+              fileName: 'Project.Swiftie.Open_0.3.0_x64-setup.exe',
+              signature: macAnaSignature,
+            ),
+          ),
+          'darwin-aarch64-ana must point at Project.Swiftie.Ana.app.tar.gz, '
+              'not Project.Swiftie.Open_0.3.0_x64-setup.exe',
+        ),
+        (
+          () => fixtureManifest(
+            windows: const SignedArtifact(
+              fileName: 'Project.Swiftie.Open_0.3.0_x64-setup.exe',
+              signature: windowsSignature,
+            ),
+            windowsOpen: const SignedArtifact(
+              fileName: 'Project.Swiftie_0.3.0_x64-setup.exe',
+              signature: windowsOpenSignature,
+            ),
+          ),
+          'windows-x86_64 must point at Project.Swiftie_0.3.0_x64-setup.exe, '
+              'not Project.Swiftie.Open_0.3.0_x64-setup.exe',
+        ),
+        (
+          () => fixtureManifest(
+            windows: const SignedArtifact(
+              fileName: 'Project.Swiftie_0.2.9_x64-setup.exe',
+              signature: windowsSignature,
+            ),
+          ),
+          'windows-x86_64 must point at Project.Swiftie_0.3.0_x64-setup.exe, '
+              'not Project.Swiftie_0.2.9_x64-setup.exe',
+        ),
+      ]) {
+        expect(build, throwsFormatMessage(message), reason: message);
+      }
+    });
+
+    test('keeps the identical-name refusals', () {
+      expect(
+        () => fixtureManifest(
+          macAna: const SignedArtifact(
+            fileName: 'Project.Swiftie.app.tar.gz',
+            signature: macAnaSignature,
+          ),
+        ),
+        throwsFormatMessage(
+          'The Ana archive Project.Swiftie.app.tar.gz is the Open archive',
+        ),
+      );
+      expect(
+        () => fixtureManifest(
+          windowsOpen: const SignedArtifact(
+            fileName: 'Project.Swiftie_0.3.0_x64-setup.exe',
+            signature: windowsOpenSignature,
+          ),
+        ),
+        throwsFormatMessage(
+          'The Open installer Project.Swiftie_0.3.0_x64-setup.exe is the Ana '
+          'installer',
+        ),
+      );
+    });
+
     test('refuses a command line without the macOS Ana archive', () {
       expect(
         () => parseOptions([
@@ -243,33 +416,21 @@ void main() {
     });
 
     test('percent-encodes file names in the release download URL', () {
-      final platforms =
-          fixtureManifest(
-                mac: const SignedArtifact(
-                  fileName: 'Project Swiftie.app.tar.gz',
-                  signature: macSignature,
-                ),
-                windows: const SignedArtifact(
-                  fileName: 'Project Swiftie_0.3.0_x64-setup.exe',
-                  signature: windowsSignature,
-                ),
-                windowsOpen: const SignedArtifact(
-                  fileName: 'Project Swiftie Open_0.3.0_x64-setup.exe',
-                  signature: windowsOpenSignature,
-                ),
-              )['platforms']!
-              as Map<String, Map<String, String>>;
+      String urlOf(String fileName, String signature) => platformEntry(
+        baseUrl,
+        SignedArtifact(fileName: fileName, signature: signature),
+      )['url']!;
 
       expect(
-        platforms['darwin-aarch64']!['url'],
+        urlOf('Project Swiftie.app.tar.gz', macSignature),
         '$baseUrl/Project%20Swiftie.app.tar.gz',
       );
       expect(
-        platforms['windows-x86_64-nsis']!['url'],
-        '$baseUrl/Project%20Swiftie_0.3.0_x64-setup.exe',
+        urlOf('Project Swiftie Ana.app.tar.gz', macAnaSignature),
+        '$baseUrl/Project%20Swiftie%20Ana.app.tar.gz',
       );
       expect(
-        platforms['windows-x86_64-open']!['url'],
+        urlOf('Project Swiftie Open_0.3.0_x64-setup.exe', windowsOpenSignature),
         '$baseUrl/Project%20Swiftie%20Open_0.3.0_x64-setup.exe',
       );
     });
@@ -427,6 +588,51 @@ void main() {
           'windows-x86_64-open',
         ]);
         expect(File(out).readAsStringSync(), endsWith('}\n'));
+      });
+
+      test('writes each signature under its own key', () async {
+        final out = '${temp.path}/latest.json';
+        final complete = arguments(out);
+        final lines = utf8.decode(base64.decode(signature)).split('\n');
+        String commented(String comment) => base64.encode(
+          utf8.encode(
+            ['untrusted comment: $comment', ...lines.skip(1)].join('\n'),
+          ),
+        );
+        final mac = commented('mac');
+        final macAna = commented('mac-ana');
+        final win = commented('win');
+        final winOpen = commented('win-open');
+        for (final (name, text) in [
+          ('Project.Swiftie.app.tar.gz', mac),
+          ('Project.Swiftie.Ana.app.tar.gz', macAna),
+          ('Project.Swiftie_0.3.0_x64-setup.exe', win),
+          ('Project.Swiftie.Open_0.3.0_x64-setup.exe', winOpen),
+        ]) {
+          write('$name.sig', '$text\n');
+        }
+
+        final code = await run(complete);
+
+        expect(code, 0, reason: errors.toString());
+        expect({mac, macAna, win, winOpen}, hasLength(4));
+        final written =
+            jsonDecode(File(out).readAsStringSync()) as Map<String, Object?>;
+        final platforms = written['platforms']! as Map<String, Object?>;
+        expect(
+          {
+            for (final MapEntry(:key, :value) in platforms.entries)
+              key: (value! as Map<String, Object?>)['signature'],
+          },
+          {
+            'darwin-aarch64': mac,
+            'darwin-aarch64-app': mac,
+            'darwin-aarch64-ana': macAna,
+            'windows-x86_64': win,
+            'windows-x86_64-nsis': win,
+            'windows-x86_64-open': winOpen,
+          },
+        );
       });
 
       test('refuses missing, unknown and repeated options', () async {
