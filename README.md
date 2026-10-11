@@ -59,7 +59,7 @@ update to it through their own updater, and your save carries over.
 Swiftie Quiz copies update to Project Swiftie the same way: Windows
 copies become the Ana edition and macOS copies the Open edition, in
 their existing install folder (see
-[the three-editions decision](docs/decisions/2026-10-06-three-editions.md)).
+[Editions and builds under the Project Swiftie name](docs/decisions/2026-10-06-three-editions.md)).
 
 ## Development
 
