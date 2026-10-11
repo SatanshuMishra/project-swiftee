@@ -241,15 +241,9 @@ void main() {
             'c2lnLXdpbi1vcGVu',
           ),
         ),
-        throwsA(
-          isA<FormatException>().having(
-            (error) => error.message,
-            'message',
-            allOf(
-              contains('must point at'),
-              contains('Project.Swiftie.Ana.app.tar.gz'),
-            ),
-          ),
+        throwsFormatMessage(
+          'darwin-aarch64 must point at Project.Swiftie.app.tar.gz, '
+          'not Project.Swiftie.Ana.app.tar.gz',
         ),
       );
 
@@ -356,6 +350,16 @@ void main() {
           ),
           'windows-x86_64 must point at Project.Swiftie_0.3.0_x64-setup.exe, '
               'not Project.Swiftie_0.2.9_x64-setup.exe',
+        ),
+        (
+          () => fixtureManifest(
+            mac: const SignedArtifact(
+              fileName: 'Project.Swiftie_0.3.0_x64-setup.exe',
+              signature: macSignature,
+            ),
+          ),
+          'darwin-aarch64 must point at Project.Swiftie.app.tar.gz, '
+              'not Project.Swiftie_0.3.0_x64-setup.exe',
         ),
       ]) {
         expect(build, throwsFormatMessage(message), reason: message);
