@@ -331,9 +331,13 @@ void main() {
       () async {
         final stubs = Directory('${root.path}/stubs')..createSync();
         final codesign = '${stubs.path}/codesign';
+        final log = File('${stubs.path}/codesign.log');
         File(codesign).writeAsStringSync(
           [
             '#!/bin/sh',
+            "log='${log.path}'",
+            r'printf "%s\n" "$@" >> "$log"',
+            r'echo "=== end of call" >> "$log"',
             r'for a in "$@"; do [ "$a" = "--verify" ] && exit 1; done',
             r'exec /usr/bin/codesign "$@"',
             '',
@@ -344,8 +348,15 @@ void main() {
         final environment = {
           'PATH': '${stubs.path}:${Platform.environment['PATH']}',
         };
+        final builtApp = '${root.path}/$builtAppPath';
+        final signedApp = {
+          'ana': allOf(endsWith('/Project Swiftie Ana.app'), isNot(builtApp)),
+          'open': equals(builtApp),
+        };
 
         for (final edition in const ['ana', 'open']) {
+          log.writeAsStringSync('');
+
           final result = await runScript(root, [
             '0.5.4',
             edition,
@@ -361,6 +372,19 @@ void main() {
             isFalse,
             reason: edition,
           );
+
+          final calls = log
+              .readAsStringSync()
+              .split('=== end of call\n')
+              .where((call) => call.isNotEmpty)
+              .map(const LineSplitter().convert)
+              .toList();
+          final signs = calls.where((call) => call.contains('--sign'));
+          final verifies = calls.where((call) => call.contains('--verify'));
+          expect(signs, hasLength(1), reason: '$edition\n$calls');
+          expect(verifies, hasLength(1), reason: '$edition\n$calls');
+          expect(verifies.single.last, signs.single.last, reason: edition);
+          expect(signs.single.last, signedApp[edition], reason: edition);
         }
       },
       timeout: packaging,
