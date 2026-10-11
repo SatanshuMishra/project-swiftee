@@ -770,6 +770,43 @@ void main() {
       expect(manifestRun, contains('--win-open-sig "\$win_open_sig"'));
     });
 
+    test('publish-manifest passes each artefact under its own option', () {
+      final manifestRun =
+          stepsOf(
+                job(release, 'publish-manifest'),
+              ).singleWhere((s) => runsCommand(s, 'make_manifest.dart'))['run']
+              as String;
+      const assignments = [
+        r'mac_sig="artifacts/macos-open/Project.Swiftie.app.tar.gz.sig"',
+        r'mac_ana_sig="artifacts/macos-ana/Project.Swiftie.Ana.app.tar.gz.sig"',
+        r'win_sig="artifacts/windows-ana/Project.Swiftie_${VERSION}_x64-setup.exe.sig"',
+        r'win_open_sig="artifacts/windows-open/Project.Swiftie.Open_${VERSION}_x64-setup.exe.sig"',
+      ];
+      for (final line in assignments) {
+        expect(
+          RegExp(
+            '^ *${RegExp.escape(line)}\$',
+            multiLine: true,
+          ).allMatches(manifestRun),
+          hasLength(1),
+          reason: line,
+        );
+      }
+      const options = [
+        r'--mac-tar "${mac_sig%.sig}"',
+        r'--mac-sig "$mac_sig"',
+        r'--mac-ana-tar "${mac_ana_sig%.sig}"',
+        r'--mac-ana-sig "$mac_ana_sig"',
+        r'--win-exe "${win_sig%.sig}"',
+        r'--win-sig "$win_sig"',
+        r'--win-open-exe "${win_open_sig%.sig}"',
+        r'--win-open-sig "$win_open_sig"',
+      ];
+      for (final option in options) {
+        expect(option.allMatches(manifestRun), hasLength(1), reason: option);
+      }
+    });
+
     test('ci tests macos packaging on macos and packages the open '
         'edition', () {
       const packagingTest = 'flutter test test/tool/package_macos_test.dart';
