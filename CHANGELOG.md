@@ -4,6 +4,11 @@ All notable changes to Swiftie Quiz are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.5] - 2026-10-10
+
+### Added
+- The Ana edition now comes to macOS as its own app, Project Swiftie Ana, which installs beside Project Swiftie and updates to the next Ana build instead of turning into the Open edition. The two apps share one save, so keep only one of them open at a time.
+
 ## [0.5.4] - 2026-10-08
 
 ### Changed
