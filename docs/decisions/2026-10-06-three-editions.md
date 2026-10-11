@@ -1,4 +1,4 @@
-# Three editions under the Project Swiftie name
+# Editions and builds under the Project Swiftie name
 
 Date: 2026-10-06
 
@@ -32,7 +32,7 @@ The two macOS builds run as one matrix job, `build-macos`, with one leg per edit
 | `windows-x86_64-nsis` | Windows Ana installer | Tauri-era Windows copies (v0.2.x); the key is kept from the Tauri manifest |
 | `windows-x86_64-open` | Windows Open installer | Flutter Windows Open copies, which first ship in this release |
 
-`tool/release/make_manifest.dart` verifies all four signatures against the update key built into the app before it writes `latest.json`. It refuses a missing or unsigned Open installer, and an Open installer that is the Ana installer. It refuses a missing or unsigned macOS Ana archive the same way, and a macOS Ana archive that is the Open archive. The publish check in `release.yml` then refuses the release unless all six keys carry a URL and signature for an asset of this release.
+`tool/release/make_manifest.dart` verifies all four signatures against the update key built into the app before it writes `latest.json`. It also refuses any artefact not named as expected for its key: `darwin-aarch64` and `darwin-aarch64-app` need `Project.Swiftie.app.tar.gz`, `darwin-aarch64-ana` needs `Project.Swiftie.Ana.app.tar.gz`, `windows-x86_64` and `windows-x86_64-nsis` need `Project.Swiftie_<version>_x64-setup.exe`, and `windows-x86_64-open` needs `Project.Swiftie.Open_<version>_x64-setup.exe`. This stops a swapped or mislabelled artefact before `latest.json` is written. It refuses a missing or unsigned Open installer, and an Open installer that is the Ana installer. It refuses a missing or unsigned macOS Ana archive the same way, and a macOS Ana archive that is the Open archive. The publish check in `release.yml` then refuses the release unless all six keys carry a URL and signature for an asset of this release.
 
 Every later release must keep all six keys. A Windows Open copy that reads a `latest.json` without `windows-x86_64-open` reports "Update issue" until a release with the key is the latest, and so does a macOS Ana copy that reads one without `darwin-aarch64-ana`.
 
