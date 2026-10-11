@@ -83,6 +83,11 @@ jobs:
           flutter-version: "3.47.5"
           cache: true
 
+      - name: Test macOS packaging on macOS
+        if: steps.app.outputs.present == 'true'
+        shell: bash
+        run: flutter test test/tool/package_macos_test.dart
+
       - name: Build the macOS app
         if: steps.app.outputs.present == 'true'
         run: flutter build macos --release
@@ -93,7 +98,7 @@ jobs:
         run: |
           set -euo pipefail
           version=$(sed -n -E 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml | head -n 1)
-          tool/release/package_macos.sh "$version"
+          tool/release/package_macos.sh "$version" open
 
       - name: Upload build artifacts
         if: steps.app.outputs.present == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)

@@ -87,6 +87,12 @@ void main() {
     });
 
     test('each build reads its own manifest key', () async {
+      const macAnaEntry = {
+        'signature': 'macos-ana-signature',
+        'url':
+            'https://github.com/SatanshuMishra/project-swiftee/releases/'
+            'download/v0.3.0/Project.Swiftie.Ana.app.tar.gz',
+      };
       const openEntry = {
         'signature': 'windows-open-signature',
         'url':
@@ -96,12 +102,13 @@ void main() {
       final manifest = _manifestWith({
         'platforms': {
           'darwin-aarch64': _platformEntry('darwin-aarch64'),
+          'darwin-aarch64-ana': macAnaEntry,
           'windows-x86_64': _platformEntry('windows-x86_64'),
           'windows-x86_64-open': openEntry,
         },
       });
       final builds = {
-        ('macos', Edition.ana): 'darwin-aarch64',
+        ('macos', Edition.ana): 'darwin-aarch64-ana',
         ('macos', Edition.open): 'darwin-aarch64',
         ('windows', Edition.ana): 'windows-x86_64',
         ('windows', Edition.open): 'windows-x86_64-open',
@@ -133,6 +140,57 @@ void main() {
       for (final edition in Edition.values) {
         expect(UpdatePlatform.forBuild('linux', edition), isNull);
       }
+    });
+
+    test('the macOS Ana build reads darwin-aarch64-ana', () async {
+      const releases =
+          'https://github.com/SatanshuMishra/project-swiftee/releases/'
+          'download/v0.3.0';
+      const macEntry = {
+        'signature': 'macos-signature',
+        'url': '$releases/Project.Swiftie.app.tar.gz',
+      };
+      const macAnaEntry = {
+        'signature': 'macos-ana-signature',
+        'url': '$releases/Project.Swiftie.Ana.app.tar.gz',
+      };
+      final platforms = {
+        'darwin-aarch64': macEntry,
+        'darwin-aarch64-app': _platformEntry('darwin-aarch64-app'),
+        'darwin-aarch64-ana': macAnaEntry,
+        'windows-x86_64': _platformEntry('windows-x86_64'),
+        'windows-x86_64-nsis': {
+          'signature': 'windows-nsis-signature',
+          'url': '$releases/Project.Swiftie_0.3.0_x64-setup.exe',
+        },
+        'windows-x86_64-open': {
+          'signature': 'windows-open-signature',
+          'url': '$releases/Project.Swiftie.Open_0.3.0_x64-setup.exe',
+        },
+      };
+      expect({
+        for (final entry in platforms.values) entry['url'],
+      }, hasLength(6));
+      expect({
+        for (final entry in platforms.values) entry['signature'],
+      }, hasLength(6));
+
+      final macAna = UpdatePlatform.forBuild('macos', Edition.ana);
+      expect(macAna?.manifestKey, 'darwin-aarch64-ana');
+      expect(
+        UpdatePlatform.forBuild('macos', Edition.open)?.manifestKey,
+        'darwin-aarch64',
+      );
+
+      final update = await _clientFor(
+        _serving(_manifestWith({'platforms': platforms})),
+        platform: macAna!,
+      ).check('0.2.0');
+
+      expect(update?.url, Uri.parse(macAnaEntry['url']!));
+      expect(update?.signature, macAnaEntry['signature']);
+      expect(update?.url, isNot(Uri.parse(macEntry['url']!)));
+      expect(update?.signature, isNot(macEntry['signature']));
     });
 
     test(

@@ -7,6 +7,8 @@ import 'package:swiftie_quiz/services/updater/minisign.dart' as minisign;
 import 'package:swiftie_quiz/services/updater/update_config.dart';
 
 const macPlatforms = ['darwin-aarch64', 'darwin-aarch64-app'];
+const macArchiveName = 'Project.Swiftie.app.tar.gz';
+const macAnaArchiveName = 'Project.Swiftie.Ana.app.tar.gz';
 const windowsPlatforms = ['windows-x86_64', 'windows-x86_64-nsis'];
 const manifestOptions = {
   'version',
@@ -15,6 +17,8 @@ const manifestOptions = {
   'base-url',
   'mac-tar',
   'mac-sig',
+  'mac-ana-tar',
+  'mac-ana-sig',
   'win-exe',
   'win-sig',
   'win-open-exe',
@@ -24,8 +28,15 @@ const manifestOptions = {
 const usage =
     'usage: dart run tool/release/make_manifest.dart --version <x.y.z> '
     '--notes-file <file> --pub-date <rfc3339> --base-url <url> '
-    '--mac-tar <file> --mac-sig <file> --win-exe <file> --win-sig <file> '
+    '--mac-tar <file> --mac-sig <file> --mac-ana-tar <file> '
+    '--mac-ana-sig <file> --win-exe <file> --win-sig <file> '
     '--win-open-exe <file> --win-open-sig <file> --out <latest.json>';
+
+String windowsInstallerName(String version) =>
+    'Project.Swiftie_${version}_x64-setup.exe';
+
+String windowsOpenInstallerName(String version) =>
+    'Project.Swiftie.Open_${version}_x64-setup.exe';
 
 final rfc3339 = RegExp(
   r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$',
@@ -70,6 +81,7 @@ Map<String, Object> buildManifest({
   required String pubDate,
   required String baseUrl,
   required SignedArtifact macArchive,
+  required SignedArtifact macAnaArchive,
   required SignedArtifact windowsInstaller,
   required SignedArtifact windowsOpenInstaller,
 }) {
@@ -79,13 +91,39 @@ Map<String, Object> buildManifest({
   if (!rfc3339.hasMatch(pubDate)) {
     throw FormatException('pub_date "$pubDate" is not an RFC 3339 timestamp');
   }
+  if (macAnaArchive.fileName == macArchive.fileName) {
+    throw FormatException(
+      'The Ana archive ${macAnaArchive.fileName} is the Open archive',
+    );
+  }
   if (windowsOpenInstaller.fileName == windowsInstaller.fileName) {
     throw FormatException(
       'The Open installer ${windowsOpenInstaller.fileName} is the Ana '
       'installer',
     );
   }
+  for (final (key, expected, artifact) in [
+    (UpdatePlatform.macos.manifestKey, macArchiveName, macArchive),
+    (UpdatePlatform.macosAna.manifestKey, macAnaArchiveName, macAnaArchive),
+    (
+      UpdatePlatform.windows.manifestKey,
+      windowsInstallerName(version),
+      windowsInstaller,
+    ),
+    (
+      UpdatePlatform.windowsOpen.manifestKey,
+      windowsOpenInstallerName(version),
+      windowsOpenInstaller,
+    ),
+  ]) {
+    if (artifact.fileName != expected) {
+      throw FormatException(
+        '$key must point at $expected, not ${artifact.fileName}',
+      );
+    }
+  }
   final macEntry = platformEntry(baseUrl, macArchive);
+  final macAnaEntry = platformEntry(baseUrl, macAnaArchive);
   final windowsEntry = platformEntry(baseUrl, windowsInstaller);
   final windowsOpenEntry = platformEntry(baseUrl, windowsOpenInstaller);
   return Map.unmodifiable({
@@ -94,6 +132,7 @@ Map<String, Object> buildManifest({
     'pub_date': pubDate,
     'platforms': Map<String, Map<String, String>>.unmodifiable({
       for (final platform in macPlatforms) platform: macEntry,
+      UpdatePlatform.macosAna.manifestKey: macAnaEntry,
       for (final platform in windowsPlatforms) platform: windowsEntry,
       UpdatePlatform.windowsOpen.manifestKey: windowsOpenEntry,
     }),
@@ -149,6 +188,23 @@ Future<void> verifyArtifact({
   }
 }
 
+Future<SignedArtifact> verifiedArtifact({
+  required String artifactPath,
+  required String signaturePath,
+  required String publicKey,
+}) async {
+  final signature = File(signaturePath).readAsStringSync();
+  await verifyArtifact(
+    artifactPath: artifactPath,
+    signature: signature,
+    publicKey: publicKey,
+  );
+  return SignedArtifact(
+    fileName: p.basename(artifactPath),
+    signature: signature,
+  );
+}
+
 Future<int> runMakeManifest(
   List<String> arguments, {
   required StringSink output,
@@ -157,42 +213,25 @@ Future<int> runMakeManifest(
 }) async {
   try {
     final options = parseOptions(arguments);
-    String read(String option) => File(options[option]!).readAsStringSync();
-    final macSignature = read('mac-sig');
-    final windowsSignature = read('win-sig');
-    final windowsOpenSignature = read('win-open-sig');
-    await verifyArtifact(
-      artifactPath: options['mac-tar']!,
-      signature: macSignature,
-      publicKey: publicKey,
-    );
-    await verifyArtifact(
-      artifactPath: options['win-exe']!,
-      signature: windowsSignature,
-      publicKey: publicKey,
-    );
-    await verifyArtifact(
-      artifactPath: options['win-open-exe']!,
-      signature: windowsOpenSignature,
-      publicKey: publicKey,
-    );
+    Future<SignedArtifact> artifact(String file, String signature) =>
+        verifiedArtifact(
+          artifactPath: options[file]!,
+          signaturePath: options[signature]!,
+          publicKey: publicKey,
+        );
+    final macArchive = await artifact('mac-tar', 'mac-sig');
+    final macAnaArchive = await artifact('mac-ana-tar', 'mac-ana-sig');
+    final windowsInstaller = await artifact('win-exe', 'win-sig');
+    final windowsOpenInstaller = await artifact('win-open-exe', 'win-open-sig');
     final manifest = buildManifest(
       version: options['version']!,
-      notes: plainReleaseNotes(read('notes-file')),
+      notes: plainReleaseNotes(File(options['notes-file']!).readAsStringSync()),
       pubDate: options['pub-date']!,
       baseUrl: options['base-url']!,
-      macArchive: SignedArtifact(
-        fileName: p.basename(options['mac-tar']!),
-        signature: macSignature,
-      ),
-      windowsInstaller: SignedArtifact(
-        fileName: p.basename(options['win-exe']!),
-        signature: windowsSignature,
-      ),
-      windowsOpenInstaller: SignedArtifact(
-        fileName: p.basename(options['win-open-exe']!),
-        signature: windowsOpenSignature,
-      ),
+      macArchive: macArchive,
+      macAnaArchive: macAnaArchive,
+      windowsInstaller: windowsInstaller,
+      windowsOpenInstaller: windowsOpenInstaller,
     );
     File(options['out']!).writeAsStringSync(encodeManifest(manifest));
     output.writeln('Wrote ${options['out']}');

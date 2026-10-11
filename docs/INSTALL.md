@@ -12,7 +12,8 @@
 Visit the [latest release page](https://github.com/SatanshuMishra/project-swiftee/releases/latest)
 and download the appropriate file for your OS:
 
-- **macOS:** `Project.Swiftie_<version>_aarch64.dmg` (the Open edition)
+- **macOS, Open edition:** `Project.Swiftie_<version>_aarch64.dmg`
+- **macOS, Ana edition:** `Project.Swiftie.Ana_<version>_aarch64.dmg`
 - **Windows, Ana edition:** `Project.Swiftie_<version>_x64-setup.exe`
 - **Windows, Open edition:** `Project.Swiftie.Open_<version>_x64-setup.exe`
 
@@ -21,6 +22,12 @@ edition is the one made for Ana; the Open edition is for everyone else.
 On Windows, pick one: both editions install into the same folder and use
 the same save, so installing the other edition later replaces the first
 in place and keeps your progress.
+
+On macOS the two editions are separate apps, Project Swiftie and Project
+Swiftie Ana, that can be installed side by side and share one save. Do
+not run both at the same time: each writes its whole progress when it
+saves, so the one that saves last overwrites the other's changes, such as
+a new nickname or server link.
 
 ## First-time install — please read
 
@@ -34,12 +41,12 @@ apply silently — the warning only appears for the very first install.
 
 1. **Mount the DMG** by double-clicking it. Finder opens the disk image with
    the app icon and an Applications shortcut.
-2. **Drag "Project Swiftie" to the Applications folder.** If you already have
-   an older Project Swiftie, Finder asks whether to replace it — choose
-   **Replace**. If you have "Swiftie Quiz" from before the rename, let its
-   in-app updater update it instead, or drag it to the Trash first so you
-   do not keep two copies. Your save data is stored separately and is
-   **not** affected.
+2. **Drag "Project Swiftie" (or "Project Swiftie Ana") to the Applications
+   folder.** If you already have an older copy of that app, Finder asks
+   whether to replace it — choose **Replace**. If you have "Swiftie Quiz"
+   from before the rename, let its in-app updater update it instead, or
+   drag it to the Trash first so you do not keep two copies. Your save
+   data is stored separately and is **not** affected.
 3. **Open the app from Applications.** macOS blocks the launch with an
    unidentified-developer dialog (the exact wording differs between macOS
    versions, but the buttons are usually **Done** / **Move to Trash** with
@@ -138,9 +145,13 @@ NSIS 3 for the installer.
 flutter pub get
 flutter test
 
-# macOS: Project Swiftie.app, Project Swiftie_<version>_aarch64.dmg and Project Swiftie.app.tar.gz
+# macOS, one edition per build:
+# open: Project Swiftie_<version>_aarch64.dmg and Project Swiftie.app.tar.gz
 flutter build macos --release --dart-define=EDITION=open
-tool/release/package_macos.sh <version>
+tool/release/package_macos.sh <version> open
+# ana: Project Swiftie Ana_<version>_aarch64.dmg and Project Swiftie Ana.app.tar.gz
+flutter build macos --release --dart-define=EDITION=ana
+tool/release/package_macos.sh <version> ana
 
 # Windows (PowerShell), one edition per build:
 # Project Swiftie_<version>_x64-setup.exe (ana) or Project Swiftie Open_<version>_x64-setup.exe (open)
@@ -150,13 +161,13 @@ flutter build windows --release --dart-define=EDITION=ana
 
 The packaged files land in `build/release/`. Use the version from
 `pubspec.yaml` without its `+build` suffix, and the same edition for the
-Flutter build and the installer. A build without `--dart-define=EDITION`
-is the Open edition. Builds made this way are not signed for the in-app
-updater; only the release workflow signs them.
+Flutter build and the packaging script. A build without
+`--dart-define=EDITION` is the Open edition. Builds made this way are not
+signed for the in-app updater; only the release workflow signs them.
 
 ## Uninstalling
 
 | Platform | How |
 |---|---|
-| macOS | Drag "Project Swiftie" (or "Swiftie Quiz", if it was updated from there) from Applications to the Trash. To remove save data, also delete `~/Library/Application Support/com.swiftiequiz.desktop`. |
+| macOS | Drag "Project Swiftie" (or "Swiftie Quiz", if it was updated from there), and "Project Swiftie Ana" if you installed it, from Applications to the Trash. To remove save data, also delete `~/Library/Application Support/com.swiftiequiz.desktop`, which both macOS editions share. |
 | Windows | Use *Settings → Apps → Installed apps → Project Swiftie → Uninstall*. To remove save data, also delete `%APPDATA%\com.swiftiequiz.desktop`. |
