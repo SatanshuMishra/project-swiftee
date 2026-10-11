@@ -69,11 +69,16 @@ void writeFakeBuiltApp(Directory root) {
 
 String output(ProcessResult result) => '${result.stdout}\n${result.stderr}';
 
-Future<ProcessResult> runScript(Directory root, List<String> arguments) =>
-    Process.run('bash', [
-      '${root.path}/$scriptPath',
-      ...arguments,
-    ], workingDirectory: root.path);
+Future<ProcessResult> runScript(
+  Directory root,
+  List<String> arguments, {
+  Map<String, String>? environment,
+}) => Process.run(
+  'bash',
+  ['${root.path}/$scriptPath', ...arguments],
+  workingDirectory: root.path,
+  environment: environment,
+);
 
 List<String> lastLines(ProcessResult result, int count) {
   final lines = const LineSplitter()
@@ -296,5 +301,69 @@ void main() {
         );
       }
     }, timeout: packaging);
+
+    test('packages an Ana build that already has a display name', () async {
+      writePlist('${root.path}/$builtAppPath/Contents/Info.plist', {
+        ...builtPlist,
+        'CFBundleDisplayName': 'Project Swiftie',
+      });
+
+      final result = await runScript(root, const ['0.5.4', 'ana']);
+
+      expect(result.exitCode, 0, reason: output(result));
+      final archive =
+          '${root.path}/build/release/Project Swiftie Ana.app.tar.gz';
+      final extracted = await extractArchive(root, archive);
+      final extractedApp = '$extracted/Project Swiftie Ana.app';
+      final plist = await readPlist('$extractedApp/Contents/Info.plist');
+      expect(plist, containsPair('CFBundleDisplayName', 'Project Swiftie Ana'));
+      expect(plist, containsPair('CFBundleName', 'Project Swiftie Ana'));
+      expect(
+        plist,
+        containsPair('CFBundleIdentifier', 'com.swiftiequiz.desktop.ana'),
+      );
+      expect(plist, containsPair('CFBundleExecutable', 'Project Swiftie'));
+      await expectVerifies(extractedApp);
+    }, timeout: packaging);
+
+    test(
+      'stops before packaging when the signed bundle does not verify',
+      () async {
+        final stubs = Directory('${root.path}/stubs')..createSync();
+        final codesign = '${stubs.path}/codesign';
+        File(codesign).writeAsStringSync(
+          [
+            '#!/bin/sh',
+            r'for a in "$@"; do [ "$a" = "--verify" ] && exit 1; done',
+            r'exec /usr/bin/codesign "$@"',
+            '',
+          ].join('\n'),
+        );
+        final chmod = await Process.run('chmod', ['755', codesign]);
+        expect(chmod.exitCode, 0, reason: output(chmod));
+        final environment = {
+          'PATH': '${stubs.path}:${Platform.environment['PATH']}',
+        };
+
+        for (final edition in const ['ana', 'open']) {
+          final result = await runScript(root, [
+            '0.5.4',
+            edition,
+          ], environment: environment);
+
+          expect(
+            result.exitCode,
+            isNot(anyOf(0, 64)),
+            reason: '$edition\n${output(result)}',
+          );
+          expect(
+            Directory('${root.path}/build/release').existsSync(),
+            isFalse,
+            reason: edition,
+          );
+        }
+      },
+      timeout: packaging,
+    );
   }, skip: Platform.isMacOS ? false : 'needs codesign, hdiutil and PlistBuddy');
 }
